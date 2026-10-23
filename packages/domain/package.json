@@ -1,9 +1,0 @@
-{
-  "name": "@tom/domain",
-  "version": "0.0.0",
-  "private": true,
-  "description": "Domínio puro: parser do TOM, regras de resultado e termômetro. Sem dependência de AWS.",
-  "type": "module",
-  "main": "dist/index.js",
-  "types": "dist/index.d.ts"
-}

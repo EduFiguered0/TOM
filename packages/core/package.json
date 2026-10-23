@@ -1,0 +1,14 @@
+{
+  "name": "@tom/core",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Domínio e casos de uso. Sem nenhuma dependência.",
+  "type": "module",
+  "exports": {
+    ".": {
+      "source": "./src/index.ts",
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  }
+}

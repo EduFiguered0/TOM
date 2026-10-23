@@ -4,4 +4,4 @@ dist/
 coverage/
 .env
 .env.*
-tom/
+/tools/tom-installer/
