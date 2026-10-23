@@ -7,6 +7,8 @@ Detalhes do produto em [`docs/spec-tom.md`](docs/spec-tom.md); arquitetura em [`
 ## Estrutura
 
 ```
+apps/
+  uploader/      enviador: observa a pasta do TOM (somente leitura)
 packages/
   core/          domínio e casos de uso, sem dependências
   tom-reports/   leitura dos HTMLs do TOM (camada anticorrupção)
@@ -29,6 +31,14 @@ npm test          # só testes
 npm run build     # compila os pacotes para dist/
 ```
 
+Enviador (até a fase 10 só detecta e registra no console; nada sai da máquina):
+
+```bash
+npm run uploader -- --folder "C:\Users\<você>\TOM_DATA\data\reports"
+```
+
+Opções: `--state` (registro de envios, padrão `~/.tom-uploader/sent.json`, nunca dentro da pasta do TOM), `--interval` e `--quiet` em ms.
+
 ## Status
 
 | Fase | Entrega | Status |
@@ -37,8 +47,8 @@ npm run build     # compila os pacotes para dist/
 | 1 | Parser dos HTMLs do TOM | ✅ |
 | 2 | Regras de resultado e termômetro | ✅ |
 | 3 | Modelo de eventos e recálculo do estado | ✅ |
-| 4 | Enviador (observa a pasta do TOM) | ⏳ |
-| 5 | Infraestrutura AWS | |
+| 4 | Enviador (observa a pasta do TOM) | ✅ |
+| 5 | Infraestrutura AWS | ⏳ |
 | 6 | Login, papéis e sessão | |
 | 7–9 | Telas: celular, TV e painel | |
 | 10 | Upload do enviador para a API | |

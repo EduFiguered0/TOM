@@ -7,5 +7,5 @@
     "customConditions": ["source"],
     "types": ["node"]
   },
-  "include": ["packages/*/src", "packages/*/test", "*.ts"]
+  "include": ["packages/*/src", "packages/*/test", "apps/*/src", "apps/*/test", "*.ts"]
 }

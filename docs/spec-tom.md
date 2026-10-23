@@ -239,7 +239,7 @@ Uma fase por vez; cada fase tem os próprios testes e só começa a próxima dep
 Em aberto:
 
 - [x] Dependência do match_slips: as guias são obrigatórias em toda rodada com mesas. Sem elas (ou com guias de outra rodada), o pareamento é recusado e o sistema pede para gerar as guias no TOM. Sem fallback por nome na v1.
-- [ ] Como o enviador percebe que o TOM terminou de escrever um arquivo (tamanho estável, lock) e com que frequência ele reescreve.
+- [x] Como o enviador percebe que o TOM terminou de escrever: o arquivo fica sem mudar de tamanho e data por 1,5 s e termina em `</html>`. A pasta é lida por polling a cada 1 s (o `fs.watch` perde eventos no Windows/OneDrive). Todos os HTMLs do evento mais recente são enviados, inclusive brackets; conteúdo idêntico (mesmo SHA-256) não é reenviado. A frequência real de regravação do TOM sai do log do enviador num evento real.
 - [ ] Top cut / eliminatória (arquivo brackets).
 - [ ] Critério do ranking (fase futura).
 - [ ] Atualização em tempo real no celular sem polling (evolução).
