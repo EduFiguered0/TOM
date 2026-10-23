@@ -26,6 +26,12 @@ export default tseslint.config(
     rules: restrictImports([{ group: ['@tom/*', '!@tom/core'], message: 'tom-reports só depende de @tom/core.' }]),
   },
   {
+    files: ['apps/uploader/src/**'],
+    rules: restrictImports([
+      { group: ['@tom/*', '!@tom/core', '!@tom/tom-reports'], message: 'uploader só depende de core e tom-reports.' },
+    ]),
+  },
+  {
     files: ['*.js'],
     ...tseslint.configs.disableTypeChecked,
   },

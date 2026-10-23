@@ -1,4 +1,8 @@
 {
   "files": [],
-  "references": [{ "path": "packages/core" }, { "path": "packages/tom-reports" }]
+  "references": [
+    { "path": "packages/core" },
+    { "path": "packages/tom-reports" },
+    { "path": "apps/uploader" }
+  ]
 }
