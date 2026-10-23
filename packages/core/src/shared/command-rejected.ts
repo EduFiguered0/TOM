@@ -1,0 +1,26 @@
+export type RejectCode =
+  | 'forbidden'
+  | 'invalid_input'
+  | 'round_not_paired'
+  | 'round_already_started'
+  | 'round_not_started'
+  | 'previous_round_open'
+  | 'table_not_found'
+  | 'not_your_table'
+  | 'side_required'
+  | 'table_locked'
+  | 'not_green'
+  | 'key_already_launched'
+  | 'concurrency';
+
+/** Comando recusado por regra de negócio; nada foi gravado. */
+export class CommandRejected extends Error {
+  override name = 'CommandRejected';
+
+  constructor(
+    readonly code: RejectCode,
+    message: string,
+  ) {
+    super(message);
+  }
+}
