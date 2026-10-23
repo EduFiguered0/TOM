@@ -13,7 +13,7 @@ packages/
   core/          domínio e casos de uso, sem dependências
   tom-reports/   leitura dos HTMLs do TOM (camada anticorrupção)
   aws-adapters/  DynamoDB e S3 implementando as portas do core
-infra/           AWS CDK: tabela de eventos (DynamoDB) e fotografias (S3)
+infra/           AWS CDK: eventos (DynamoDB), fotografias (S3) e login (Cognito)
 docs/            spec, ADRs e PDFs de referência
 tools/           material local fora do git (instalador do TOM)
 ```
@@ -40,11 +40,11 @@ Enviador (até a fase 10 só detecta e registra no console; nada sai da máquina
 npm run uploader -- --folder "C:\Users\<você>\TOM_DATA\data\reports"
 ```
 
-Infraestrutura (região us-east-2, perfil `tom`; `TomData` é produção, `TomTest` é descartável e usada nos testes reais):
+Infraestrutura (região us-east-2, perfil `tom`; `TomData`/`TomAuth` são produção, `TomTest`/`TomAuthTest` são descartáveis e usadas nos testes reais):
 
 ```bash
 npm run cdk -- diff --profile tom
-npm run cdk -- deploy TomData TomTest --profile tom
+npm run cdk -- deploy TomData TomTest TomAuth TomAuthTest --profile tom
 ```
 
 O bootstrap usa a policy restrita `TomCdkExecution` (`infra/bootstrap/execution-policy.json`) em vez de `AdministratorAccess`:
@@ -66,6 +66,6 @@ Opções do enviador: `--state` (registro de envios, padrão `~/.tom-uploader/se
 | 3 | Modelo de eventos e recálculo do estado | ✅ |
 | 4 | Enviador (observa a pasta do TOM) | ✅ |
 | 5 | Infraestrutura AWS, EventStore no DynamoDB, fotografias no S3 | ✅ |
-| 6 | Login, papéis e sessão | |
+| 6 | Login, papéis e sessão (6.1 domínio + Cognito ✅, 6.2 API, 6.3 Player ID e Google) | ⏳ |
 | 7–9 | Telas: celular, TV e painel | |
 | 10 | Upload do enviador para a API | |
