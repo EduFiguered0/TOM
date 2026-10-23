@@ -35,8 +35,8 @@ npm run build     # compila os pacotes para dist/
 | --- | --- | --- |
 | 0 | Repositório, TypeScript, lint, testes | ✅ |
 | 1 | Parser dos HTMLs do TOM | ✅ |
-| 2 | Regras de resultado e termômetro | ⏳ |
-| 3 | Modelo de eventos e recálculo do estado | |
+| 2 | Regras de resultado e termômetro | ✅ |
+| 3 | Modelo de eventos e recálculo do estado | ⏳ |
 | 4 | Enviador (observa a pasta do TOM) | |
 | 5 | Infraestrutura AWS | |
 | 6 | Login, papéis e sessão | |

@@ -116,6 +116,8 @@ O resultado guarda o **placar de games**, não só vitória, derrota ou empate. 
 
 O formato da partida (melhor de 1 ou melhor de 3) é configurado por evento e limita os placares possíveis.
 
+Placares válidos: melhor de 3 aceita 2x0, 2x1, 1x0, 1x1 e 0x0; melhor de 1 aceita 1x0 e 0x0. Vitória por ausência vale 2x0 no melhor de 3 e 1x0 no melhor de 1. Double game loss não tem key na guia do TOM e é lançado à mão pelo ADM.
+
 ## Termômetro de validação de resultados **[R2]**
 
 Cada mesa tem uma cor que indica a ação necessária; a próxima rodada só começa com todas as mesas verdes.
@@ -138,6 +140,8 @@ Regras:
 - **Key lançada trava em definitivo.** Quando o ADM marca "key lançada no TOM", a mesa fica fechada. Um override depois disso ainda é possível, mas o painel avisa que o TOM também precisa ser corrigido.
 - **Override** (juiz ou ADM) é um evento à parte, com autor, motivo e horário, e prevalece sobre os reportes.
 - Um dispositivo por pessoa. Jogador sem celular: o ADM reporta por ele no painel. Se os dois jogadores da mesa estão sem celular, o ADM media e lança o resultado.
+- Antes de o ADM iniciar a rodada, nenhuma mesa fica vermelha por tempo. Com conflito e tempo esgotado ao mesmo tempo, o motivo mostrado é o conflito.
+- Intentional draw só bate com intentional draw; contra um empate em games (ex.: 0x0) é conflito.
 
 ## Telas **[R2]**
 
