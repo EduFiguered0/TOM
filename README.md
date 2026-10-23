@@ -12,6 +12,8 @@ apps/
 packages/
   core/          domínio e casos de uso, sem dependências
   tom-reports/   leitura dos HTMLs do TOM (camada anticorrupção)
+  aws-adapters/  DynamoDB e S3 implementando as portas do core
+infra/           AWS CDK: tabela de eventos (DynamoDB) e fotografias (S3)
 docs/            spec, ADRs e PDFs de referência
 tools/           material local fora do git (instalador do TOM)
 ```
@@ -20,14 +22,15 @@ Regra de dependência: `apps → adaptadores → core`. O `core` não importa na
 
 ## Requisitos
 
-- Node.js 20.18 ou mais novo
+- Node.js 22 ou mais novo (via nvm-windows: `nvm install 22` e `nvm use 22`)
 
 ## Comandos
 
 ```bash
 npm install
 npm run check     # typecheck + lint + testes
-npm test          # só testes
+npm test          # só testes (offline)
+npm run test:aws  # contrato dos adaptadores contra a stack TomTest (precisa de `aws login --profile tom`)
 npm run build     # compila os pacotes para dist/
 ```
 
@@ -37,7 +40,21 @@ Enviador (até a fase 10 só detecta e registra no console; nada sai da máquina
 npm run uploader -- --folder "C:\Users\<você>\TOM_DATA\data\reports"
 ```
 
-Opções: `--state` (registro de envios, padrão `~/.tom-uploader/sent.json`, nunca dentro da pasta do TOM), `--interval` e `--quiet` em ms.
+Infraestrutura (região us-east-2, perfil `tom`; `TomData` é produção, `TomTest` é descartável e usada nos testes reais):
+
+```bash
+npm run cdk -- diff --profile tom
+npm run cdk -- deploy TomData TomTest --profile tom
+```
+
+O bootstrap usa a policy restrita `TomCdkExecution` (`infra/bootstrap/execution-policy.json`) em vez de `AdministratorAccess`:
+
+```bash
+aws iam create-policy --profile tom --policy-name TomCdkExecution --policy-document file://infra/bootstrap/execution-policy.json
+npm run cdk -- bootstrap aws://<conta>/us-east-2 --profile tom --cloudformation-execution-policies arn:aws:iam::<conta>:policy/TomCdkExecution
+```
+
+Opções do enviador: `--state` (registro de envios, padrão `~/.tom-uploader/sent.json`, nunca dentro da pasta do TOM), `--interval` e `--quiet` em ms.
 
 ## Status
 
@@ -48,7 +65,7 @@ Opções: `--state` (registro de envios, padrão `~/.tom-uploader/sent.json`, nu
 | 2 | Regras de resultado e termômetro | ✅ |
 | 3 | Modelo de eventos e recálculo do estado | ✅ |
 | 4 | Enviador (observa a pasta do TOM) | ✅ |
-| 5 | Infraestrutura AWS | ⏳ |
+| 5 | Infraestrutura AWS, EventStore no DynamoDB, fotografias no S3 | ✅ |
 | 6 | Login, papéis e sessão | |
 | 7–9 | Telas: celular, TV e painel | |
 | 10 | Upload do enviador para a API | |

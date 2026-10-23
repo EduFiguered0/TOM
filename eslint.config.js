@@ -6,7 +6,7 @@ const restrictImports = (patterns) => ({
 });
 
 export default tseslint.config(
-  { ignores: ['**/dist/**', '**/node_modules/**', '**/test/fixtures/**', 'tools/**'] },
+  { ignores: ['**/dist/**', '**/node_modules/**', '**/test/fixtures/**', 'tools/**', 'infra/cdk.out/**'] },
   eslint.configs.recommended,
   ...tseslint.configs.strictTypeChecked,
   {
@@ -24,6 +24,10 @@ export default tseslint.config(
   {
     files: ['packages/tom-reports/src/**'],
     rules: restrictImports([{ group: ['@tom/*', '!@tom/core'], message: 'tom-reports só depende de @tom/core.' }]),
+  },
+  {
+    files: ['packages/aws-adapters/src/**'],
+    rules: restrictImports([{ group: ['@tom/*', '!@tom/core'], message: 'aws-adapters só depende de @tom/core.' }]),
   },
   {
     files: ['apps/uploader/src/**'],

@@ -1,0 +1,38 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "DadosDoProjeto",
+      "Effect": "Allow",
+      "Action": ["dynamodb:*", "s3:*", "lambda:*"],
+      "Resource": [
+        "arn:aws:dynamodb:us-east-2:*:table/Tom*",
+        "arn:aws:s3:::tom*",
+        "arn:aws:lambda:us-east-2:*:function:Tom*"
+      ]
+    },
+    {
+      "Sid": "ServicosRegionais",
+      "Effect": "Allow",
+      "Action": ["apigateway:*", "cognito-idp:*", "logs:*", "ssm:GetParameter", "ssm:GetParameters"],
+      "Resource": "*",
+      "Condition": { "StringEquals": { "aws:RequestedRegion": "us-east-2" } }
+    },
+    {
+      "Sid": "CloudFrontGlobal",
+      "Effect": "Allow",
+      "Action": "cloudfront:*",
+      "Resource": "*"
+    },
+    {
+      "Sid": "RolesDeServicoDoProjeto",
+      "Effect": "Allow",
+      "Action": [
+        "iam:CreateRole", "iam:DeleteRole", "iam:GetRole", "iam:PassRole", "iam:TagRole", "iam:UntagRole",
+        "iam:UpdateAssumeRolePolicy", "iam:AttachRolePolicy", "iam:DetachRolePolicy",
+        "iam:PutRolePolicy", "iam:DeleteRolePolicy", "iam:GetRolePolicy"
+      ],
+      "Resource": "arn:aws:iam::*:role/Tom*"
+    }
+  ]
+}

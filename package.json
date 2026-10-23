@@ -4,10 +4,11 @@
   "type": "module",
   "workspaces": [
     "packages/*",
-    "apps/*"
+    "apps/*",
+    "infra"
   ],
   "engines": {
-    "node": ">=20.18"
+    "node": ">=22"
   },
   "scripts": {
     "build": "tsc -b",
@@ -16,11 +17,13 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "check": "npm run typecheck && npm run lint && npm run test",
-    "uploader": "npm run build && node apps/uploader/dist/main.js"
+    "uploader": "npm run build && node apps/uploader/dist/main.js",
+    "cdk": "npm run cdk -w @tom/infra --",
+    "test:aws": "vitest run -c vitest.aws.config.ts"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.5",
-    "@types/node": "^20.19.43",
+    "@types/node": "^22.20.5",
     "eslint": "^9.39.5",
     "typescript": "^5.9.3",
     "typescript-eslint": "^8.72.0",
