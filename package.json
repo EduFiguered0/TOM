@@ -18,7 +18,8 @@
     "test:watch": "vitest",
     "check": "npm run typecheck && npm run lint && npm run test",
     "uploader": "npm run build && node apps/uploader/dist/main.js",
-    "cdk": "npm run cdk -w @tom/infra --"
+    "cdk": "npm run cdk -w @tom/infra --",
+    "test:aws": "vitest run -c vitest.aws.config.ts"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.5",

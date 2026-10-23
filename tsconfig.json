@@ -3,6 +3,7 @@
   "references": [
     { "path": "packages/core" },
     { "path": "packages/tom-reports" },
+    { "path": "packages/aws-adapters" },
     { "path": "apps/uploader" }
   ]
 }

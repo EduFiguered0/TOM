@@ -12,6 +12,7 @@ apps/
 packages/
   core/          domínio e casos de uso, sem dependências
   tom-reports/   leitura dos HTMLs do TOM (camada anticorrupção)
+  aws-adapters/  DynamoDB e S3 implementando as portas do core
 infra/           AWS CDK: tabela de eventos (DynamoDB) e fotografias (S3)
 docs/            spec, ADRs e PDFs de referência
 tools/           material local fora do git (instalador do TOM)
@@ -28,7 +29,8 @@ Regra de dependência: `apps → adaptadores → core`. O `core` não importa na
 ```bash
 npm install
 npm run check     # typecheck + lint + testes
-npm test          # só testes
+npm test          # só testes (offline)
+npm run test:aws  # contrato dos adaptadores contra a stack TomTest (precisa de `aws login --profile tom`)
 npm run build     # compila os pacotes para dist/
 ```
 
@@ -63,7 +65,7 @@ Opções do enviador: `--state` (registro de envios, padrão `~/.tom-uploader/se
 | 2 | Regras de resultado e termômetro | ✅ |
 | 3 | Modelo de eventos e recálculo do estado | ✅ |
 | 4 | Enviador (observa a pasta do TOM) | ✅ |
-| 5 | Infraestrutura AWS (5.1 infra ✅, 5.2 DynamoDB, 5.3 S3) | ⏳ |
+| 5 | Infraestrutura AWS (5.1 infra ✅, 5.2 DynamoDB ✅, 5.3 S3) | ⏳ |
 | 6 | Login, papéis e sessão | |
 | 7–9 | Telas: celular, TV e painel | |
 | 10 | Upload do enviador para a API | |
