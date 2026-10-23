@@ -1,0 +1,118 @@
+<html>
+<head>
+    <meta http-equiv='Content-Type' content='text/html; charset=utf-8'>
+    <title>Lista de jogadores - FODASE - 10/12/2026 14:09:22</title>
+    <!--@formatter:off-->
+    <link rel="stylesheet" href="main.css">
+    <!--@formatter:on-->
+    <style type='text/css'>
+        .players_table {
+            padding: 5px;
+        }
+    </style>
+</head>
+<body class='report'>
+<!-- [[BEGIN_REPORT]] -->
+
+<h3>Lista de jogadores</h3>
+<button class="toggleButton">Show only players with a static seat</button>
+<br/><br/>
+Torneio: <b>FODASE</b> 
+<br/>
+<h3>Divisão Mestre -- 5 Players Entered</h3>
+<table class='players_table report border'>
+    <thead>
+        <tr>
+            <th scope='col'><strong>Mesa&nbsp;#</strong></th>
+            <th scope='col'><strong>Nome</strong></th>
+            <th scope='col'><strong>Idade&nbsp;Divisão</strong></th>
+            
+            <th scope='col'><strong>Assento estático</strong></th>
+            <th scope='col'><strong>Byes&nbsp;recebidos</strong></th>
+        </tr>
+    </thead>
+    <tbody>
+        
+        <tr >
+            <td align='left'>1</td>
+            <td align='left'>teste1 1</td>
+            <td align='right'>ME</td>
+            
+            <td align='right'></td>
+            <td align='right'></td>
+        </tr>
+        
+        <tr >
+            <td align='left'>1</td>
+            <td align='left'>teste2 2</td>
+            <td align='right'>ME</td>
+            
+            <td align='right'></td>
+            <td align='right'></td>
+        </tr>
+        
+        <tr >
+            <td align='left'>2</td>
+            <td align='left'>teste3 3</td>
+            <td align='right'>ME</td>
+            
+            <td align='right'></td>
+            <td align='right'></td>
+        </tr>
+        
+        <tr >
+            <td align='left'>2</td>
+            <td align='left'>teste4 4</td>
+            <td align='right'>ME</td>
+            
+            <td align='right'></td>
+            <td align='right'></td>
+        </tr>
+        
+        <tr >
+            <td align='left'>3</td>
+            <td align='left'>teste5 5</td>
+            <td align='right'>ME</td>
+            
+            <td align='right'></td>
+            <td align='right'></td>
+        </tr>
+        
+    </tbody>
+</table>
+<p>&nbsp;</p>
+<table class='footer' width='100%'>
+    <tr>
+        <td class='footer' width='33%' align='left'><b>FODASE</b></td>
+        <td class='footer' width='33%' align='center'><b>Teste ADM</b></td>
+        <td class='footer' width='33%' align='right'><b>10/12/2026 14:09:22</b></td>
+    </tr>
+</table>
+
+
+<!-- [[END_REPORT]] -->
+</body>
+<script>
+    document.querySelectorAll(".toggleButton").forEach(button => { 
+        button.addEventListener("click", function() {
+            let tables = document.querySelectorAll(".players_table");
+            let showOnlyMatching = this.dataset.showOnlyMatching === "true";
+    
+            tables.forEach(table => {
+                let rows = table.querySelectorAll("tbody tr");
+                rows.forEach(row => {
+                    if (!row.classList.contains("static-seat")) {
+                        row.style.display = showOnlyMatching ? "" : "none";
+                    }
+                });
+            });
+        
+            // Update buttons state
+            document.querySelectorAll(".toggleButton").forEach(btn => { 
+                btn.dataset.showOnlyMatching = showOnlyMatching ? "false" : "true";
+                btn.textContent = showOnlyMatching ? "Show only players with a static seat" : "Show all players";
+            });
+        });
+    });
+</script>
+</html>

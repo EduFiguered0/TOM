@@ -4,7 +4,8 @@
     "noEmit": true,
     "composite": false,
     "declaration": false,
+    "customConditions": ["source"],
     "types": ["node"]
   },
-  "include": ["packages/*/src", "*.ts"]
+  "include": ["packages/*/src", "packages/*/test", "*.ts"]
 }

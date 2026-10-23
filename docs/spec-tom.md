@@ -54,6 +54,7 @@ Tudo roda online, com HTTPS de ponta a ponta. A única peça local é o **enviad
 **Stack.** TypeScript de ponta a ponta, com os tipos de domínio compartilhados entre celular, TV, painel e API.
 
 - Domínio puro (parser do TOM, termômetro, regras de resultado) em TypeScript sem nenhuma dependência de AWS. A AWS fica atrás de interfaces (inversão de dependência), então o núcleo roda e é testado sem nuvem.
+- Arquitetura do repositório (camadas, pacotes e regra de dependência): ver `docs/adr/0001-arquitetura-do-repositorio.md`.
 - AWS: Cognito (login e códigos por e-mail), API Gateway + Lambda, DynamoDB, S3 (HTMLs brutos), CloudFront (site).
 - Escala: até 100 jogadores (50 mesas) por evento. Os serviços "sempre gratuitos" cobrem isso com folga; as condições do Free Tier para contas novas mudaram em 2025 e devem ser conferidas na criação da conta.
 
@@ -73,9 +74,11 @@ O TOM grava um conjunto de HTMLs por torneio, com o nome do torneio como prefixo
 
 O `.tdf` só é gerado no início e no fim do evento e é o arquivo enviado para a Pokémon; o sistema não depende dele nem o altera.
 
+A pasta acumula torneios; o sistema mostra sempre um só, o mais recente: o torneio com o arquivo modificado por último.
+
 Nomes não servem como chave: dois jogadores podem ter o mesmo nome. A chave é sempre o Player ID.
 
-Os HTMLs reais gerados pelo TOM 1.86 num torneio de teste ficam em `fixtures/tom/` e são a base dos testes do parser.
+Os HTMLs reais gerados pelo TOM 1.86 num torneio de teste ficam em `packages/tom-reports/test/fixtures/` e são a base dos testes do parser.
 
 ## Fluxo do evento **[R2]**
 
@@ -215,7 +218,7 @@ Uma fase por vez; cada fase tem os próprios testes e só começa a próxima dep
 | Fase | Entrega | Precisa de AWS? |
 | --- | --- | --- |
 | 0 | Repositório git, estrutura TypeScript, lint, testes rodando | Não |
-| 1 | Parser dos HTMLs do TOM (função pura, testada com `fixtures/tom/`) | Não |
+| 1 | Parser dos HTMLs do TOM (função pura, testada com as fixtures reais) | Não |
 | 2 | Regras de resultado e termômetro (puro) | Não |
 | 3 | Modelo de eventos e recálculo do estado (repositório em memória, atrás de interface) | Não |
 | 4 | Enviador: observar a pasta do TOM e detectar escrita completa | Não |

@@ -1,0 +1,18 @@
+{
+  "name": "@tom/tom-reports",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Camada anticorrupção: HTMLs do TOM para o modelo do core.",
+  "type": "module",
+  "exports": {
+    ".": {
+      "source": "./src/index.ts",
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "dependencies": {
+    "@tom/core": "0.0.0",
+    "node-html-parser": "^7.0.1"
+  }
+}

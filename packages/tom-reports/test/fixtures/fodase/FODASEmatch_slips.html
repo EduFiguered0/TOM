@@ -1,0 +1,405 @@
+<html lang="en">
+<head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+    <title>Guias de partidas - FODASE - 10/12/2026 14:11:52</title>
+
+    <!--@formatter:off-->
+    <link rel="stylesheet" href="main.css">
+    <!--@formatter:on-->
+
+    <!--@formatter:off-->
+    <style>
+        .match_slip {
+            width: 700px;
+            padding: 0;
+            page-break-before: avoid;
+            page-break-inside: avoid;
+            page-break-after: avoid;
+            orphans: 0;
+            widows: 0;
+        }
+
+        .table-font-size {
+            font-size: [[TABLE_FONT_SIZE]]pt;
+        }
+
+        .barcode {
+            border: none;
+        }
+
+    </style>
+    <!--@formatter:on-->
+    <style media="all">
+        body {
+            font-size: 12px;
+            margin: 0;
+        }
+
+        .player-1-barcode img {
+            transform: rotate(90deg) translate(-86px, 15px);
+            position: absolute;
+            width: 25px;
+            height: 200px;
+        }
+
+        .player-2-barcode img {
+            transform: rotate(90deg) translate(-86px, 15px);
+            position: absolute;
+            width: 25px;
+            height: 200px;
+        }
+
+        .tie-barcode img {
+            transform: rotate(90deg) translate(-86px, 15px);
+            position: absolute;
+            width: 25px;
+            height: 200px;
+        }
+
+        table {
+            font-family: Verdana, Arial, Helvetica, sans-serif, "Hiragino Kaku Gothic ProN", "Hiragino Sans", "MS PGothic", "Meyrio";
+            padding: 0;
+            border-spacing: 0;
+            border-collapse: collapse;
+        }
+
+        td {
+            font-family: Verdana, Arial, Helvetica, sans-serif, "Hiragino Kaku Gothic ProN", "Hiragino Sans", "MS PGothic", "Meyrio";
+            border: 1px inset black;
+            background: white;
+            color: black;
+        }
+
+        @page {
+            size: 8.5in 11in;
+            margin: 0.22in 0.0in 0.0in 0.0in;
+        }
+
+        /* 
+            1 inch = 96 CSS-defined px (not pixels) so a 700px form 
+            is actually 7.29167 inches wide.  I am using 700px for
+            easier math and finer adjustments. -- Jeff
+        */
+
+        .heading {
+            font-variant: small-caps;
+            text-align: center;
+            vertical-align: middle;
+        }
+
+        .small {
+            font-size: 10px;
+        }
+        
+        .pagebreak {
+            height: 0px;
+            page-break-before: always;
+        }
+
+        td.matchrecord {
+            height: 50px;
+        }
+
+        tr.nobottomborder td {
+            border-bottom: none;
+        }
+
+        tr.noleftborder td {
+            border-left: none;
+        }
+
+        tr.norightborder td {
+            border-right: none;
+        }
+
+        .noborders {
+            border: none;
+        }
+
+        tr.notopborder td {
+            border-top: none;
+        }
+
+        .debug {
+            border-color: red;
+        }
+
+        .match_slip_format {
+            height: 216px;
+            margin: 0 auto;
+            border-collapse: separate;
+        }
+
+        .player-1-win {
+            width: 40px;
+            border-width: 0;
+            border-style: solid none;
+            border-color: rgb(0, 0, 0);
+            position: relative;
+        }
+
+        .player-1-win-details {
+            position: absolute;
+            margin-top: 2px;
+            width: 208px;
+            height: 100px;
+            text-align: left;
+            overflow: hidden;
+            top: 0;
+            left: 0;
+            transform-origin: left top;
+            transform: rotate(90deg) translate(0px, -40px);
+        }
+
+        .player-1-info {
+            width: 180px;
+            border-width: 2px 1px 2px 2px;
+            border-style: none none none solid;
+            border-color: rgb(0, 0, 0);
+            position: relative;
+        }
+
+        .player-1-info-details {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 212px;
+            height: 180px;
+            text-align: center;
+            padding: 0;
+            overflow: hidden;
+            transform-origin: right top;
+            transform: rotate(-90deg) translate(0px, -212px);
+        }
+
+        .tied-info {
+            width: 260px;
+            vertical-align: middle;
+            border: 1px dashed rgb(0, 0, 0);
+            position: relative;
+        }
+
+        .tied-info-details {
+            margin-left: auto;
+            margin-right: auto;
+            text-align: center;
+            padding: 0;
+            overflow: auto;
+            width: 100%;
+            vertical-align: bottom;
+        }
+
+        .player-2-info {
+            width: 180px;
+            border-width: 2px 2px 2px 1px;
+            border-style: none solid none none;
+            border-color: rgb(0, 0, 0);
+            position: relative;
+        }
+
+        .player-2-info-details {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 212px;
+            height: 180px;
+            text-align: center;
+            padding: 0;
+            overflow: hidden;
+            transform-origin: left top;
+            transform: rotate(90deg) translate(0px, -177px);
+        }
+
+        .player-2-win {
+            width: 40px;
+            border-width: 0;
+            border-style: solid none;
+            border-color: rgb(0, 0, 0);
+            position: relative;
+        }
+
+        .player-2-win-details {
+            position: absolute;
+            margin-top: 2px;
+            width: 208px;
+            height: 100px;
+            text-align: left;
+            overflow: hidden;
+            top: 0;
+            right: 0;
+            transform-origin: right top;
+            transform: rotate(-90deg) translate(0px, -40px);
+        }
+
+        .below-barcode-padding {
+            padding-top: 0px;
+        }
+
+        .tie-instructions {
+            margin-top: 4px;
+        }
+        
+        div.pagebreak {
+            height: 0px;
+        }
+        
+        hr {
+            margin: 24px;
+        }
+
+    </style>
+    <script>
+        let display = function displayAlert() {
+            alert("For match slips to print correctly, make sure your page layout is portrait and your headers and footers are turned OFF.\n\n\n\nView your first report in Print Preview to verify margins and ensure slips are fitting properly on the page.");
+        }
+
+        let initializeBarcodes = function() {
+            if (typeof JsBarcode !== "function") {
+                console.warn("JsBarcode is not available. Barcode generation skipped.");
+                return;
+            }
+
+            document.querySelectorAll(".barcode-placeholder").forEach(element => {
+                const value = element.dataset.barcode;
+                if (value && value.trim() !== "") {
+                element.innerHTML = `
+                    <svg class="barcode"
+                        jsbarcode-format="CODE128" jsbarcode-value="${value.trim()}"
+                        jsbarcode-width="2" jsbarcode-height="25"
+                        jsbarcode-padding="0" jsbarcode-margin="0"
+                        jsbarcode-displayvalue="false">
+                    </svg>
+                `;
+                }
+            });
+            JsBarcode(".barcode").init();
+        }
+    </script>
+    <script src="JsBarcode.code128.min.js"></script>  
+</head>
+<body onload="display(); initializeBarcodes()" class="report">
+<!-- [[BEGIN_REPORT]] -->
+
+
+<table class="match_slip match_slip_format">
+    <tbody>
+    <tr class="noborders">
+        <td class="player-1-win">
+            <div class="barcode1 small rotate-left player-1-win-details">
+                <span style="float: right; text-align: right;">2/0/0 (6)<br><u>Initial below:</u></span>teste2 2<br><span
+                    style="font-size: 18px">100001  - ME <span></span></span></div>
+        </td>
+        <td class="player-1-info">
+            <div class="player1 player-1-info-details">
+                <i style="font-size: 10px;">key: 23119</i>
+                <!-- player1 barcode -->
+                <div class="player-1-barcode barcode-placeholder" data-barcode="23119">23119</div>
+                <div class="below-barcode-padding"><span style="font-size: 20px;" class="heading">Table #1</span><br><b
+                        style="font-size: 20px;">teste2 2</b><br><br><b
+                        style="font-size: 16px;">WINNER</b><br><b
+                        style="font-size: 12px;">Player 1</b></div>
+            </div>
+        </td>
+        <td class="tied-info">
+            <div class="barcode3 small tied-info-details">
+                <i>key: 23135</i><br>
+                <!-- tie image -->
+                <div class="tie-barcode barcode-placeholder" data-barcode="23135">23135</div>
+                <div class="below-barcode-padding">
+                    <b>FODASE<br>
+                        Rodada 
+                        3 </b>
+                    <div class="tie-instructions">
+                        <i>checkmark who wins each game,<br>
+                            circle <b>WINNER</b> or <b>TIE</b> for the match,<br>
+                            then both players initial their end</i>
+                    </div>
+                    <div>
+                        <span style="font-size: 14px;">_______ ▢ game 1 ▢ _______<br>_______ ▢ game 2 ▢ _______<br>_______ ▢ game 3 ▢ _______</span><br><br><span style="font-size: 16px;"><b>TIE</b></span>
+                    </div>
+                </div>
+            </div>
+        </td>
+        <td class="player-2-info">
+            <div class="player2 player-2-info-details">
+                <i style="font-size: 10px;">key: 23127</i>
+                <!-- player 2 barcode-->
+                <div class="player-2-barcode barcode-placeholder" data-barcode="23127">23127</div>
+                <div class="below-barcode-padding"><span style="font-size: 20px;" class="heading">Table #1</span><br><b
+                        style="font-size: 20px;">teste5 5</b><br><br><b
+                        style="font-size: 16px;">WINNER</b><br><b
+                        style="font-size: 12px;">Player 2</b></div>
+            </div>
+        </td>
+        <td class="player-2-win">
+            <div class="barcode2 small player-2-win-details">
+                <span style="float: right; text-align: right;">2/0/0 (6)<br><u>Initial below:</u></span>teste5 5<br><span
+                    style="font-size: 18px">100002  - ME<span></span></span></div>
+        </td>
+    </tr>
+    </tbody>
+</table>
+<hr>
+<table class="match_slip match_slip_format">
+    <tbody>
+    <tr class="noborders">
+        <td class="player-1-win">
+            <div class="barcode1 small rotate-left player-1-win-details">
+                <span style="float: right; text-align: right;">1/1/0 (3)<br><u>Initial below:</u></span>teste3 3<br><span
+                    style="font-size: 18px">100005  - ME <span></span></span></div>
+        </td>
+        <td class="player-1-info">
+            <div class="player1 player-1-info-details">
+                <i style="font-size: 10px;">key: 23218</i>
+                <!-- player1 barcode -->
+                <div class="player-1-barcode barcode-placeholder" data-barcode="23218">23218</div>
+                <div class="below-barcode-padding"><span style="font-size: 20px;" class="heading">Table #2</span><br><b
+                        style="font-size: 20px;">teste3 3</b><br><br><b
+                        style="font-size: 16px;">WINNER</b><br><b
+                        style="font-size: 12px;">Player 1</b></div>
+            </div>
+        </td>
+        <td class="tied-info">
+            <div class="barcode3 small tied-info-details">
+                <i>key: 23234</i><br>
+                <!-- tie image -->
+                <div class="tie-barcode barcode-placeholder" data-barcode="23234">23234</div>
+                <div class="below-barcode-padding">
+                    <b>FODASE<br>
+                        Rodada 
+                        3 </b>
+                    <div class="tie-instructions">
+                        <i>checkmark who wins each game,<br>
+                            circle <b>WINNER</b> or <b>TIE</b> for the match,<br>
+                            then both players initial their end</i>
+                    </div>
+                    <div>
+                        <span style="font-size: 14px;">_______ ▢ game 1 ▢ _______<br>_______ ▢ game 2 ▢ _______<br>_______ ▢ game 3 ▢ _______</span><br><br><span style="font-size: 16px;"><b>TIE</b></span>
+                    </div>
+                </div>
+            </div>
+        </td>
+        <td class="player-2-info">
+            <div class="player2 player-2-info-details">
+                <i style="font-size: 10px;">key: 23226</i>
+                <!-- player 2 barcode-->
+                <div class="player-2-barcode barcode-placeholder" data-barcode="23226">23226</div>
+                <div class="below-barcode-padding"><span style="font-size: 20px;" class="heading">Table #2</span><br><b
+                        style="font-size: 20px;">teste4 4</b><br><br><b
+                        style="font-size: 16px;">WINNER</b><br><b
+                        style="font-size: 12px;">Player 2</b></div>
+            </div>
+        </td>
+        <td class="player-2-win">
+            <div class="barcode2 small player-2-win-details">
+                <span style="float: right; text-align: right;">1/1/0 (3)<br><u>Initial below:</u></span>teste4 4<br><span
+                    style="font-size: 18px">100004  - ME<span></span></span></div>
+        </td>
+    </tr>
+    </tbody>
+</table>
+<hr>
+
+<!-- [[END_REPORT]] -->
+</body>
+</html>
