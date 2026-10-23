@@ -6,7 +6,7 @@ const restrictImports = (patterns) => ({
 });
 
 export default tseslint.config(
-  { ignores: ['**/dist/**', '**/node_modules/**', '**/test/fixtures/**', 'tools/**'] },
+  { ignores: ['**/dist/**', '**/node_modules/**', '**/test/fixtures/**', 'tools/**', 'infra/cdk.out/**'] },
   eslint.configs.recommended,
   ...tseslint.configs.strictTypeChecked,
   {
