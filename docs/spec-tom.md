@@ -139,6 +139,9 @@ Regras:
 - **Verde trava a mesa para os jogadores.** Depois do verde, nenhum jogador corrige. Se os dois erraram e o resultado bateu, só o juiz ou o ADM corrigem, via override.
 - **Key lançada trava em definitivo.** Quando o ADM marca "key lançada no TOM", a mesa fica fechada. Um override depois disso ainda é possível, mas o painel avisa que o TOM também precisa ser corrigido.
 - **Override** (juiz ou ADM) é um evento à parte, com autor, motivo e horário, e prevalece sobre os reportes.
+- O jogador só reporta depois que o ADM inicia a rodada. Correção de reporte é um novo reporte do mesmo jogador: vale o último, e os anteriores ficam no histórico.
+- O pareamento pode ser republicado pelo TOM até a rodada começar; depois disso não muda mais (correção de pareamento no meio da rodada fica para evolução).
+- A rodada seguinte só pode ser iniciada com todas as keys da anterior marcadas como lançadas.
 - Um dispositivo por pessoa. Jogador sem celular: o ADM reporta por ele no painel. Se os dois jogadores da mesa estão sem celular, o ADM media e lança o resultado.
 - Antes de o ADM iniciar a rodada, nenhuma mesa fica vermelha por tempo. Com conflito e tempo esgotado ao mesmo tempo, o motivo mostrado é o conflito.
 - Intentional draw só bate com intentional draw; contra um empate em games (ex.: 0x0) é conflito.
@@ -235,7 +238,7 @@ Uma fase por vez; cada fase tem os próprios testes e só começa a próxima dep
 
 Em aberto:
 
-- [ ] Dependência do match\_slips: se o operador não gerar as guias numa rodada, o sistema fica sem o vínculo Player ID ↔ mesa. Definir a regra (gerar sempre, ou fallback por nome com confirmação).
+- [x] Dependência do match_slips: as guias são obrigatórias em toda rodada com mesas. Sem elas (ou com guias de outra rodada), o pareamento é recusado e o sistema pede para gerar as guias no TOM. Sem fallback por nome na v1.
 - [ ] Como o enviador percebe que o TOM terminou de escrever um arquivo (tamanho estável, lock) e com que frequência ele reescreve.
 - [ ] Top cut / eliminatória (arquivo brackets).
 - [ ] Critério do ranking (fase futura).

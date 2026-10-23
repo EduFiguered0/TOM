@@ -1,4 +1,4 @@
-export { TomParseError } from './shared/errors.js';
+export { InconsistentReportsError, TomParseError } from './shared/errors.js';
 export type { MatchRecord } from './shared/record.js';
 export * from './report-file.js';
 export * from './latest-tournament.js';
@@ -8,3 +8,4 @@ export * from './reports/standings.js';
 export * from './reports/match-record.js';
 export * from './reports/roster.js';
 export * from './reports/tournament-details.js';
+export * from './round-pairing.js';
