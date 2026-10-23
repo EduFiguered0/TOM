@@ -21,7 +21,7 @@ Regra de dependência: `apps → adaptadores → core`. O `core` não importa na
 
 ## Requisitos
 
-- Node.js 20.18 ou mais novo
+- Node.js 22 ou mais novo (via nvm-windows: `nvm install 22` e `nvm use 22`)
 
 ## Comandos
 
