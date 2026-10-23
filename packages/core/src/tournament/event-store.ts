@@ -1,4 +1,5 @@
 import type { RoundEvent } from './events.js';
+import { ConcurrencyError } from '../shared/concurrency-error.js';
 import type { RoundRef } from './round-pairing.js';
 
 export interface RoundStream {
@@ -7,9 +8,7 @@ export interface RoundStream {
   version: number;
 }
 
-export class ConcurrencyError extends Error {
-  override name = 'ConcurrencyError';
-}
+export { ConcurrencyError };
 
 /** Porta de persistência. `append` só resolve depois de gravar; falha com ConcurrencyError se a versão mudou. */
 export interface EventStore {

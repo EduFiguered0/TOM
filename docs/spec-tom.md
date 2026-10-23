@@ -1,8 +1,10 @@
 # Spec — Sistema de apoio a torneios Pokémon TCG (TOM)
 
-Oct 20, 2026 · @Edduardo Souza Figueredo · revisão 2: Oct 21, 2026
+Oct 20, 2026 · @Edduardo Souza Figueredo · revisão 2: Oct 21, 2026 · revisão 3: Oct 23, 2026
 
 > **Revisão 2.** O sistema deixou de ser local-first e passou a ser 100% online. Os trechos marcados com **[R2]** mudaram nesta revisão; o registro completo está em "Registro de decisões", no fim do documento.
+>
+> **Revisão 3.** Login com conta Google (ou código por e-mail para quem não usa Google), confirmação na tela para troca de dispositivo e custo como critério principal. Trechos marcados com **[R3]**.
 
 ## Visão e problema
 
@@ -55,7 +57,8 @@ Tudo roda online, com HTTPS de ponta a ponta. A única peça local é o **enviad
 
 - Domínio puro (parser do TOM, termômetro, regras de resultado) em TypeScript sem nenhuma dependência de AWS. A AWS fica atrás de interfaces (inversão de dependência), então o núcleo roda e é testado sem nuvem.
 - Arquitetura do repositório (camadas, pacotes e regra de dependência): ver `docs/adr/0001-arquitetura-do-repositorio.md`.
-- AWS: Cognito (login e códigos por e-mail), API Gateway + Lambda, DynamoDB, S3 (HTMLs brutos), CloudFront (site).
+- AWS: Cognito (login com Google e códigos por e-mail) **[R3]**, API Gateway + Lambda, DynamoDB, S3 (HTMLs brutos), CloudFront (site).
+- **Custo é o critério principal [R3]:** entre opções que atendem a spec, vence a que consome menos recursos da AWS (o ideal é custo zero). Cada escolha de serviço vem com a diferença de custo e uma projeção por evento/mês.
 - Escala: até 100 jogadores (50 mesas) por evento. Os serviços "sempre gratuitos" cobrem isso com folga; as condições do Free Tier para contas novas mudaram em 2025 e devem ser conferidas na criação da conta.
 
 ## Fontes de dados do TOM
@@ -82,7 +85,7 @@ Os HTMLs reais gerados pelo TOM 1.86 num torneio de teste ficam em `packages/tom
 
 ## Fluxo do evento **[R2]**
 
-1. **Antes:** o jogador cria a conta online (a qualquer momento, inclusive em casa) e verifica o e-mail.
+1. **Antes:** o jogador cria a conta online (a qualquer momento, inclusive em casa) entrando com a conta Google ou com um código enviado ao e-mail. **[R3]**
 2. **Check-in:** no salão, o jogador faz login pelo QR. No primeiro evento, o ADM confirma presencialmente que o Player ID é dele. O ADM lança os jogadores no TOM.
 3. **Rodadas:** o ciclo abaixo, uma vez por rodada.
 4. **Depois:** resultados e histórico já estão online; o jogador consulta quando quiser.
@@ -175,14 +178,16 @@ O celular precisa deixar claro quando um reporte **não** foi enviado. Nunca mos
 
 **Conta e Player ID.**
 
-- O jogador cria a conta online com e-mail verificado. Uma conta por e-mail; na v1 um responsável não gerencia mais de uma conta.
+- O jogador cria a conta online entrando com a **conta Google** ou, para quem não tem ou não pode usar Google (ex.: crianças), com um **código de uso único enviado ao e-mail**, sem senha. Os dois caminhos levam ao mesmo e-mail verificado. **[R3]**
+- Uma conta por e-mail; na v1 um responsável não gerencia mais de uma conta.
 - O vínculo conta ↔ Player ID só fica ativo depois que o ADM confirma presencialmente, no primeiro check-in. Isso impede alguém de registrar o Player ID de outra pessoa antes dela. Depois da confirmação, não precisa repetir.
 
 **Sessão única e dispositivo.**
 
 - Cada conta tem um único dispositivo ativo. Não há duas sessões simultâneas, então ninguém reporta pela conta de outro em paralelo.
-- Login num dispositivo novo exige um código enviado ao e-mail da conta. Ao confirmar, o dispositivo antigo é revogado na hora.
-- Só e-mail na v1 (sem SMS).
+- **[R3]** No primeiro acesso a sessão é ativada direto. Ao entrar num dispositivo novo com outro já ativo, o jogador confirma na tela ("entrar aqui desconecta o outro dispositivo") e o anterior é revogado na hora. Quem entra por e-mail já recebe um código a cada login num dispositivo novo; quem entra pelo Google já provou o e-mail no próprio Google.
+- A revogação vale na hora: a API guarda a sessão ativa de cada conta e recusa tokens de outra sessão, mesmo que ainda não tenham expirado. O token de acesso dura 15 minutos.
+- Só e-mail na v1 (sem SMS). O remetente dos e-mails (domínio próprio ou não) e o acesso de produção do SES são definidos antes do primeiro evento.
 
 **Transporte.** HTTPS em tudo, desde o início.
 
@@ -269,3 +274,11 @@ Fora de escopo:
 | 10 | Dados: nome e Player ID | Nome, Player ID, e-mail, ano de nascimento, telefone opcional; TTL de 24 meses |
 | 11 | Stack em aberto | TypeScript de ponta a ponta; Cognito, API Gateway, Lambda, DynamoDB, S3, CloudFront |
 | 12 | Uma divisão | Modelo preparado para várias divisões e para ranking futuro |
+
+### Revisão 3 — Oct 23, 2026
+
+| # | Antes | Agora |
+| --- | --- | --- |
+| 1 | Conta com e-mail verificado | Login com conta Google; alternativa sem senha com código por e-mail para quem não usa Google |
+| 2 | Dispositivo novo exige código por e-mail | Dispositivo novo pede confirmação na tela e revoga o anterior na hora; o código por e-mail fica só no login de quem não usa Google |
+| 3 | Custo não era critério explícito | Menor custo (ideal zero) é o critério principal; cada escolha traz diferença de custo e projeção |
