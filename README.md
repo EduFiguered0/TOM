@@ -65,7 +65,7 @@ Opções do enviador: `--state` (registro de envios, padrão `~/.tom-uploader/se
 | 2 | Regras de resultado e termômetro | ✅ |
 | 3 | Modelo de eventos e recálculo do estado | ✅ |
 | 4 | Enviador (observa a pasta do TOM) | ✅ |
-| 5 | Infraestrutura AWS (5.1 infra ✅, 5.2 DynamoDB ✅, 5.3 S3) | ⏳ |
+| 5 | Infraestrutura AWS, EventStore no DynamoDB, fotografias no S3 | ✅ |
 | 6 | Login, papéis e sessão | |
 | 7–9 | Telas: celular, TV e painel | |
 | 10 | Upload do enviador para a API | |
