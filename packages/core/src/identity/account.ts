@@ -14,8 +14,13 @@ export interface Account {
   id: string;
   /** E-mail verificado, em minúsculas: uma conta por e-mail. */
   email: string;
-  /** Logins do Cognito (`sub`) ligados à conta: código por e-mail, Google. */
+  /** Logins do Cognito (`sub`) ligados à conta: e-mail e senha, Google. */
   logins: string[];
+  /**
+   * false = criada com senha: ninguém provou que o e-mail é do dono. Ausente = conta antiga (código por e-mail,
+   * e-mail provado). O Google prova o e-mail; ao ligar numa conta não provada, os logins de senha caem.
+   */
+  emailProven?: boolean;
   profile: Profile;
   /** Informado pelo jogador; só vale para reportar depois que o ADM confirma no check-in. */
   playerId: { value: PlayerId; confirmed: boolean } | null;
@@ -26,7 +31,8 @@ export interface Account {
 
 export type IdentityEventData =
   | { type: 'account_registered'; login: string }
-  | { type: 'login_linked'; login: string }
+  /** `dropped`: logins de senha retirados porque o Google provou o dono do e-mail. */
+  | { type: 'login_linked'; login: string; dropped?: string[] }
   | { type: 'player_id_claimed'; playerId: PlayerId }
   | { type: 'player_id_confirmed'; playerId: PlayerId }
   | { type: 'session_activated'; session: string; replaced: string | null };

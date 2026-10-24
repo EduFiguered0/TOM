@@ -76,6 +76,7 @@ export class AccountService {
       id: this.deps.ids.next(),
       email: normalized,
       logins: [identity.login],
+      emailProven: identity.provider === 'google',
       profile,
       playerId: playerId ? { value: playerId, confirmed: false } : null,
       activeSession: identity.session,
@@ -96,16 +97,25 @@ export class AccountService {
   }
 
   /**
-   * Primeiro acesso pelo Google de quem já tinha conta com senha: liga o login à conta do mesmo e-mail.
+   * Primeiro acesso pelo Google de quem já tinha conta: liga o login à conta do mesmo e-mail.
    * Sem conta com esse e-mail, recusa como não cadastrada. Login por senha não prova o e-mail, então nunca liga.
+   * Conta criada com senha (e-mail não provado): o Google prova o dono, e os logins de senha caem — quem
+   * cadastrou o e-mail de outra pessoa perde o acesso.
    */
   async linkLogin(identity: Identity, email: string): Promise<Account> {
     const record = await this.deps.accounts.findByEmail(normalizeEmail(email));
     if (!record) throw notFound();
     if (record.account.logins.includes(identity.login)) return record.account;
-    if (identity.provider === 'password') throw accountExists();
+    if (identity.provider === 'password') throw googleAccountExists();
     return this.execute(record.account.id, (account) => {
       if (account.logins.includes(identity.login)) return null;
+      if (account.emailProven === false) {
+        return {
+          actor: self(identity),
+          account: { ...account, logins: [identity.login], emailProven: true },
+          data: { type: 'login_linked', login: identity.login, dropped: account.logins },
+        };
+      }
       return {
         actor: self(identity),
         account: { ...account, logins: [...account.logins, identity.login] },
@@ -210,6 +220,9 @@ interface Change {
 }
 
 const accountExists = () => new CommandRejected('account_exists', 'Esse e-mail já tem conta. Entre com a sua senha ou pelo Google.');
+
+/** Senha num e-mail de conta existente: os logins de senha usam o e-mail como nome, então a conta é do Google. */
+const googleAccountExists = () => new CommandRejected('account_exists', 'Esse e-mail já tem conta pelo Google. Entre com o Google.');
 
 const takenRejection = (playerId: string) =>
   new CommandRejected('player_id_taken', `Player ID ${playerId} já está confirmado em outra conta`);

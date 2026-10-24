@@ -40,15 +40,22 @@ describe('login com e-mail e senha', () => {
     });
   });
 
-  it('entrar: senha errada vira "E-mail ou senha incorretos."', async () => {
+  const WRONG = 'E-mail ou senha incorretos. Conta antiga ou senha esquecida? Use "Esqueci minha senha".';
+
+  it('entrar: senha errada orienta para o "Esqueci minha senha"', async () => {
     const { fetchFn } = fakeCognito({ InitiateAuth: failure('NotAuthorizedException') });
-    expect(await messageOf(createCognito(config, fetchFn).signIn('ana@example.com', 'errada1'))).toBe('E-mail ou senha incorretos.');
+    expect(await messageOf(createCognito(config, fetchFn).signIn('ana@example.com', 'errada1'))).toBe(WRONG);
+  });
+
+  it('conta antiga sem senha: o Cognito pede outro desafio, e a mensagem leva ao "Esqueci minha senha"', async () => {
+    const { fetchFn } = fakeCognito({ InitiateAuth: { body: { ChallengeName: 'SELECT_CHALLENGE', Session: 's', AvailableChallenges: [] } } });
+    expect(await messageOf(createCognito(config, fetchFn).signIn('antiga@example.com', 'qualquer1'))).toBe(WRONG);
   });
 
   it('senha fraca no cadastro vira mensagem e não tenta entrar', async () => {
     const { calls, fetchFn } = fakeCognito({ SignUp: failure('InvalidPasswordException') });
     expect(await messageOf(createCognito(config, fetchFn).signUp('ana@example.com', 'abc')))
-      .toBe('A senha precisa ter pelo menos 8 caracteres, com letras e números.');
+      .toBe('A senha precisa ter pelo menos 8 caracteres, com uma letra minúscula e um número.');
     expect(calls.map((c) => c.action)).toEqual(['SignUp']);
   });
 

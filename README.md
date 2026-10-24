@@ -104,7 +104,9 @@ aws cognito-idp admin-add-user-to-group --profile tom --user-pool-id <TomAuth.Us
 
 ### Login
 
-E-mail e senha (mínimo de 8 caracteres, com letras e números). O cadastro é confirmado na hora por um gatilho de pré-cadastro, sem código por e-mail; o único e-mail que o sistema manda é o de "Esqueci minha senha". Contas antigas, criadas com código por e-mail, definem a senha por ele. Só o Google liga um login novo a uma conta que já existe com o mesmo e-mail.
+E-mail e senha (mínimo de 8 caracteres, com letras e números). O cadastro é confirmado na hora por um gatilho de pré-cadastro, sem código por e-mail; o único e-mail que o sistema manda é o de "Esqueci minha senha". Contas antigas, criadas com código por e-mail, definem a senha por ele. Só o Google liga um login novo a uma conta que já existe com o mesmo e-mail; numa conta criada com senha (e-mail não provado), o Google prova o dono e os logins de senha caem.
+
+Como a senha não prova o e-mail, ao dar o papel de ADM confira o usuário certo: `aws cognito-idp list-users --profile tom --user-pool-id <TomAuth.UserPoolId> --filter 'email = "<e-mail>"'` lista todos os logins desse e-mail; use o `Username` de quem você conhece.
 
 ### Ativar o Google
 

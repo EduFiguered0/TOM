@@ -16,6 +16,10 @@ describe('telas', () => {
     expect(screenFor(failure('internal'))).toEqual({ name: 'error', message: 'msg internal' });
   });
 
+  it('senha num e-mail que já tem conta: volta ao login com a orientação (o app sai da sessão)', () => {
+    expect(screenFor(failure('account_exists'))).toEqual({ name: 'login', message: 'msg account_exists', signOut: true });
+  });
+
   it('autorização do responsável só para menores', () => {
     const today = new Date('2026-10-24');
     expect(isMinor(2010, today)).toBe(true);

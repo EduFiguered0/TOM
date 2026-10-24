@@ -182,7 +182,7 @@ O celular precisa deixar claro quando um reporte **não** foi enviado. Nunca mos
 
 - **[R4]** O jogador cria a conta online entrando com a **conta Google** ou com **e-mail e senha**. O cadastro com senha é confirmado na hora, sem código por e-mail (o e-mail não é verificado; risco aceito). O único e-mail enviado é o de "Esqueci minha senha".
 - Uma conta por e-mail; na v1 um responsável não gerencia mais de uma conta.
-- **[R4]** Quem entra pelo Google e também por e-mail e senha continua com uma conta só: no primeiro acesso pelo Google, a conta é encontrada pelo e-mail e o login do Google é ligado a ela. Como a senha não prova o e-mail, um login por senha nunca é ligado a uma conta existente ("Esse e-mail já tem conta"). O Google só é aceito com e-mail verificado.
+- **[R4]** Quem entra pelo Google e também por e-mail e senha continua com uma conta só: no primeiro acesso pelo Google, a conta é encontrada pelo e-mail e o login do Google é ligado a ela. Como a senha não prova o e-mail, um login por senha nunca é ligado a uma conta existente ("Esse e-mail já tem conta"). Numa conta criada com senha, o primeiro acesso pelo Google prova o dono e retira os logins de senha: quem cadastrou o e-mail de outra pessoa perde o acesso. O Google só é aceito com e-mail verificado.
 - O vínculo conta ↔ Player ID só fica ativo depois que o ADM confirma presencialmente, no primeiro check-in. Isso impede alguém de registrar o Player ID de outra pessoa antes dela. Depois da confirmação, não precisa repetir.
 
 **Sessão única e dispositivo.**

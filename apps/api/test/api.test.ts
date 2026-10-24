@@ -39,12 +39,12 @@ describe('API', () => {
     expect((await call('GET', '/me', 'ana-email:celular2')).status).toBe(200);
   });
 
-  it('Google depois do código por e-mail: mesma conta, ligada pelo e-mail verificado', async () => {
+  it('Google depois da senha: mesma conta, e o login por senha (e-mail não provado) perde o acesso', async () => {
     const { call } = setup();
     const id = await register(call, 'ana-email:celular1');
     expect(await call('GET', '/me', 'ana-google:celular1g')).toMatchObject({ status: 401, body: { error: 'session_inactive' } });
     expect(await call('POST', '/session', 'ana-google:celular1g', { replace: true })).toMatchObject({ status: 200, body: { id } });
-    expect((await call('GET', '/me', 'ana-email:celular1')).status).toBe(401);
+    expect(await call('GET', '/me', 'ana-email:celular1')).toMatchObject({ status: 409, body: { error: 'account_exists' } });
   });
 
   it('senha depois do Google no mesmo e-mail: 409 com orientação', async () => {

@@ -72,7 +72,7 @@ export const Login = ({ cognito, google, initialError, onSignedIn }: Props) => {
               autocomplete={mode === 'signin' ? 'current-password' : 'new-password'}
               value={password} onInput={(e) => { setPassword(e.currentTarget.value); }}
             />
-            {mode !== 'signin' && <p class="muted">Pelo menos 8 caracteres, com letras e números.</p>}
+            {mode !== 'signin' && <p class="muted">Pelo menos 8 caracteres, com uma letra minúscula e um número.</p>}
           </>
         )}
         <button type="submit" disabled={busy}>

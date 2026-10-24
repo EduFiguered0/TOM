@@ -12,15 +12,18 @@ export interface Tokens {
   expiresAt: number;
 }
 
-const WRONG_LOGIN = 'E-mail ou senha incorretos.';
+/** Contas antigas (código por e-mail) não têm senha: o caminho delas é o "Esqueci minha senha". */
+const WRONG_LOGIN = 'E-mail ou senha incorretos. Conta antiga ou senha esquecida? Use "Esqueci minha senha".';
 
 const MESSAGES: Record<string, string> = {
   CodeMismatchException: 'Código incorreto. Confira o e-mail e tente de novo.',
   ExpiredCodeException: 'Código expirado. Peça um novo.',
   NotAuthorizedException: WRONG_LOGIN,
   UserNotFoundException: WRONG_LOGIN,
+  // Usuário sem senha: o Cognito oferece outro desafio em vez dos tokens.
+  NoTokens: WRONG_LOGIN,
   UsernameExistsException: 'Esse e-mail já tem conta. Entre com a sua senha ou pelo Google.',
-  InvalidPasswordException: 'A senha precisa ter pelo menos 8 caracteres, com letras e números.',
+  InvalidPasswordException: 'A senha precisa ter pelo menos 8 caracteres, com uma letra minúscula e um número.',
   LimitExceededException: 'Muitas tentativas. Aguarde alguns minutos.',
   TooManyRequestsException: 'Muitas tentativas. Aguarde alguns minutos.',
   InvalidParameterException: 'E-mail inválido.',

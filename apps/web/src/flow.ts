@@ -3,7 +3,8 @@ import type { ApiResult } from './api.js';
 
 export type Screen =
   | { name: 'loading' }
-  | { name: 'login' }
+  /** `signOut`: o login atual não serve (ex.: senha num e-mail de conta Google); sair antes de mostrar a mensagem. */
+  | { name: 'login'; message?: string; signOut?: boolean }
   | { name: 'register' }
   /** Outro dispositivo está ativo: "entrar aqui desconecta o outro". */
   | { name: 'device' }
@@ -17,6 +18,7 @@ export const screenFor = (result: ApiResult<MeResponse>): Screen => {
     case 'account_not_found': return { name: 'register' };
     case 'session_inactive': return { name: 'device' };
     case 'unauthorized': return { name: 'login' };
+    case 'account_exists': return { name: 'login', message: result.error.message, signOut: true };
     default: return { name: 'error', message: result.error.message };
   }
 };

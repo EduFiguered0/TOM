@@ -27,7 +27,9 @@ export const App = ({ cognito, session, api, google, loginError }: Props) => {
   const check = useCallback(async () => {
     if (!session.loggedIn) { setScreen({ name: 'login' }); return; }
     try {
-      setScreen(screenFor(await api.me()));
+      const next = screenFor(await api.me());
+      if (next.name === 'login' && next.signOut) await session.signOut();
+      setScreen(next);
     } catch (e) {
       setScreen({ name: 'error', message: e instanceof OfflineError ? e.message : 'Erro inesperado.' });
     }
@@ -47,7 +49,7 @@ export const App = ({ cognito, session, api, google, loginError }: Props) => {
       <header><span class="brand">Torneios TOM</span></header>
       {screen.name === 'loading' && <p class="muted center">Carregando…</p>}
       {screen.name === 'login' && (
-        <Login cognito={cognito} google={google} initialError={loginError} onSignedIn={(tokens) => { session.signedIn(tokens); void check(); }} />
+        <Login cognito={cognito} google={google} initialError={screen.message ?? loginError} onSignedIn={(tokens) => { session.signedIn(tokens); void check(); }} />
       )}
       {screen.name === 'register' && <Register api={api} onRegistered={(me) => { setScreen({ name: 'home', me }); }} />}
       {screen.name === 'device' && <Device api={api} onActivated={(me) => { setScreen({ name: 'home', me }); }} onCancel={signOut} />}
