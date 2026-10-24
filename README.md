@@ -112,7 +112,7 @@ Como a senha não prova o e-mail, ao dar o papel de ADM confira o usuário certo
 
 ### Ativar o Google
 
-1. No Google Cloud, cliente OAuth "Aplicativo da Web" com o URI de redirecionamento `https://tom-pokemon-login.auth.us-east-2.amazoncognito.com/oauth2/idpresponse`. Enquanto o app estiver "Em teste", só os usuários de teste entram; para publicar, o Google pede home e política de privacidade.
+1. No Google Cloud, cliente OAuth "Aplicativo da Web" com o URI de redirecionamento `https://ggtcg-login.auth.us-east-2.amazoncognito.com/oauth2/idpresponse`. Enquanto o app estiver "Em teste", só os usuários de teste entram; para publicar, o Google pede home e política de privacidade.
 2. Cadastrar o provedor no pool (o segredo fica só no seu terminal, nunca no repositório):
 
    ```bash

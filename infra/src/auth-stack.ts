@@ -50,14 +50,16 @@ export class AuthStack extends Stack {
   constructor(scope: Construct, id: string, { ephemeral, domainPrefix, google, callbackUrls, ...props }: AuthStackProps) {
     super(scope, id, { terminationProtection: !ephemeral, ...props });
 
-    this.userPool = new UserPool(this, 'Users', {
+    // "V2": o pool de antes tinha o e-mail fixo, e atributo de pool existente não muda; o antigo (produção) ficou guardado.
+    this.userPool = new UserPool(this, 'UsersV2', {
       featurePlan: FeaturePlan.ESSENTIALS,
       selfSignUpEnabled: true,
       signInAliases: { email: true },
       signInCaseSensitive: false,
       autoVerify: { email: true },
       keepOriginal: { email: true },
-      standardAttributes: { email: { required: true, mutable: false } },
+      // Alterável: o Google regrava o e-mail a cada login, e com o atributo fixo só o primeiro login funciona.
+      standardAttributes: { email: { required: true, mutable: true } },
       signInPolicy: { allowedFirstAuthFactors: { password: true } },
       passwordPolicy: { minLength: 8, requireLowercase: true, requireUppercase: false, requireDigits: true, requireSymbols: false },
       accountRecovery: AccountRecovery.EMAIL_ONLY,

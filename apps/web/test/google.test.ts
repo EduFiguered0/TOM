@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { createGoogle } from '../src/auth/google.js';
 
 const config = {
-  loginDomain: 'https://tom-pokemon-login.auth.us-east-2.amazoncognito.com',
+  loginDomain: 'https://ggtcg-login.auth.us-east-2.amazoncognito.com',
   clientId: 'cliente',
   redirectUri: 'https://site.example/',
 };

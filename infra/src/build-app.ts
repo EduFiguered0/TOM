@@ -8,7 +8,8 @@ import { WebStack } from './web-stack.js';
 // O projeto AWS só permite recursos regionais em us-east-2.
 export const REGION = 'us-east-2';
 
-const LOGIN_PREFIX = 'tom-pokemon-login';
+/** O nome antigo (tom-pokemon-login) continua preso ao pool guardado. */
+const LOGIN_PREFIX = 'ggtcg-login';
 /** Site de produção e o servidor local de desenvolvimento. */
 const CALLBACK_URLS = ['https://dvaep2eni3fqm.cloudfront.net/', 'http://localhost:5173/'];
 
@@ -23,7 +24,7 @@ export const buildApp = (account: string | undefined, app = new App()) => {
   // Google só depois de o provedor existir no pool (README, "Ativar o Google"); os testes nunca usam.
   const google = app.node.tryGetContext('google') === true;
   const auth = new AuthStack(app, 'TomAuth', { env, ephemeral: false, domainPrefix: LOGIN_PREFIX, google, callbackUrls: CALLBACK_URLS });
-  const authTest = new AuthStack(app, 'TomAuthTest', { env, ephemeral: true, domainPrefix: 'tom-pokemon-login-teste', google: false, callbackUrls: [] });
+  const authTest = new AuthStack(app, 'TomAuthTest', { env, ephemeral: true, domainPrefix: 'ggtcg-login-teste', google: false, callbackUrls: [] });
   const api = new ApiStack(app, 'TomApi', {
     env, ephemeral: false, accounts: data.accounts, events: data.events, tournaments: data.tournaments, snapshotsBucket: bucket(false),
     userPool: auth.userPool, client: auth.client,

@@ -58,7 +58,7 @@ describe('WebStack', () => {
         SecurityHeadersConfig: Match.objectLike({
           ContentSecurityPolicy: {
             Override: true,
-            ContentSecurityPolicy: Match.stringLikeRegexp("script-src 'self'.*connect-src 'self' https://cognito-idp\\.us-east-2\\.amazonaws\\.com https://tom-pokemon-login\\.auth\\.us-east-2\\.amazoncognito\\.com.*frame-ancestors 'none'"),
+            ContentSecurityPolicy: Match.stringLikeRegexp("script-src 'self'.*connect-src 'self' https://cognito-idp\\.us-east-2\\.amazonaws\\.com https://ggtcg-login\\.auth\\.us-east-2\\.amazoncognito\\.com.*frame-ancestors 'none'"),
           },
         }),
       },
