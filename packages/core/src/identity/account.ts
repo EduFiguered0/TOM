@@ -24,6 +24,8 @@ export interface Account {
   profile: Profile;
   /** Informado pelo jogador; vale desde o cadastro. O primeiro a cadastrar fica com ele. */
   playerId: PlayerId | null;
+  /** Juiz da equipe, marcado pelo ADM. Sozinho não dá poder: o juiz só age no evento em que foi escalado. */
+  judge?: boolean;
   /** Sessão do dispositivo ativo (`origin_jti` do token); tokens de outra sessão são recusados. */
   activeSession: string | null;
   createdAt: Date;
@@ -36,7 +38,9 @@ export type IdentityEventData =
   | { type: 'player_id_claimed'; playerId: PlayerId }
   /** O ADM tirou o Player ID da conta (vínculo errado); o dono verdadeiro pode cadastrá-lo. */
   | { type: 'player_id_unlinked'; playerId: PlayerId }
-  | { type: 'session_activated'; session: string; replaced: string | null };
+  | { type: 'session_activated'; session: string; replaced: string | null }
+  /** O ADM pôs ou tirou a conta da equipe de juízes. */
+  | { type: 'judge_set'; judge: boolean };
 
 /** Fato gravado junto com a conta, para auditoria. */
 export type IdentityEvent = IdentityEventData & {

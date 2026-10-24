@@ -31,10 +31,14 @@ export interface AccountServiceDeps {
 }
 
 const MAX_ATTEMPTS = 3;
+const SEARCH_LIMIT = 20;
+
+/** Sem acento e em minúsculas, para comparar nomes. */
+const fold = (text: string) => text.normalize('NFD').replace(/\p{M}/gu, '').toLowerCase();
+const byName = (accounts: Account[]) => accounts.sort((a, b) => a.profile.name.localeCompare(b.profile.name, 'pt-BR'));
 
 const actorFor = (account: Account, groups: readonly string[]): Actor | null => {
   if (groups.includes('admin')) return { role: 'admin', accountId: account.id };
-  if (groups.includes('judge')) return { role: 'judge', accountId: account.id };
   return account.playerId ? { role: 'player', accountId: account.id, playerId: account.playerId } : null;
 };
 
@@ -184,6 +188,32 @@ export class AccountService {
       if (current.playerId !== value) return null;
       return { actor, account: { ...current, playerId: null }, data: { type: 'player_id_unlinked', playerId: value } };
     });
+  }
+
+  /** Equipe: o ADM marca ou desmarca o juiz. O juiz é uma conta de jogador, então precisa de Player ID. */
+  async setJudge(actor: Actor | null, accountId: string, judge: boolean): Promise<Account> {
+    requireAdmin(actor);
+    return this.execute(accountId, (account) => {
+      if ((account.judge ?? false) === judge) return null;
+      if (judge && !account.playerId) throw new CommandRejected('invalid_input', 'O juiz precisa ter Player ID cadastrado');
+      return { actor, account: { ...account, judge }, data: { type: 'judge_set', judge } };
+    });
+  }
+
+  /** Busca da Equipe: só dígitos = Player ID exato; senão parte do nome, sem acento nem maiúsculas. */
+  async search(actor: Actor | null, query: string): Promise<Account[]> {
+    requireAdmin(actor);
+    const text = query.trim();
+    if (text.length < 2) throw new CommandRejected('invalid_input', 'Digite pelo menos 2 caracteres');
+    const wanted = fold(text);
+    const match = /^\d+$/.test(text) ? (a: Account) => a.playerId === text : (a: Account) => fold(a.profile.name).includes(wanted);
+    return byName((await this.deps.accounts.all()).filter(match)).slice(0, SEARCH_LIMIT);
+  }
+
+  /** Juízes da equipe, para o ADM escalar no evento. */
+  async listJudges(actor: Actor | null): Promise<Account[]> {
+    requireAdmin(actor);
+    return byName((await this.deps.accounts.all()).filter((a) => a.judge === true));
   }
 
   private async holderOf(playerId: string): Promise<AccountRecord> {

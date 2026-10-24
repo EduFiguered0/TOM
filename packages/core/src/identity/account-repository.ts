@@ -27,5 +27,7 @@ export interface AccountRepository {
   findByLogin(login: string): Promise<AccountRecord | null>;
   findByEmail(email: string): Promise<AccountRecord | null>;
   findByPlayerId(playerId: PlayerId): Promise<AccountRecord | null>;
+  /** Todas as contas, para a busca da Equipe (são poucas: uma loja). */
+  all(): Promise<Account[]>;
   save(account: Account, events: readonly IdentityEvent[], expectedVersion: number): Promise<number>;
 }
