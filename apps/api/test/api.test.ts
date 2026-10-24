@@ -1,48 +1,6 @@
-import { AccountService, InMemoryAccountRepository, type Identity } from '@tom/core';
 import { randomUUID } from 'node:crypto';
 import { describe, expect, it } from 'vitest';
-import { createApi, type HttpRequest } from '../src/index.js';
-
-/** Token falso "login:sessão:grupo1,grupo2"; "expirado" é recusado. */
-const tokens = {
-  verify: (token: string): Promise<Identity> => {
-    if (token === 'expirado') return Promise.reject(new Error('expirado'));
-    const [login = '', session = '', groups = ''] = token.split(':');
-    return Promise.resolve({ login, session, groups: groups ? groups.split(',') : [] });
-  },
-};
-
-/** E-mail verificado de cada login no "Cognito"; os dois logins da Ana têm o mesmo e-mail. */
-const EMAILS: Record<string, string> = { 'ana-email': 'ana@example.com', 'ana-google': 'Ana@Example.com', adm: 'adm@example.com' };
-
-const setup = () => {
-  const errors: unknown[] = [];
-  const accounts = new AccountService({
-    accounts: new InMemoryAccountRepository(),
-    clock: { now: () => new Date('2026-10-23T14:00:00Z') },
-    ids: { next: () => randomUUID() },
-  });
-  const api = createApi({
-    tokens,
-    emails: { verifiedEmail: (token) => Promise.resolve(EMAILS[token.split(':')[0] ?? ''] ?? 'sem-conta@example.com') },
-    accounts,
-    logError: (e) => errors.push(e),
-  });
-  const call = (method: string, path: string, token: string | null, body?: unknown) =>
-    api({
-      method,
-      path,
-      headers: token ? { authorization: `Bearer ${token}` } : {},
-      body: body === undefined ? null : JSON.stringify(body),
-    } satisfies HttpRequest);
-  return { call, accounts, errors };
-};
-
-const profile = { name: 'Ana Souza', birthYear: 1990, phone: null, guardianConsent: false };
-
-/** Cadastra e devolve o id da conta. */
-const register = async (call: ReturnType<typeof setup>['call'], token: string, playerId: string | null = null) =>
-  ((await call('POST', '/me', token, { profile, playerId })).body as { id: string }).id;
+import { profile, register, setup } from './support.js';
 
 describe('API', () => {
   it('sem token, token inválido ou rota desconhecida', async () => {

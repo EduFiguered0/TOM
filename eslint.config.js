@@ -36,7 +36,7 @@ export default tseslint.config(
   {
     files: ['apps/api/src/**'],
     rules: restrictImports([
-      { group: ['@tom/*', '!@tom/core', '!@tom/contracts', '!@tom/aws-adapters'], message: 'api só depende de core, contracts e aws-adapters.' },
+      { group: ['@tom/*', '!@tom/core', '!@tom/contracts', '!@tom/aws-adapters', '!@tom/tom-reports'], message: 'api só depende de core, contracts, tom-reports e aws-adapters.' },
     ]),
   },
   {

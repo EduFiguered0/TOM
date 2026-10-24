@@ -6,5 +6,5 @@
     "types": ["node"]
   },
   "include": ["src"],
-  "references": [{ "path": "../../packages/core" }, { "path": "../../packages/contracts" }, { "path": "../../packages/aws-adapters" }]
+  "references": [{ "path": "../../packages/core" }, { "path": "../../packages/contracts" }, { "path": "../../packages/aws-adapters" }, { "path": "../../packages/tom-reports" }]
 }

@@ -1,12 +1,15 @@
 import { CognitoIdentityProviderClient } from '@aws-sdk/client-cognito-identity-provider';
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
+import { S3Client } from '@aws-sdk/client-s3';
 import { DynamoDBDocumentClient } from '@aws-sdk/lib-dynamodb';
-import { DynamoAccountRepository } from '@tom/aws-adapters';
-import { AccountService } from '@tom/core';
+import { DynamoAccountRepository, DynamoEventRegistry, DynamoEventStore, S3SnapshotStore } from '@tom/aws-adapters';
+import { AccountService, EventService, RoundService } from '@tom/core';
 import type { APIGatewayProxyEventV2, APIGatewayProxyStructuredResultV2 } from 'aws-lambda';
 import { randomUUID } from 'node:crypto';
 import { createApi } from './api.js';
+import { createBoard } from './board.js';
 import { CognitoEmailLookup, CognitoTokenVerifier } from './cognito.js';
+import { createIngest } from './ingest.js';
 
 const env = (name: string): string => {
   const value = process.env[name];
@@ -16,17 +19,21 @@ const env = (name: string): string => {
 
 // Fora do handler: reaproveitado entre execuções da mesma instância.
 const dynamo = DynamoDBDocumentClient.from(new DynamoDBClient({}));
+const retention = process.env['RETENTION_DAYS'] ? { retentionDays: Number(process.env['RETENTION_DAYS']) } : {};
+const clock = { now: () => new Date() };
+const ids = { next: () => randomUUID() };
+
+const registry = new DynamoEventRegistry(dynamo, { tableName: env('TOURNAMENTS_TABLE'), ...retention });
+const rounds = new RoundService({ store: new DynamoEventStore(dynamo, { tableName: env('EVENTS_TABLE'), ...retention }), clock, ids });
+const events = new EventService({ events: registry, clock, ids });
+
 const api = createApi({
   tokens: new CognitoTokenVerifier(env('USER_POOL_ID'), env('USER_POOL_CLIENT_ID')),
   emails: new CognitoEmailLookup(new CognitoIdentityProviderClient({})),
-  accounts: new AccountService({
-    accounts: new DynamoAccountRepository(dynamo, {
-      tableName: env('ACCOUNTS_TABLE'),
-      ...(process.env['RETENTION_DAYS'] ? { retentionDays: Number(process.env['RETENTION_DAYS']) } : {}),
-    }),
-    clock: { now: () => new Date() },
-    ids: { next: () => randomUUID() },
-  }),
+  accounts: new AccountService({ accounts: new DynamoAccountRepository(dynamo, { tableName: env('ACCOUNTS_TABLE'), ...retention }), clock, ids }),
+  events,
+  ingest: createIngest({ events, registry, rounds, clock, snapshots: new S3SnapshotStore(new S3Client({}), env('SNAPSHOTS_BUCKET')) }),
+  board: createBoard({ registry, rounds, clock }),
   logError: (error) => { console.error(error); },
 });
 
@@ -42,7 +49,7 @@ export const handler = async (event: APIGatewayProxyEventV2): Promise<APIGateway
   });
   return {
     statusCode: response.status,
-    headers: { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' },
+    headers: { 'content-type': 'application/json; charset=utf-8', 'cache-control': response.cacheControl ?? 'no-store' },
     body: JSON.stringify(response.body),
   };
 };

@@ -103,3 +103,58 @@ export interface BoardResponse {
   /** Momento em que o servidor montou a resposta; a TV corrige o relógio local por ele. */
   serverTime: string;
 }
+
+/** Uma versão completa de um HTML do TOM, enviada pelo enviador com o token do evento (cabeçalho `x-upload-token`). */
+export interface UploadRequest {
+  tournament: string;
+  /** Tipo do relatório: match_slips, pairings, standings... */
+  report: string;
+  fileName: string;
+  content: string;
+  /** SHA-256 do conteúdo, em hexadecimal; a API confere. */
+  sha256: string;
+  /** Quando o TOM gravou o arquivo (ISO 8601). */
+  modifiedAt: string;
+}
+
+export interface UploadResponse {
+  /** false = a mesma versão já estava guardada (reenvio). */
+  stored: boolean;
+  /** Rodadas publicadas a partir deste envio. */
+  published: { division: string; round: number }[];
+  /** Por que nada foi publicado, quando for o caso (ex.: aguardando as guias da rodada). */
+  note: string | null;
+}
+
+/** HTMLs do TOM têm poucos KB; o limite protege a API de envios absurdos. */
+export const MAX_UPLOAD_CHARS = 2_000_000;
+
+export const parseUploadRequest = (body: unknown): UploadRequest => {
+  const root = object(body, 'Corpo');
+  const request = {
+    tournament: field(root, 'tournament', 'string'),
+    report: field(root, 'report', 'string'),
+    fileName: field(root, 'fileName', 'string'),
+    content: field(root, 'content', 'string'),
+    sha256: field(root, 'sha256', 'string'),
+    modifiedAt: field(root, 'modifiedAt', 'string'),
+  };
+  if (request.content.length > MAX_UPLOAD_CHARS) throw new InvalidRequestError('Arquivo grande demais');
+  if (Number.isNaN(Date.parse(request.modifiedAt))) throw new InvalidRequestError('modifiedAt deve ser uma data ISO');
+  return request;
+};
+
+export interface CreateEventRequest {
+  label: string;
+}
+
+/** O token do enviador só aparece nesta resposta; o servidor guarda apenas o hash. */
+export interface CreateEventResponse {
+  id: string;
+  label: string;
+  token: string;
+}
+
+export const parseCreateEventRequest = (body: unknown): CreateEventRequest => ({
+  label: field(object(body, 'Corpo'), 'label', 'string'),
+});
