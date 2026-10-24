@@ -29,13 +29,34 @@ export interface AccountResponse {
   email: string;
   profile: ProfileDto;
   playerId: string | null;
+  /** Juiz da equipe (marcado pelo ADM). */
+  judge: boolean;
   createdAt: string;
 }
 
 export interface MeResponse extends AccountResponse {
-  role: 'player' | 'judge' | 'admin';
+  /** ADM vem do grupo do Cognito; o juiz é um jogador com a marca da equipe. */
+  role: 'player' | 'admin';
   /** false para jogador sem Player ID: vê a conta, mas ainda não reporta. */
   canAct: boolean;
+  /** Juiz da equipe. */
+  judge: boolean;
+  /** Juiz escalado no evento atual: abre o painel. */
+  judging: boolean;
+}
+
+/** Equipe: busca por nome ou Player ID. */
+export interface SearchRequest {
+  query: string;
+}
+
+export interface SetJudgeRequest {
+  judge: boolean;
+}
+
+/** Juízes escalados no evento (ids de conta). */
+export interface JudgesRequest {
+  judges: string[];
 }
 
 export interface ErrorResponse {
@@ -146,6 +167,8 @@ export const parseUploadRequest = (body: unknown): UploadRequest => {
 
 export interface CreateEventRequest {
   label: string;
+  /** Juízes escalados (ids de conta); ausente = nenhum. */
+  judges: string[];
 }
 
 /** O token do enviador só aparece nesta resposta; o servidor guarda apenas o hash. */
@@ -155,9 +178,26 @@ export interface CreateEventResponse {
   token: string;
 }
 
-export const parseCreateEventRequest = (body: unknown): CreateEventRequest => ({
-  label: field(object(body, 'Corpo'), 'label', 'string'),
-});
+const MAX_JUDGES = 20;
+
+const judgeList = (obj: Json): string[] => {
+  const value = obj['judges'];
+  if (!Array.isArray(value) || value.length > MAX_JUDGES || value.some((v) => typeof v !== 'string')) {
+    throw new InvalidRequestError(`Campo "judges" deve ser uma lista de até ${String(MAX_JUDGES)} textos`);
+  }
+  return value as string[];
+};
+
+export const parseCreateEventRequest = (body: unknown): CreateEventRequest => {
+  const root = object(body, 'Corpo');
+  return { label: field(root, 'label', 'string'), judges: root['judges'] === undefined ? [] : judgeList(root) };
+};
+
+export const parseJudgesRequest = (body: unknown): JudgesRequest => ({ judges: judgeList(object(body, 'Corpo')) });
+
+export const parseSearchRequest = (body: unknown): SearchRequest => ({ query: field(object(body, 'Corpo'), 'query', 'string') });
+
+export const parseSetJudgeRequest = (body: unknown): SetJudgeRequest => ({ judge: field(object(body, 'Corpo'), 'judge', 'boolean') });
 
 /** Reporte do jogador, do ponto de vista dele: placar de games ou intentional draw (ID). */
 export type ReportDto = { kind: 'score'; own: number; opponent: number } | { kind: 'intentional_draw' };

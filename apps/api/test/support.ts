@@ -93,6 +93,14 @@ export const withEvent = async () => {
   return { ...ctx, token, eventId: (created.body as CreateEventResponse).id, send };
 };
 
+/** Juiz da equipe escalado no evento de `withEvent`: cadastra, o ADM marca e escala. Devolve o id da conta. */
+export const addJudge = async (ctx: Awaited<ReturnType<typeof withEvent>>, token: string, playerId: string) => {
+  const id = await register(ctx.call, token, playerId);
+  await ctx.call('POST', `/staff/accounts/${id}/judge`, 'adm:a1:admin', { judge: true });
+  await ctx.call('PUT', `/events/${ctx.eventId}/judges`, 'adm:a1:admin', { judges: [id] });
+  return id;
+};
+
 /** Mesa 1 do FODASE, rodada 3: 100001 "teste2 2" x 100002 "teste5 5". */
 export const setupRound = async () => {
   const ctx = await withEvent();

@@ -92,7 +92,7 @@ describe('API', () => {
     await register(call, 'adm:a1');
     expect(await call('GET', '/player-ids/100001', 'adm:a1:admin')).toMatchObject({ status: 200, body: { profile: { name: 'Ana Souza' }, playerId: '100001' } });
     expect((await call('GET', '/player-ids/100001', 'ana-email:p1')).status).toBe(403);
-    expect((await call('POST', '/player-ids/100001/unlink', 'ana-email:p1:judge')).status).toBe(403);
+    expect((await call('POST', '/player-ids/100001/unlink', 'ana-email:p1')).status).toBe(403);
     expect(await call('GET', '/player-ids/999999', 'adm:a1:admin')).toMatchObject({ status: 404, body: { error: 'account_not_found' } });
     expect(await call('POST', '/player-ids/100001/unlink', 'adm:a1:admin')).toMatchObject({ status: 200, body: { playerId: null } });
     expect(await call('GET', '/me', 'ana-email:p1')).toMatchObject({ body: { canAct: false, playerId: null } });

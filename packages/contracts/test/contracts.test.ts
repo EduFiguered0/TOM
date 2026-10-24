@@ -1,5 +1,14 @@
 import { describe, expect, it } from 'vitest';
-import { InvalidRequestError, parsePlayerIdRequest, parseRegisterRequest, parseSessionRequest } from '../src/index.js';
+import {
+  InvalidRequestError,
+  parseCreateEventRequest,
+  parseJudgesRequest,
+  parsePlayerIdRequest,
+  parseRegisterRequest,
+  parseSearchRequest,
+  parseSessionRequest,
+  parseSetJudgeRequest,
+} from '../src/index.js';
 
 const valid = { profile: { name: 'Ana', birthYear: 1990, phone: null, guardianConsent: false }, playerId: '100001' };
 
@@ -26,5 +35,19 @@ describe('contratos da API', () => {
   it('sessão exige replace booleano', () => {
     expect(parseSessionRequest({ replace: true })).toEqual({ replace: true });
     expect(() => parseSessionRequest({ replace: 'sim' })).toThrow(InvalidRequestError);
+  });
+});
+
+describe('equipe e escala', () => {
+  it('busca, marca de juiz e escala: formato e limites', () => {
+    expect(parseSearchRequest({ query: 'joao' })).toEqual({ query: 'joao' });
+    expect(() => parseSearchRequest({})).toThrow(InvalidRequestError);
+    expect(parseSetJudgeRequest({ judge: true })).toEqual({ judge: true });
+    expect(() => parseSetJudgeRequest({ judge: 'sim' })).toThrow(InvalidRequestError);
+    expect(parseJudgesRequest({ judges: ['a', 'b'] })).toEqual({ judges: ['a', 'b'] });
+    expect(() => parseJudgesRequest({ judges: [1] })).toThrow(InvalidRequestError);
+    expect(() => parseJudgesRequest({ judges: Array.from({ length: 21 }, (_, i) => String(i)) })).toThrow(InvalidRequestError);
+    expect(parseCreateEventRequest({ label: 'Liga' })).toEqual({ label: 'Liga', judges: [] });
+    expect(parseCreateEventRequest({ label: 'Liga', judges: ['a'] })).toEqual({ label: 'Liga', judges: ['a'] });
   });
 });

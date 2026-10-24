@@ -14,7 +14,7 @@ interface Props {
   onChanged: (me: MeResponse) => void;
 }
 
-const ROLE: Record<MeResponse['role'], string> = { player: 'Jogador', judge: 'Juiz', admin: 'ADM' };
+const ROLE: Record<MeResponse['role'], string> = { player: 'Jogador', admin: 'ADM' };
 
 export const Home = ({ me, api, onSignOut, onChanged }: Props) => (
   <>
