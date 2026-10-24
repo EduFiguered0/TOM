@@ -44,11 +44,11 @@ describe('WebStack', () => {
     });
   });
 
-  it('rotas do app caem no index.html; só HTTPS', () => {
-    expect(config()['CustomErrorResponses']).toEqual([
-      { ErrorCode: 403, ResponseCode: 200, ResponsePagePath: '/index.html', ErrorCachingMinTTL: 0 },
-      { ErrorCode: 404, ResponseCode: 200, ResponsePagePath: '/index.html', ErrorCachingMinTTL: 0 },
-    ]);
+  it('rotas do app servem o index.html só no site; a API mantém os próprios 404/403; só HTTPS', () => {
+    expect(config()['CustomErrorResponses']).toBeUndefined();
+    const site = config()['DefaultCacheBehavior'] as { FunctionAssociations?: { EventType: string }[] };
+    expect(site.FunctionAssociations).toEqual([expect.objectContaining({ EventType: 'viewer-request' })]);
+    for (const behavior of config()['CacheBehaviors'] as { FunctionAssociations?: unknown }[]) expect(behavior.FunctionAssociations).toBeUndefined();
     expect((config()['DefaultCacheBehavior'] as Record<string, unknown>)['ViewerProtocolPolicy']).toBe('redirect-to-https');
   });
 

@@ -6,6 +6,10 @@ import {
   CachePolicy,
   CacheQueryStringBehavior,
   Distribution,
+  Function as CloudFrontFunction,
+  FunctionCode,
+  FunctionEventType,
+  FunctionRuntime,
   HeadersFrameOption,
   HeadersReferrerPolicy,
   HttpVersion,
@@ -89,6 +93,15 @@ export class WebStack extends Stack {
     });
     const apiOrigin = new FunctionUrlOrigin(api);
 
+    // Rotas do app (ex.: /tv, /painel) servem o index.html. Só no site: uma regra de erro do CloudFront
+    // valeria também para a API e trocaria os 404/403 dela por HTML. 2 milhões de execuções/mês grátis.
+    const spaRoutes = new CloudFrontFunction(this, 'SpaRoutes', {
+      runtime: FunctionRuntime.JS_2_0,
+      code: FunctionCode.fromInline(
+        "function handler(event) { var r = event.request; if (r.uri.indexOf('.') === -1) { r.uri = '/index.html'; } return r; }",
+      ),
+    });
+
     const distribution = new Distribution(this, 'Cdn', {
       defaultRootObject: 'index.html',
       httpVersion: HttpVersion.HTTP2_AND_3,
@@ -100,6 +113,7 @@ export class WebStack extends Stack {
         viewerProtocolPolicy: ViewerProtocolPolicy.REDIRECT_TO_HTTPS,
         responseHeadersPolicy: headers,
         compress: true,
+        functionAssociations: [{ function: spaRoutes, eventType: FunctionEventType.VIEWER_REQUEST }],
       },
       additionalBehaviors: {
         // A ordem importa: o caminho mais específico vem antes de /api/*.
@@ -120,8 +134,6 @@ export class WebStack extends Stack {
           responseHeadersPolicy: headers,
         },
       },
-      // Rotas do app (ex.: /tv, /painel) caem no index.html.
-      errorResponses: [403, 404].map((httpStatus) => ({ httpStatus, responseHttpStatus: 200, responsePagePath: '/index.html', ttl: Duration.seconds(0) })),
     });
 
     Validations.of(site).acknowledge(

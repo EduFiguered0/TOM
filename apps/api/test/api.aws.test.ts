@@ -6,7 +6,8 @@ import {
   AdminSetUserPasswordCommand,
   CognitoIdentityProviderClient,
 } from '@aws-sdk/client-cognito-identity-provider';
-import { randomUUID } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
+import { readFileSync } from 'node:fs';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { awsConfig, stackOutput } from '../../../packages/aws-adapters/test/aws-env.js';
 
@@ -97,5 +98,38 @@ describe('API real (TomApiTest)', () => {
       status: 200, body: { playerId: { value: playerId, confirmed: true } },
     });
     expect(await call('GET', '/me', player)).toMatchObject({ status: 200, body: { canAct: true } });
+  });
+
+  it('ingestão: ADM cria o evento, o enviador manda os HTMLs reais do TOM e a TV mostra a rodada', async () => {
+    const adm = await login(adminEmail);
+    await call('POST', '/session', adm, { replace: true });
+    const created = await call('POST', '/events', adm, { label: 'Teste automático' });
+    expect(created.status).toBe(201);
+    const token = String(created.body['token']);
+
+    const fixtures = new URL('../../../packages/tom-reports/test/fixtures/fodase/', import.meta.url);
+    const send = (report: string) => {
+      const content = readFileSync(new URL(`FODASE${report}.html`, fixtures), 'utf8');
+      return fetch(new URL('/uploads', apiUrl), {
+        method: 'POST',
+        headers: { 'content-type': 'application/json', 'x-upload-token': token },
+        body: JSON.stringify({
+          tournament: 'FODASE', report, fileName: `FODASE${report}.html`, content,
+          sha256: createHash('sha256').update(content).digest('hex'),
+          // Versão nova a cada execução: o S3 de teste guarda as anteriores por 1 dia.
+          modifiedAt: new Date().toISOString(),
+        }),
+      }).then(async (r) => ({ status: r.status, body: (await r.json()) as Record<string, unknown> }));
+    };
+
+    expect((await send('pairings')).status).toBe(200);
+    const slips = await send('match_slips');
+    expect(slips.status).toBe(200);
+    expect(await call('GET', '/board', null)).toMatchObject({ status: 200, body: { tournament: 'FODASE' } });
+    // Versão nova do mesmo pareamento: guardada, mas a rodada não muda.
+    expect(await send('pairings')).toMatchObject({ status: 200, body: { stored: true, published: [] } });
+
+    await call('POST', `/events/${String(created.body['id'])}/revoke`, adm);
+    expect((await send('standings')).status).toBe(401);
   });
 });

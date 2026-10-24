@@ -7,8 +7,11 @@ const POLL_MS = 5000;
 
 type State = { kind: 'loading' } | { kind: 'empty' } | { kind: 'board'; board: BoardResponse };
 
+/** Referência estável: uma função nova a cada render reiniciaria o efeito e viraria um laço de consultas. */
+const browserFetch: typeof fetch = (...args) => fetch(...args);
+
 /** TV ao vivo: consulta o quadro público; sem conexão, continua mostrando a última rodada. */
-export const LiveTv = ({ fetchFn = (...args: Parameters<typeof fetch>) => fetch(...args) }: { fetchFn?: typeof fetch }) => {
+export const LiveTv = ({ fetchFn = browserFetch }: { fetchFn?: typeof fetch }) => {
   const [state, setState] = useState<State>({ kind: 'loading' });
   const [offline, setOffline] = useState(false);
 
