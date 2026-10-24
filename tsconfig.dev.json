@@ -18,6 +18,7 @@
     "apps/*/test",
     "infra/src",
     "infra/test",
+    "infra/scripts",
     "*.ts"
   ],
   "exclude": [

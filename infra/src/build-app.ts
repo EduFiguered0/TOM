@@ -3,6 +3,7 @@ import { AwsSolutionsChecks } from 'cdk-nag';
 import { ApiStack } from './api-stack.js';
 import { AuthStack } from './auth-stack.js';
 import { DataStack } from './data-stack.js';
+import { WebStack } from './web-stack.js';
 
 // O projeto AWS só permite recursos regionais em us-east-2.
 export const REGION = 'us-east-2';
@@ -19,6 +20,7 @@ export const buildApp = (account?: string, app = new App()) => {
   const apiTest = new ApiStack(app, 'TomApiTest', {
     env, ephemeral: true, accounts: test.accounts, userPool: authTest.userPool, client: authTest.client,
   });
+  const web = new WebStack(app, 'TomWeb', { env, api: api.functionUrl, region: REGION });
   Validations.of(app).addPlugins(new AwsSolutionsChecks(app, { verbose: true }));
-  return { app, data, test, auth, authTest, api, apiTest };
+  return { app, data, test, auth, authTest, api, apiTest, web };
 };

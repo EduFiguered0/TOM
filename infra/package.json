@@ -8,6 +8,9 @@
     "cdk": "cdk"
   },
   "devDependencies": {
+    "@aws-sdk/client-cloudformation": "^3.1156.0",
+    "@aws-sdk/client-cloudfront": "^3.1156.0",
+    "@aws-sdk/client-s3": "^3.1156.0",
     "aws-cdk": "^2.1146.1",
     "esbuild": "^0.25.12",
     "tsx": "^4.23.15"
