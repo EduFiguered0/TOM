@@ -58,3 +58,17 @@ describe('ingestão: TOM → enviador → API', () => {
     expect((await send({ ...upload('pairings'), fileName: 'FODASEstandings.html' })).status).toBe(400);
   });
 });
+
+describe('ingestão: pareamento já publicado', () => {
+  it('não republica quando o banco devolve o mesmo pareamento com as chaves em outra ordem', async () => {
+    const { send, rounds } = await withEvent();
+    await send(upload('pairings'));
+    await send(upload('match_slips'));
+    // Simula o DynamoDB: mesmo conteúdo, chaves dos objetos em ordem invertida.
+    const reverse = (v: unknown): unknown => Array.isArray(v) ? v.map(reverse)
+      : v && typeof v === 'object' ? Object.fromEntries(Object.entries(v).reverse().map(([k, x]) => [k, reverse(x)])) : v;
+    const original = rounds.state.bind(rounds);
+    rounds.state = async (ref) => { const s = await original(ref); return { ...s, pairing: reverse(s.pairing) as typeof s.pairing }; };
+    expect((await send(upload('match_slips', undefined, '2026-10-24T15:00:00Z'))).body).toMatchObject({ stored: true, published: [] });
+  });
+});

@@ -32,6 +32,12 @@ const ROUND_REPORTS = ['pairings', 'match_slips'] as const;
 
 const nothing = (stored: boolean, note: string | null): UploadResponse => ({ stored, published: [], note });
 
+/** JSON com as chaves ordenadas: o DynamoDB devolve os mapas em outra ordem, então JSON.stringify direto nunca bate. */
+const canonical = (value: unknown): string => JSON.stringify(value, (_, v: unknown) =>
+  v && typeof v === 'object' && !Array.isArray(v)
+    ? Object.fromEntries(Object.entries(v as Record<string, unknown>).sort(([a], [b]) => a.localeCompare(b)))
+    : v);
+
 /**
  * Recebe um HTML do enviador: confere token e integridade, guarda a fotografia e, se for pareamento ou guias,
  * tenta montar a rodada com a versão mais recente do outro arquivo. Reenvio igual não republica nada.
@@ -45,7 +51,7 @@ export const createIngest = ({ events, registry, snapshots, rounds, clock }: Ing
 
   const publish = async (eventId: string, pairing: RoundPairing): Promise<boolean> => {
     const state = await rounds.state(pairing.ref);
-    if (JSON.stringify(state.pairing) === JSON.stringify(pairing)) return false;
+    if (canonical(state.pairing) === canonical(pairing)) return false;
     try {
       await rounds.publishPairing(UPLOADER, pairing);
     } catch (e) {
