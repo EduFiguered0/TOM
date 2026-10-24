@@ -2,6 +2,9 @@ import {
   InvalidRequestError,
   parseConfirmPlayerIdRequest,
   parseCreateEventRequest,
+  parseExtendRequest,
+  parseOverrideRequest,
+  parseStaffReportRequest,
   parseRegisterRequest,
   parseReportRequest,
   parseStartRoundRequest,
@@ -25,6 +28,7 @@ import {
   type RoundService,
 } from '@tom/core';
 import type { Ingest } from './ingest.js';
+import { panel } from './panel.js';
 import { myRound, type RoundReader } from './rounds.js';
 
 export interface HttpRequest {
@@ -270,6 +274,59 @@ export const createApi = ({ tokens, emails, accounts, events, ingest, board, rou
     },
   ];
   routes.push(...roundRoutes);
+
+  /** Painel: juiz e ADM; cada comando aplica as regras do RoundService (papel, mesa travada, key lançada...). */
+  const staff = async (identity: Identity) => {
+    const { actor } = await accounts.authenticate(identity);
+    if (actor?.role !== 'judge' && actor?.role !== 'admin') throw new CommandRejected('forbidden', 'Só juiz e ADM usam o painel');
+    return actor;
+  };
+  const respond = (state: Awaited<ReturnType<RoundService['state']>>, extra: Record<string, unknown> = {}): HttpResponse =>
+    ({ status: 200, body: { ...panel(reader.remember(state), clock.now()), ...extra } });
+
+  const panelRoutes: Route[] = [
+    {
+      method: 'GET', path: /^\/panel$/,
+      handle: async ({ identity }) => {
+        await staff(identity);
+        const current = await registry.current();
+        return { status: 200, body: panel(current ? await reader.state(current.ref) : null, clock.now()) };
+      },
+    },
+    {
+      method: 'POST', path: /^\/panel\/tables\/(\d+)\/override$/,
+      handle: async ({ request, identity, params: [table = ''] }) => {
+        const { override, reason } = parseOverrideRequest(jsonBody(request));
+        const actor = await staff(identity);
+        const result = await rounds.applyOverride(actor, await currentRef(), { table: Number(table), override, reason });
+        return respond(result.state, { requiresTomFix: result.requiresTomFix });
+      },
+    },
+    {
+      method: 'POST', path: /^\/panel\/tables\/(\d+)\/extend$/,
+      handle: async ({ request, identity, params: [table = ''] }) => {
+        const { minutes } = parseExtendRequest(jsonBody(request));
+        const actor = await staff(identity);
+        return respond(await rounds.extendTime(actor, await currentRef(), { table: Number(table), minutes }));
+      },
+    },
+    {
+      method: 'POST', path: /^\/panel\/tables\/(\d+)\/key-launched$/,
+      handle: async ({ identity, params: [table = ''] }) => {
+        const actor = await staff(identity);
+        return respond(await rounds.markKeyLaunched(actor, await currentRef(), { table: Number(table) }));
+      },
+    },
+    {
+      method: 'POST', path: /^\/panel\/tables\/(\d+)\/report$/,
+      handle: async ({ request, identity, params: [table = ''] }) => {
+        const { side, report } = parseStaffReportRequest(jsonBody(request));
+        const actor = await staff(identity);
+        return respond(await rounds.submitReport(actor, await currentRef(), { table: Number(table), report, side }));
+      },
+    },
+  ];
+  routes.push(...panelRoutes);
 
   const openRoutes: OpenRoute[] = [
     {

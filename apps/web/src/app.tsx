@@ -7,6 +7,7 @@ import { Device } from './screens/device.js';
 import { Home } from './screens/home.js';
 import { Login } from './screens/login.js';
 import { Register } from './screens/register.js';
+import { PanelScreen } from './panel/panel-screen.js';
 
 interface Props {
   cognito: Cognito;
@@ -43,7 +44,9 @@ export const App = ({ cognito, session, api }: Props) => {
       {screen.name === 'login' && <Login cognito={cognito} onSignedIn={(tokens) => { session.signedIn(tokens); void check(); }} />}
       {screen.name === 'register' && <Register api={api} onRegistered={(me) => { setScreen({ name: 'home', me }); }} />}
       {screen.name === 'device' && <Device api={api} onActivated={(me) => { setScreen({ name: 'home', me }); }} onCancel={signOut} />}
-      {screen.name === 'home' && <Home me={screen.me} api={api} onSignOut={signOut} />}
+      {screen.name === 'home' && (location.pathname.startsWith('/painel') && screen.me.role !== 'player'
+        ? <PanelScreen api={api} me={screen.me} />
+        : <Home me={screen.me} api={api} onSignOut={signOut} />)}
       {screen.name === 'error' && (
         <section class="card">
           <p class="error" role="alert">{screen.message}</p>
