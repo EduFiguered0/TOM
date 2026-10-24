@@ -5,6 +5,9 @@ import {
   AdminInitiateAuthCommand,
   AdminSetUserPasswordCommand,
   CognitoIdentityProviderClient,
+  ForgotPasswordCommand,
+  InitiateAuthCommand,
+  SignUpCommand,
 } from '@aws-sdk/client-cognito-identity-provider';
 import { createHash, randomUUID } from 'node:crypto';
 import { readFileSync } from 'node:fs';
@@ -64,6 +67,27 @@ describe('API real (TomApiTest)', () => {
   it('recusa chamada sem token ou com token forjado', async () => {
     expect((await call('GET', '/me', null)).status).toBe(401);
     expect((await call('GET', '/me', 'eyJhbGciOiJub25lIn0.e30.')).status).toBe(401);
+  });
+
+  it('cadastro com senha pelo próprio site: confirmado na hora, sem código, e "Esqueci minha senha" por e-mail', async () => {
+    const self = `teste-senha-${randomUUID()}@example.com`;
+    try {
+      const signUp = await cognito.send(new SignUpCommand({
+        ClientId: clientId, Username: self, Password: 'senha1234', UserAttributes: [{ Name: 'email', Value: self }],
+      }));
+      expect(signUp.UserConfirmed).toBe(true);
+      const { AuthenticationResult } = await cognito.send(new InitiateAuthCommand({
+        ClientId: clientId, AuthFlow: 'USER_AUTH', AuthParameters: { USERNAME: self, PASSWORD: 'senha1234', PREFERRED_CHALLENGE: 'PASSWORD' },
+      }));
+      const token = AuthenticationResult?.AccessToken ?? '';
+      expect((await call('GET', '/me', token)).status).toBe(404);
+      expect(await call('POST', '/me', token, { profile, playerId: null })).toMatchObject({ status: 201, body: { email: self } });
+      // Único e-mail do sistema (conta para o limite diário do Cognito: um por execução).
+      const forgot = await cognito.send(new ForgotPasswordCommand({ ClientId: clientId, Username: self }));
+      expect(forgot.CodeDeliveryDetails?.DeliveryMedium).toBe('EMAIL');
+    } finally {
+      await cognito.send(new AdminDeleteUserCommand({ UserPoolId: userPoolId, Username: self }));
+    }
   });
 
   it('cadastro, sessão única e troca de dispositivo de ponta a ponta', async () => {

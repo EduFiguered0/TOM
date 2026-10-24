@@ -63,7 +63,7 @@ Região us-east-2, perfil `tom`. Cada stack de produção tem um gêmeo descart�
 | Stack | Gêmeo de teste | Recursos |
 | --- | --- | --- |
 | `TomData` | `TomTest` | DynamoDB `Events`, `Accounts` e `Tournaments` (sob demanda, TTL 24 meses), S3 `Snapshots` (privado, expira em 24 meses) |
-| `TomAuth` | `TomAuthTest` | Cognito user pool (Essentials, código por e-mail), grupos `admin` e `judge` |
+| `TomAuth` | `TomAuthTest` | Cognito user pool (Essentials, e-mail e senha; Google só em produção), gatilho de pré-cadastro (Lambda 128 MB), grupos `admin` e `judge` |
 | `TomApi` | `TomApiTest` | Lambda Node 22 Arm 256 MB + Function URL (sem API Gateway), logs por 14 dias |
 | `TomWeb` | — | Site no S3 + CloudFront, `/api` no mesmo endereço, `/api/board` guardado 5 s, CSP rígida |
 
@@ -102,6 +102,21 @@ Papéis vêm dos grupos do Cognito. Para dar o papel de ADM (ou `judge`) a uma c
 aws cognito-idp admin-add-user-to-group --profile tom --user-pool-id <TomAuth.UserPoolId> --username <e-mail> --group-name admin
 ```
 
+### Login
+
+E-mail e senha (mínimo de 8 caracteres, com letras e números). O cadastro é confirmado na hora por um gatilho de pré-cadastro, sem código por e-mail; o único e-mail que o sistema manda é o de "Esqueci minha senha". Contas antigas, criadas com código por e-mail, definem a senha por ele. Só o Google liga um login novo a uma conta que já existe com o mesmo e-mail.
+
+### Ativar o Google
+
+1. No Google Cloud, cliente OAuth "Aplicativo da Web" com o URI de redirecionamento `https://tom-pokemon-login.auth.us-east-2.amazoncognito.com/oauth2/idpresponse`. Enquanto o app estiver "Em teste", só os usuários de teste entram; para publicar, o Google pede home e política de privacidade.
+2. Cadastrar o provedor no pool (o segredo fica só no seu terminal, nunca no repositório):
+
+   ```bash
+   aws cognito-idp create-identity-provider --profile tom --user-pool-id <TomAuth.UserPoolId> --provider-name Google --provider-type Google --provider-details client_id=<id>,client_secret=<segredo>,authorize_scopes="openid email profile" --attribute-mapping email=email,email_verified=email_verified
+   ```
+
+3. Trocar `"google": false` para `true` em `infra/cdk.json`, rodar `npm run cdk -- deploy TomAuth --profile tom` e `npm run web:deploy`.
+
 O bootstrap usa a policy restrita `TomCdkExecution` (`infra/bootstrap/execution-policy.json`) em vez de `AdministratorAccess`:
 
 ```bash
@@ -121,7 +136,7 @@ Para mudar a policy: edite o JSON e rode `aws iam create-policy-version --profil
 | 3 | Modelo de eventos e recálculo do estado | ✅ |
 | 4 | Enviador (observa a pasta do TOM) | ✅ |
 | 5 | Infraestrutura AWS, EventStore no DynamoDB, fotografias no S3 | ✅ |
-| 6 | Login por código no e-mail, sessão única, papéis, check-in do ADM (Google e SES pendentes, ver spec) | ✅ |
+| 6 | Login (e-mail e senha, Google), sessão única, papéis, check-in do ADM (SES pendente, ver spec) | ✅ |
 | 7 | Celular: site e login, ingestão do TOM e TV ao vivo, rodada e reporte (histórico do jogador fica para outra spec) | ✅ |
 | 8–9 | TV do salão e painel do ADM/juiz (estética pendente) | ✅ |
 | 10 | Upload do enviador para a API | |
