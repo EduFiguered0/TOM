@@ -35,8 +35,9 @@ export const setup = () => {
   const ids = { next: () => randomUUID() };
   const registry = new InMemoryEventRegistry();
   const rounds = new RoundService({ store: new InMemoryEventStore(), clock, ids });
-  const events = new EventService({ events: registry, clock, ids });
-  const accounts = new AccountService({ accounts: new InMemoryAccountRepository(), clock, ids });
+  const accountRepository = new InMemoryAccountRepository();
+  const events = new EventService({ events: registry, accounts: accountRepository, clock, ids });
+  const accounts = new AccountService({ accounts: accountRepository, clock, ids });
   const reader = createRoundReader(rounds);
   const api = createApi({
     tokens,

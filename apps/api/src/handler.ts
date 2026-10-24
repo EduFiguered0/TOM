@@ -26,13 +26,14 @@ const ids = { next: () => randomUUID() };
 
 const registry = new DynamoEventRegistry(dynamo, { tableName: env('TOURNAMENTS_TABLE'), ...retention });
 const rounds = new RoundService({ store: new DynamoEventStore(dynamo, { tableName: env('EVENTS_TABLE'), ...retention }), clock, ids });
-const events = new EventService({ events: registry, clock, ids });
+const accountRepository = new DynamoAccountRepository(dynamo, { tableName: env('ACCOUNTS_TABLE'), ...retention });
+const events = new EventService({ events: registry, accounts: accountRepository, clock, ids });
 const reader = createRoundReader(rounds);
 
 const api = createApi({
   tokens: new CognitoTokenVerifier(env('USER_POOL_ID'), env('USER_POOL_CLIENT_ID')),
   emails: new CognitoEmailLookup(new CognitoIdentityProviderClient({})),
-  accounts: new AccountService({ accounts: new DynamoAccountRepository(dynamo, { tableName: env('ACCOUNTS_TABLE'), ...retention }), clock, ids }),
+  accounts: new AccountService({ accounts: accountRepository, clock, ids }),
   events,
   ingest: createIngest({ events, registry, rounds, clock, snapshots: new S3SnapshotStore(new S3Client({}), env('SNAPSHOTS_BUCKET')) }),
   board: createBoard({ registry, rounds: reader, clock }),

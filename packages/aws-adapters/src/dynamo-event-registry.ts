@@ -11,7 +11,7 @@ export interface DynamoEventRegistryOptions {
 }
 
 type Stored<T, K extends keyof T> = Omit<T, K> & Record<K, string>;
-type StoredEvent = Stored<TournamentEvent, 'createdAt'>;
+type StoredEvent = Omit<Stored<TournamentEvent, 'createdAt'>, 'judges'> & { judges?: string[] };
 type StoredCurrent = Stored<CurrentRound, 'updatedAt'>;
 
 const eventKey = (id: string) => ({ pk: `event#${id}`, sk: 'event' });
@@ -30,7 +30,7 @@ export class DynamoEventRegistry implements EventRegistry {
 
   async get(id: string) {
     const item = await this.item(eventKey(id));
-    return item ? { event: fromStored(item['event'] as StoredEvent), version: item['version'] as number } : null;
+    return item ? { event: eventFromStored(item['event'] as StoredEvent), version: item['version'] as number } : null;
   }
 
   async findByTokenHash(tokenHash: string) {
@@ -81,4 +81,9 @@ export class DynamoEventRegistry implements EventRegistry {
   }
 }
 
-const fromStored = (stored: StoredEvent): TournamentEvent => ({ ...stored, createdAt: new Date(stored.createdAt) });
+/** Eventos de antes da escala de juízes não têm `judges`. */
+export const eventFromStored = (stored: StoredEvent): TournamentEvent => ({
+  ...stored,
+  judges: stored.judges ?? [],
+  createdAt: new Date(stored.createdAt),
+});

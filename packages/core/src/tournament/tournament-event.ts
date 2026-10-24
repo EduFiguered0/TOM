@@ -11,6 +11,8 @@ export interface TournamentEvent {
   revoked: boolean;
   createdAt: Date;
   createdBy: string;
+  /** Contas escaladas como juiz neste evento (só juízes da equipe). */
+  judges: string[];
 }
 
 /** Rodada que as telas mostram agora: a última publicada pelo enviador. */

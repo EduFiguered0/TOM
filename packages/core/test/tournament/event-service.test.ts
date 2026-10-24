@@ -1,5 +1,13 @@
 import { describe, expect, it } from 'vitest';
-import { CommandRejected, EventService, hashToken, InMemoryEventRegistry, type RejectCode } from '../../src/index.js';
+import {
+  CommandRejected,
+  EventService,
+  hashToken,
+  InMemoryAccountRepository,
+  InMemoryEventRegistry,
+  type Account,
+  type RejectCode,
+} from '../../src/index.js';
 import { actors, TestClock } from './support.js';
 import { eventRegistryContract } from './event-registry-contract.js';
 
@@ -7,8 +15,19 @@ eventRegistryContract('em memória', () => new InMemoryEventRegistry());
 
 const setup = () => {
   const events = new InMemoryEventRegistry();
+  const accounts = new InMemoryAccountRepository();
   let n = 0;
-  return { events, service: new EventService({ events, clock: new TestClock(), ids: { next: () => `ev${String(++n)}` } }) };
+  return { events, accounts, service: new EventService({ events, accounts, clock: new TestClock(), ids: { next: () => `ev${String(++n)}` } }) };
+};
+
+/** Conta gravada direto no repositório; `judge` = juiz da equipe. */
+const member = async (accounts: InMemoryAccountRepository, id: string, judge: boolean) => {
+  const account: Account = {
+    id, email: `${id}@example.com`, logins: [id], playerId: null, activeSession: null, createdAt: new Date(), judge,
+    profile: { name: id, birthYear: 1990, phone: null, guardianConsent: false },
+  };
+  await accounts.save(account, [], 0);
+  return id;
 };
 
 const rejects = async (promise: Promise<unknown>, code: RejectCode) => {
@@ -54,5 +73,40 @@ describe('evento e token do enviador', () => {
     const { token } = await service.createEvent(actors.admin, 'Liga');
     const results = await Promise.all([service.authorizeUpload(token, 'FODASE'), service.authorizeUpload(token, 'FODASE')]);
     expect(results.map((e) => e.tournament)).toEqual(['FODASE', 'FODASE']);
+  });
+});
+
+describe('escala de juízes', () => {
+  it('cria com juízes da equipe', async () => {
+    const { service, accounts } = setup();
+    const juiz = await member(accounts, 'juiz', true);
+    expect((await service.createEvent(actors.admin, 'Liga', [juiz])).event.judges).toEqual([juiz]);
+    expect((await service.createEvent(actors.admin, 'Liga')).event.judges).toEqual([]);
+  });
+
+  it('recusa escalar quem não é juiz da equipe; nada é gravado', async () => {
+    const { service, accounts, events } = setup();
+    const comum = await member(accounts, 'comum', false);
+    const creating = service.createEvent(actors.admin, 'Liga', [comum]);
+    await rejects(creating, 'invalid_input');
+    await expect(creating).rejects.toThrow('Só juízes da equipe podem ser escalados');
+    await rejects(service.createEvent(actors.admin, 'Liga', ['nao-existe']), 'invalid_input');
+    expect(await events.get('ev1')).toBeNull();
+  });
+
+  it('ADM troca a escala; repetidos viram um', async () => {
+    const { service, accounts } = setup();
+    const juiz = await member(accounts, 'juiz', true);
+    const { event } = await service.createEvent(actors.admin, 'Liga');
+    expect((await service.setJudges(actors.admin, event.id, [juiz, juiz])).judges).toEqual([juiz]);
+    expect((await service.setJudges(actors.admin, event.id, [])).judges).toEqual([]);
+    await rejects(service.setJudges(actors.admin, 'nao-existe', []), 'event_not_found');
+  });
+
+  it('só o ADM escala', async () => {
+    const { service } = setup();
+    const { event } = await service.createEvent(actors.admin, 'Liga');
+    await rejects(service.setJudges(actors.p1, event.id, []), 'forbidden');
+    await rejects(service.setJudges(null, event.id, []), 'forbidden');
   });
 });
