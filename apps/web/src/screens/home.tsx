@@ -1,6 +1,5 @@
 import type { MeResponse } from '@tom/contracts';
 import type { Api } from '../api.js';
-import { Checkin } from './checkin.js';
 import { EventCard } from './event.js';
 import { RoundCard } from '../round/round-card.js';
 import { StartRoundCard } from '../round/start-card.js';
@@ -21,10 +20,10 @@ export const Home = ({ me, api, onSignOut }: Props) => (
     <h1>Olá, {me.profile.name.split(' ')[0]}</h1>
     <p class="muted">{ROLE[me.role]} · {me.email}</p>
     {me.role === 'player' && (me.canAct ? (
-      <p class="ok">Player ID {me.playerId?.value} confirmado. Você já pode reportar resultados.</p>
+      <p class="ok">Player ID {me.playerId}. Você já pode reportar resultados.</p>
     ) : (
       <div class="notice">
-        <p><b>Check-in pendente.</b> No primeiro evento, mostre este código ao ADM para confirmar o seu Player ID{me.playerId ? ` (${me.playerId.value})` : ''}:</p>
+        <p><b>Check-in pendente.</b> No primeiro evento, mostre este código ao ADM para confirmar o seu Player ID{me.playerId ? ` (${me.playerId})` : ''}:</p>
         <p class="code">{me.id}</p>
       </div>
     ))}
@@ -33,6 +32,5 @@ export const Home = ({ me, api, onSignOut }: Props) => (
   </section>
   {me.role === 'admin' && <StartRoundCard api={api} />}
   {me.role === 'admin' && <EventCard api={api} />}
-  {me.role === 'admin' && <Checkin api={api} />}
   </>
 );

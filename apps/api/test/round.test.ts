@@ -11,12 +11,12 @@ describe('rodada no celular do jogador', () => {
     expect(((await ctx.call('GET', '/round/me', 'p1:c1')).body as MyRoundResponse).round).toBeNull();
   });
 
-  it('mostra a mesa e o oponente; check-in pendente não mostra mesa', async () => {
+  it('mostra a mesa e o oponente; conta sem Player ID não mostra mesa', async () => {
     const { me, call } = await setupRound();
     expect(await me('p1:c1')).toMatchObject({
       round: { tournament: 'FODASE', round: 3, startedAt: null, seat: { kind: 'table', table: 1, opponent: 'teste5 5', color: 'gray', myReport: null } },
     });
-    await register(call, 'p9:c9', '100009');
+    await register(call, 'p9:c9');
     expect(seat(await me('p9:c9'))).toEqual({ kind: 'not_checked_in' });
   });
 
@@ -53,8 +53,7 @@ describe('rodada no celular do jogador', () => {
     await start();
     expect((await report('p1:c1', { kind: 'score', own: 3, opponent: 0 })).status).toBe(400);
     expect((await report('p1:c1', { kind: 'empate' })).status).toBe(400);
-    const outsider = await register(call, 'p7:c7', '100099');
-    await call('POST', `/accounts/${outsider}/player-id`, 'adm:a1:admin', { playerId: '100099' });
+    await register(call, 'p7:c7', '100099');
     expect((await report('p7:c7', { kind: 'intentional_draw' })).body).toMatchObject({ error: 'not_your_table' });
   });
 });

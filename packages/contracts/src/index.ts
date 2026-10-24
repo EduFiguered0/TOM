@@ -9,7 +9,7 @@ export interface ProfileDto {
 
 export interface RegisterRequest {
   profile: ProfileDto;
-  /** Player ID informado pelo jogador; fica pendente até o ADM confirmar no check-in. */
+  /** Player ID informado pelo jogador; vale desde o cadastro (o primeiro a cadastrar fica com ele). */
   playerId: string | null;
 }
 
@@ -18,23 +18,23 @@ export interface SessionRequest {
   replace: boolean;
 }
 
-export interface ConfirmPlayerIdRequest {
-  /** Valor conferido presencialmente; pode corrigir o que o jogador informou. */
+/** Conta sem Player ID informa depois. */
+export interface PlayerIdRequest {
   playerId: string;
 }
 
-/** Conta como o ADM vê no check-in. */
+/** Conta como o ADM vê ao desfazer um vínculo de Player ID. */
 export interface AccountResponse {
   id: string;
   email: string;
   profile: ProfileDto;
-  playerId: { value: string; confirmed: boolean } | null;
+  playerId: string | null;
   createdAt: string;
 }
 
 export interface MeResponse extends AccountResponse {
   role: 'player' | 'judge' | 'admin';
-  /** false para jogador sem Player ID confirmado: vê a conta, mas ainda não reporta. */
+  /** false para jogador sem Player ID: vê a conta, mas ainda não reporta. */
   canAct: boolean;
 }
 
@@ -78,7 +78,7 @@ export const parseRegisterRequest = (body: unknown): RegisterRequest => {
   };
 };
 
-export const parseConfirmPlayerIdRequest = (body: unknown): ConfirmPlayerIdRequest => ({
+export const parsePlayerIdRequest = (body: unknown): PlayerIdRequest => ({
   playerId: field(object(body, 'Corpo'), 'playerId', 'string'),
 });
 
