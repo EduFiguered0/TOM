@@ -49,7 +49,13 @@ export const createApi = (session: Session, base = '/api', fetchFn: typeof fetch
     claimPlayerId: (playerId: string) => call<MeResponse>('POST', '/me/player-id', { playerId }),
     accountByPlayerId: (playerId: string) => call<AccountResponse>('GET', `/player-ids/${encodeURIComponent(playerId)}`),
     unlinkPlayerId: (playerId: string) => call<AccountResponse>('POST', `/player-ids/${encodeURIComponent(playerId)}/unlink`),
-    createEvent: (label: string) => call<CreateEventResponse>('POST', '/events', { label }),
+    createEvent: (label: string, judges: string[]) => call<CreateEventResponse>('POST', '/events', { label, judges }),
+    setEventJudges: (eventId: string, judges: string[]) =>
+      call<{ id: string; label: string; judges: string[] }>('PUT', `/events/${encodeURIComponent(eventId)}/judges`, { judges }),
+    searchAccounts: (query: string) => call<AccountResponse[]>('POST', '/staff/search', { query }),
+    judges: () => call<AccountResponse[]>('GET', '/staff/judges'),
+    setJudge: (accountId: string, judge: boolean) =>
+      call<AccountResponse>('POST', `/staff/accounts/${encodeURIComponent(accountId)}/judge`, { judge }),
     myRound: () => call<MyRoundResponse>('GET', '/round/me'),
     report: (report: ReportDto) => call<MyRoundResponse>('POST', '/round/report', { report }),
     startRound: (bestOf: 1 | 3, roundMinutes: number | null) => call<BoardResponse>('POST', '/round/start', { bestOf, roundMinutes }),
