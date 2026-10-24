@@ -9,6 +9,7 @@ import { Home } from './screens/home.js';
 import { Login } from './screens/login.js';
 import { Register } from './screens/register.js';
 import { PanelScreen } from './panel/panel-screen.js';
+import { STORE } from './public/store.js';
 
 interface Props {
   cognito: Cognito;
@@ -46,7 +47,7 @@ export const App = ({ cognito, session, api, google, loginError }: Props) => {
 
   return (
     <main>
-      <header><span class="brand">Torneios TOM</span></header>
+      <header><a class="brand" href="/">{STORE.name}</a></header>
       {screen.name === 'loading' && <p class="muted center">Carregando…</p>}
       {screen.name === 'login' && (
         <Login cognito={cognito} google={google} initialError={screen.message ?? loginError} onSignedIn={(tokens) => { session.signedIn(tokens); void check(); }} />
