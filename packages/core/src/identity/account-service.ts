@@ -8,8 +8,10 @@ import { AccountConflictError, PlayerIdTakenError, type AccountRecord, type Acco
 
 /** O que o token validado (Cognito) diz sobre quem chama. */
 export interface Identity {
-  /** `sub` do Cognito: um por forma de login (código por e-mail, Google). */
+  /** `sub` do Cognito: um por forma de login (e-mail e senha, Google). */
   login: string;
+  /** De onde veio o login; só o Google prova o e-mail. */
+  provider: 'password' | 'google';
   /** `origin_jti`: identifica o login neste dispositivo e sobrevive às renovações do token. */
   session: string;
   /** `cognito:groups`. */
@@ -60,7 +62,7 @@ export class AccountService {
 
   /**
    * Cadastro após o primeiro login; o Player ID informado fica pendente até o ADM confirmar.
-   * O e-mail vem do Cognito (já verificado), nunca do corpo da requisição.
+   * O e-mail vem do Cognito, nunca do corpo da requisição.
    */
   async register(identity: Identity, email: string, input: { profile: Profile; playerId: string | null }): Promise<Account> {
     const now = this.deps.clock.now();
@@ -94,12 +96,14 @@ export class AccountService {
   }
 
   /**
-   * Primeiro acesso por outra forma de login (ex.: Google depois do código por e-mail): liga o login
-   * à conta que já tem o mesmo e-mail verificado. Sem conta com esse e-mail, recusa como não cadastrada.
+   * Primeiro acesso pelo Google de quem já tinha conta com senha: liga o login à conta do mesmo e-mail.
+   * Sem conta com esse e-mail, recusa como não cadastrada. Login por senha não prova o e-mail, então nunca liga.
    */
   async linkLogin(identity: Identity, email: string): Promise<Account> {
     const record = await this.deps.accounts.findByEmail(normalizeEmail(email));
     if (!record) throw notFound();
+    if (record.account.logins.includes(identity.login)) return record.account;
+    if (identity.provider === 'password') throw accountExists();
     return this.execute(record.account.id, (account) => {
       if (account.logins.includes(identity.login)) return null;
       return {
@@ -205,7 +209,7 @@ interface Change {
   data: IdentityEventData;
 }
 
-const accountExists = () => new CommandRejected('account_exists', 'Já existe uma conta com este login ou e-mail');
+const accountExists = () => new CommandRejected('account_exists', 'Esse e-mail já tem conta. Entre com a sua senha ou pelo Google.');
 
 const takenRejection = (playerId: string) =>
   new CommandRejected('player_id_taken', `Player ID ${playerId} já está confirmado em outra conta`);
