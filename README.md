@@ -97,6 +97,6 @@ Para mudar a policy: edite o JSON e rode `aws iam create-policy-version --profil
 | 3 | Modelo de eventos e recálculo do estado | ✅ |
 | 4 | Enviador (observa a pasta do TOM) | ✅ |
 | 5 | Infraestrutura AWS, EventStore no DynamoDB, fotografias no S3 | ✅ |
-| 6 | Login, papéis e sessão (6.1 domínio + Cognito ✅, 6.2 API ✅, 6.3 check-in do ADM ✅, Google) | ⏳ |
+| 6 | Login por código no e-mail, sessão única, papéis, check-in do ADM (Google e SES pendentes, ver spec) | ✅ |
 | 7–9 | Telas: celular, TV e painel | |
 | 10 | Upload do enviador para a API | |
