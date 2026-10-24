@@ -4,7 +4,9 @@
   "private": true,
   "description": "Enviador: observa a pasta do TOM (somente leitura) e envia cada nova versão completa dos HTMLs.",
   "type": "module",
-  "bin": { "tom-uploader": "dist/main.js" },
+  "bin": {
+    "tom-uploader": "dist/main.js"
+  },
   "exports": {
     ".": {
       "source": "./src/index.ts",
@@ -16,6 +18,7 @@
     "start": "node dist/main.js"
   },
   "dependencies": {
+    "@tom/contracts": "0.0.0",
     "@tom/core": "0.0.0",
     "@tom/tom-reports": "0.0.0"
   }

@@ -42,7 +42,7 @@ export default tseslint.config(
   {
     files: ['apps/uploader/src/**'],
     rules: restrictImports([
-      { group: ['@tom/*', '!@tom/core', '!@tom/tom-reports'], message: 'uploader só depende de core e tom-reports.' },
+      { group: ['@tom/*', '!@tom/core', '!@tom/tom-reports', '!@tom/contracts'], message: 'uploader só depende de core, tom-reports e contracts.' },
     ]),
   },
   {

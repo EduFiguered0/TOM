@@ -3,6 +3,7 @@ import type { Clock } from '@tom/core';
 import { latestTournament, type ReportType } from '@tom/tom-reports';
 import type { Folder } from './folder.js';
 import type { SentLog } from './sent-log.js';
+import { FatalSinkError } from './http-sink.js';
 import type { Sink } from './sink.js';
 
 export const DEFAULT_QUIET_MS = 1500;
@@ -83,6 +84,7 @@ export class Uploader {
       await this.deps.sentLog.set(fileName, hash);
       prev.done = true;
     } catch (e) {
+      if (e instanceof FatalSinkError) throw e;
       prev.quietSince = now;
       this.log(`${fileName}: falha no envio (${e instanceof Error ? e.message : String(e)}); nova tentativa em seguida`);
     }
