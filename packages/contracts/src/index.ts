@@ -18,15 +18,24 @@ export interface SessionRequest {
   replace: boolean;
 }
 
-export interface MeResponse {
+export interface ConfirmPlayerIdRequest {
+  /** Valor conferido presencialmente; pode corrigir o que o jogador informou. */
+  playerId: string;
+}
+
+/** Conta como o ADM vê no check-in. */
+export interface AccountResponse {
   id: string;
   email: string;
   profile: ProfileDto;
   playerId: { value: string; confirmed: boolean } | null;
+  createdAt: string;
+}
+
+export interface MeResponse extends AccountResponse {
   role: 'player' | 'judge' | 'admin';
   /** false para jogador sem Player ID confirmado: vê a conta, mas ainda não reporta. */
   canAct: boolean;
-  createdAt: string;
 }
 
 export interface ErrorResponse {
@@ -68,6 +77,10 @@ export const parseRegisterRequest = (body: unknown): RegisterRequest => {
     playerId: nullableString(root, 'playerId'),
   };
 };
+
+export const parseConfirmPlayerIdRequest = (body: unknown): ConfirmPlayerIdRequest => ({
+  playerId: field(object(body, 'Corpo'), 'playerId', 'string'),
+});
 
 export const parseSessionRequest = (body: unknown): SessionRequest => ({
   replace: field(object(body, 'Corpo'), 'replace', 'boolean'),

@@ -80,6 +80,32 @@ describe('API', () => {
     expect(await call('GET', '/me', 'c1:s1:admin')).toMatchObject({ body: { role: 'admin', canAct: true } });
   });
 
+  it('check-in: ADM consulta a conta e confirma o Player ID; o jogador passa a agir', async () => {
+    const { call } = setup();
+    const player = '11111111-1111-1111-1111-111111111111';
+    const adm = '22222222-2222-2222-2222-222222222222';
+    await call('POST', '/me', `${player}:p1`, { profile, playerId: '100009' });
+    await call('POST', '/me', `${adm}:a1`, { profile, playerId: null });
+
+    expect(await call('GET', `/accounts/${player}`, `${adm}:a1:admin`)).toMatchObject({
+      status: 200, body: { id: player, playerId: { value: '100009', confirmed: false } },
+    });
+    expect(await call('POST', `/accounts/${player}/player-id`, `${adm}:a1:admin`, { playerId: '100001' })).toMatchObject({
+      status: 200, body: { playerId: { value: '100001', confirmed: true } },
+    });
+    expect(await call('GET', '/me', `${player}:p1`)).toMatchObject({ body: { canAct: true } });
+  });
+
+  it('rotas do ADM: jogador e juiz recebem 403; conta inexistente 404; id malformado não casa rota', async () => {
+    const { call } = setup();
+    const player = '11111111-1111-1111-1111-111111111111';
+    await call('POST', '/me', `${player}:p1`, { profile, playerId: '100001' });
+    expect((await call('GET', `/accounts/${player}`, `${player}:p1`)).status).toBe(403);
+    expect((await call('POST', `/accounts/${player}/player-id`, `${player}:p1:judge`, { playerId: '100001' })).status).toBe(403);
+    expect((await call('GET', '/accounts/33333333-3333-3333-3333-333333333333', `${player}:p1:admin`)).status).toBe(404);
+    expect((await call('GET', '/accounts/../me', `${player}:p1:admin`)).status).toBe(404);
+  });
+
   it('erro inesperado vira 500 genérico e é registrado', async () => {
     const { call, accounts, errors } = setup();
     accounts.authenticate = () => Promise.reject(new Error('DynamoDB fora do ar'));

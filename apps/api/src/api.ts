@@ -1,11 +1,13 @@
 import {
   InvalidRequestError,
+  parseConfirmPlayerIdRequest,
   parseRegisterRequest,
   parseSessionRequest,
+  type AccountResponse,
   type ErrorResponse,
   type MeResponse,
 } from '@tom/contracts';
-import { CommandRejected, type AccountService, type Identity, type Principal, type RejectCode } from '@tom/core';
+import { CommandRejected, type Account, type AccountService, type Identity, type Principal, type RejectCode } from '@tom/core';
 
 export interface HttpRequest {
   method: string;
@@ -65,14 +67,18 @@ const error = (status: number, code: string, message: string): HttpResponse => (
   body: { error: code, message } satisfies ErrorResponse,
 });
 
-const toMe = ({ account, actor }: Principal): MeResponse => ({
+const toAccount = (account: Account): AccountResponse => ({
   id: account.id,
   email: account.email,
   profile: account.profile,
   playerId: account.playerId,
+  createdAt: account.createdAt.toISOString(),
+});
+
+const toMe = ({ account, actor }: Principal): MeResponse => ({
+  ...toAccount(account),
   role: actor?.role === 'admin' || actor?.role === 'judge' ? actor.role : 'player',
   canAct: actor !== null,
-  createdAt: account.createdAt.toISOString(),
 });
 
 const jsonBody = (request: HttpRequest): unknown => {
@@ -89,35 +95,80 @@ const bearer = (request: HttpRequest): string => {
   return match[1];
 };
 
-type Route = (request: HttpRequest, token: string, identity: Identity) => Promise<HttpResponse>;
+interface Context {
+  request: HttpRequest;
+  token: string;
+  identity: Identity;
+  /** Parâmetros do caminho, na ordem dos grupos da expressão. */
+  params: string[];
+}
+
+interface Route {
+  method: string;
+  path: RegExp;
+  handle: (ctx: Context) => Promise<HttpResponse>;
+}
+
+/** Identificador de conta no caminho: o `sub` do Cognito (UUID). */
+const ACCOUNT_ID = '([0-9a-f-]{36})';
 
 /** Roteador da API: uma Lambda atende todas as rotas. Todas exigem token de acesso válido. */
 export const createApi = ({ tokens, emails, accounts, logError }: ApiDeps) => {
-  const routes: Record<string, Route> = {
-    'GET /me': async (_, __, identity) => ({ status: 200, body: toMe(await accounts.authenticate(identity)) }),
-
-    'POST /me': async (request, token, identity) => {
-      const input = parseRegisterRequest(jsonBody(request));
-      await accounts.register(identity, await emails.verifiedEmail(token), input);
-      return { status: 201, body: toMe(await accounts.authenticate(identity)) };
+  const routes: Route[] = [
+    {
+      method: 'GET', path: /^\/me$/,
+      handle: async ({ identity }) => ({ status: 200, body: toMe(await accounts.authenticate(identity)) }),
     },
-
-    'POST /session': async (request, _, identity) => {
-      const { replace } = parseSessionRequest(jsonBody(request));
-      await accounts.activateSession(identity, replace);
-      return { status: 200, body: toMe(await accounts.authenticate(identity)) };
+    {
+      method: 'POST', path: /^\/me$/,
+      handle: async ({ request, token, identity }) => {
+        const input = parseRegisterRequest(jsonBody(request));
+        await accounts.register(identity, await emails.verifiedEmail(token), input);
+        return { status: 201, body: toMe(await accounts.authenticate(identity)) };
+      },
     },
+    {
+      method: 'POST', path: /^\/session$/,
+      handle: async ({ request, identity }) => {
+        const { replace } = parseSessionRequest(jsonBody(request));
+        await accounts.activateSession(identity, replace);
+        return { status: 200, body: toMe(await accounts.authenticate(identity)) };
+      },
+    },
+    {
+      method: 'GET', path: new RegExp(`^/accounts/${ACCOUNT_ID}$`),
+      handle: async ({ identity, params: [id = ''] }) => {
+        const { actor } = await accounts.authenticate(identity);
+        return { status: 200, body: toAccount(await accounts.getAccount(actor, id)) };
+      },
+    },
+    {
+      method: 'POST', path: new RegExp(`^/accounts/${ACCOUNT_ID}/player-id$`),
+      handle: async ({ request, identity, params: [id = ''] }) => {
+        const { playerId } = parseConfirmPlayerIdRequest(jsonBody(request));
+        const { actor } = await accounts.authenticate(identity);
+        return { status: 200, body: toAccount(await accounts.confirmPlayerId(actor, id, playerId)) };
+      },
+    },
+  ];
+
+  const match = (request: HttpRequest) => {
+    for (const route of routes) {
+      const found = route.method === request.method ? route.path.exec(request.path) : null;
+      if (found) return { route, params: found.slice(1) };
+    }
+    return null;
   };
 
   return async (request: HttpRequest): Promise<HttpResponse> => {
-    const route = routes[`${request.method} ${request.path}`];
-    if (!route) return error(404, 'not_found', 'Rota não encontrada');
+    const found = match(request);
+    if (!found) return error(404, 'not_found', 'Rota não encontrada');
     try {
       const token = bearer(request);
       const identity = await tokens.verify(token).catch(() => {
         throw new Unauthorized();
       });
-      return await route(request, token, identity);
+      return await found.route.handle({ request, token, identity, params: found.params });
     } catch (e) {
       if (e instanceof Unauthorized) return error(401, 'unauthorized', 'Token ausente, inválido ou expirado');
       if (e instanceof InvalidRequestError) return error(400, 'invalid_input', e.message);

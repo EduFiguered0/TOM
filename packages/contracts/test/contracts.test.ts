@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { InvalidRequestError, parseRegisterRequest, parseSessionRequest } from '../src/index.js';
+import { InvalidRequestError, parseConfirmPlayerIdRequest, parseRegisterRequest, parseSessionRequest } from '../src/index.js';
 
 const valid = { profile: { name: 'Ana', birthYear: 1990, phone: null, guardianConsent: false }, playerId: '100001' };
 
@@ -16,6 +16,11 @@ describe('contratos da API', () => {
     ['Player ID numérico', { ...valid, playerId: 100001 }],
   ])('recusa cadastro com %s', (_, body) => {
     expect(() => parseRegisterRequest(body)).toThrow(InvalidRequestError);
+  });
+
+  it('confirmação exige Player ID em texto', () => {
+    expect(parseConfirmPlayerIdRequest({ playerId: '100001' })).toEqual({ playerId: '100001' });
+    expect(() => parseConfirmPlayerIdRequest({ playerId: 100001 })).toThrow(InvalidRequestError);
   });
 
   it('sessão exige replace booleano', () => {

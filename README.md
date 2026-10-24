@@ -8,7 +8,7 @@ Detalhes do produto em [`docs/spec-tom.md`](docs/spec-tom.md); arquitetura em [`
 
 ```
 apps/
-  api/           API: uma Lambda atrás de Function URL (GET/POST /me, POST /session)
+  api/           API: uma Lambda atrás de Function URL (rotas abaixo)
   uploader/      enviador: observa a pasta do TOM (somente leitura)
 packages/
   core/          domínio e casos de uso, sem dependências
@@ -62,6 +62,22 @@ npm run cdk -- diff --profile tom
 npm run cdk -- deploy --all --profile tom   # num terminal interativo: mudanças de IAM pedem confirmação
 ```
 
+Rotas da API (todas exigem `Authorization: Bearer <token de acesso do Cognito>`):
+
+| Rota | Quem | Para quê |
+| --- | --- | --- |
+| `GET /me` | qualquer conta | Dados da própria conta, papel e se já pode agir (404 se ainda não cadastrou) |
+| `POST /me` | qualquer conta | Cadastro (perfil LGPD e Player ID informado); o e-mail vem do Cognito |
+| `POST /session` | qualquer conta | Ativa este dispositivo; com outro ativo, exige `{"replace": true}` e revoga o anterior |
+| `GET /accounts/{id}` | ADM | Consulta a conta do jogador no check-in |
+| `POST /accounts/{id}/player-id` | ADM | Confirma (ou corrige) o Player ID no check-in |
+
+Papéis vêm dos grupos do Cognito. Para dar o papel de ADM (ou `judge`) a uma conta já criada; vale no próximo token, em até 15 min:
+
+```bash
+aws cognito-idp admin-add-user-to-group --profile tom --user-pool-id <TomAuth.UserPoolId> --username <e-mail> --group-name admin
+```
+
 O bootstrap usa a policy restrita `TomCdkExecution` (`infra/bootstrap/execution-policy.json`) em vez de `AdministratorAccess`:
 
 ```bash
@@ -81,6 +97,6 @@ Para mudar a policy: edite o JSON e rode `aws iam create-policy-version --profil
 | 3 | Modelo de eventos e recálculo do estado | ✅ |
 | 4 | Enviador (observa a pasta do TOM) | ✅ |
 | 5 | Infraestrutura AWS, EventStore no DynamoDB, fotografias no S3 | ✅ |
-| 6 | Login, papéis e sessão (6.1 domínio + Cognito ✅, 6.2 API ✅, 6.3 Player ID e Google) | ⏳ |
+| 6 | Login, papéis e sessão (6.1 domínio + Cognito ✅, 6.2 API ✅, 6.3 check-in do ADM ✅, Google) | ⏳ |
 | 7–9 | Telas: celular, TV e painel | |
 | 10 | Upload do enviador para a API | |

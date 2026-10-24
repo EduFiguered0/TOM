@@ -35,6 +35,10 @@ const actorFor = (account: Account, groups: readonly string[]): Actor | null => 
   return account.playerId?.confirmed ? { role: 'player', accountId: account.id, playerId: account.playerId.value } : null;
 };
 
+function requireAdmin(actor: Actor | null): asserts actor is Actor {
+  if (actor?.role !== 'admin') throw new CommandRejected('forbidden', 'Só o ADM pode executar esta ação');
+}
+
 /** Quem age em nome da própria conta antes de ter papel (cadastro, sessão). */
 const self = (id: Identity): Actor => ({ role: 'system', source: `account:${id.accountId}` });
 
@@ -111,9 +115,15 @@ export class AccountService {
     return { account, actor: actorFor(account, identity.groups) };
   }
 
+  /** No check-in o ADM consulta a conta do jogador antes de confirmar o Player ID. */
+  async getAccount(actor: Actor | null, accountId: string): Promise<Account> {
+    requireAdmin(actor);
+    return this.requireAccount(accountId);
+  }
+
   /** No check-in o ADM confere o Player ID presencialmente; pode corrigir o valor informado. */
-  async confirmPlayerId(actor: Actor, accountId: string, playerId: string): Promise<Account> {
-    if (actor.role !== 'admin') throw new CommandRejected('forbidden', `Papel ${actor.role} não pode executar esta ação`);
+  async confirmPlayerId(actor: Actor | null, accountId: string, playerId: string): Promise<Account> {
+    requireAdmin(actor);
     const value = validated(() => toPlayerId(playerId));
     return this.execute(accountId, async (account) => {
       if (account.playerId?.confirmed && account.playerId.value === value) return null;

@@ -107,10 +107,14 @@ describe('papéis e Player ID', () => {
     expect((await service.authenticate(identity())).actor).toEqual({ role: 'player', accountId: 'conta-1', playerId: '100001' });
   });
 
-  it('só o ADM confirma Player ID', async () => {
+  it('só o ADM consulta conta alheia e confirma Player ID', async () => {
     const { service } = setup();
     await service.register(identity(), 'ana@example.com', { profile: adult, playerId: '100001' });
+    expect((await service.getAccount(admin, 'conta-1')).playerId).toEqual({ value: '100001', confirmed: false });
+    await rejects(service.getAccount(null, 'conta-1'), 'forbidden');
+    await rejects(service.getAccount(admin, 'conta-9'), 'account_not_found');
     await rejects(service.confirmPlayerId({ role: 'judge', accountId: 'juiz' }, 'conta-1', '100001'), 'forbidden');
+    await rejects(service.confirmPlayerId(null, 'conta-1', '100001'), 'forbidden');
   });
 
   it('Player ID confirmado em outra conta é recusado', async () => {
