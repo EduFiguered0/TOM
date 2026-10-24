@@ -9,7 +9,6 @@ import { PlayerIdTakenError, type AccountRepository } from './account-repository
 /** O que o token validado (Cognito) diz sobre quem chama. */
 export interface Identity {
   accountId: string;
-  email: string;
   /** `origin_jti`: identifica o login neste dispositivo e sobrevive às renovações do token. */
   session: string;
   /** `cognito:groups`. */
@@ -52,8 +51,11 @@ const validated = <T>(fn: () => T): T => {
 export class AccountService {
   constructor(private readonly deps: AccountServiceDeps) {}
 
-  /** Cadastro após o primeiro login; o Player ID informado fica pendente até o ADM confirmar. */
-  async register(identity: Identity, input: { profile: Profile; playerId: string | null }): Promise<Account> {
+  /**
+   * Cadastro após o primeiro login; o Player ID informado fica pendente até o ADM confirmar.
+   * O e-mail vem do Cognito (já verificado), nunca do corpo da requisição.
+   */
+  async register(identity: Identity, email: string, input: { profile: Profile; playerId: string | null }): Promise<Account> {
     const now = this.deps.clock.now();
     if (await this.deps.accounts.get(identity.accountId)) {
       throw new CommandRejected('account_exists', 'Esta conta já está cadastrada');
@@ -62,7 +64,7 @@ export class AccountService {
     const playerId = input.playerId ? validated(() => toPlayerId(input.playerId ?? '')) : null;
     const account: Account = {
       id: identity.accountId,
-      email: identity.email,
+      email,
       profile,
       playerId: playerId ? { value: playerId, confirmed: false } : null,
       activeSession: identity.session,

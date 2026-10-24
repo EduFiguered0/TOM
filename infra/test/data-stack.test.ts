@@ -25,6 +25,15 @@ describe('DataStack', () => {
     });
   });
 
+  it('tabela de contas: chave genérica (conta, auditoria e trava do Player ID), sob demanda, com TTL', () => {
+    prod.resourceCountIs('AWS::DynamoDB::Table', 2);
+    prod.hasResourceProperties('AWS::DynamoDB::Table', {
+      AttributeDefinitions: [{ AttributeName: 'pk', AttributeType: 'S' }, { AttributeName: 'sk', AttributeType: 'S' }],
+      BillingMode: 'PAY_PER_REQUEST',
+      TimeToLiveSpecification: { AttributeName: 'expiresAt', Enabled: true },
+    });
+  });
+
   it('bucket privado, criptografado, só HTTPS', () => {
     prod.hasResourceProperties('AWS::S3::Bucket', {
       PublicAccessBlockConfiguration: {
