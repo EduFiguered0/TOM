@@ -48,3 +48,4 @@ select { width: 100%; font: inherit; padding: 12px; border: 1px solid var(--line
 .report-grid button { margin-top: 0; padding: 12px 8px; }
 button.report.loss { background: #475569; color: #fff; }
 button.report.draw { background: var(--card); color: var(--text); border: 1px solid var(--line); }
+a.button { display: block; text-align: center; margin-top: 16px; padding: 14px; font-weight: 600; border-radius: 10px; background: var(--accent); color: var(--accent-text); text-decoration: none; }

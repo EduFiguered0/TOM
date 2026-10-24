@@ -28,7 +28,7 @@ export const Home = ({ me, api, onSignOut }: Props) => (
         <p class="code">{me.id}</p>
       </div>
     ))}
-    {me.role !== 'player' && <p class="muted">Painel completo da organização (termômetro, override, keys) chega na fase 9.</p>}
+    {me.role !== 'player' && <a class="button" href="/painel">Abrir o painel da rodada</a>}
     <button type="button" class="link" onClick={onSignOut}>Sair deste dispositivo</button>
   </section>
   {me.role === 'admin' && <StartRoundCard api={api} />}

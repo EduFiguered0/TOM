@@ -1,0 +1,33 @@
+/* Painel: tablet ou notebook da organização; mais largo que a tela do celular. */
+main:has(.panel) { max-width: 1100px; }
+.panel-head { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; margin-bottom: 12px; }
+.panel-head h1 { margin: 0; }
+.panel-head .link { width: auto; margin: 0; padding: 0; text-decoration: none; }
+.panel-summary { display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+.panel-round { font-size: 22px; font-weight: 700; }
+.panel-counts { display: flex; gap: 8px; flex-wrap: wrap; }
+.chip { padding: 4px 10px; border-radius: 99px; font-size: 14px; font-weight: 600; border: 1px solid var(--line); }
+.chip.red { color: #ef4444; border-color: #ef4444; } .chip.orange { color: #f59e0b; border-color: #f59e0b; }
+.chip.green { color: #22c55e; border-color: #22c55e; } .chip.gray { color: var(--muted); }
+.panel-clock { font-size: 32px; font-weight: 800; font-variant-numeric: tabular-nums; }
+.panel-clock.warn { color: var(--warn); } .panel-clock.over { color: var(--error); font-size: 20px; }
+.panel-clock.waiting { font-size: 16px; color: var(--muted); font-weight: 500; }
+.panel-tables { display: grid; gap: 8px; margin-top: 14px; }
+.panel-table { background: var(--card); border: 1px solid var(--line); border-left: 6px solid #8b95a7; border-radius: 10px; }
+.panel-table.orange { border-left-color: #f59e0b; } .panel-table.green { border-left-color: #22c55e; } .panel-table.red { border-left-color: #ef4444; }
+.panel-table.launched { opacity: .6; }
+.panel-table summary { display: flex; align-items: center; gap: 12px; padding: 10px 12px; cursor: pointer; list-style: none; flex-wrap: wrap; }
+.panel-table summary::-webkit-details-marker { display: none; }
+.pt-number { font-size: 20px; font-weight: 800; min-width: 2ch; text-align: right; }
+.pt-players { flex: 1 1 260px; }
+.pt-action { color: var(--muted); font-size: 14px; }
+.pt-key { font-family: ui-monospace, Consolas, monospace; font-size: 20px; font-weight: 800; padding: 2px 10px; border-radius: 8px; background: var(--bg); border: 1px dashed #22c55e; }
+.pt-clock { font-variant-numeric: tabular-nums; font-weight: 700; } .pt-clock.warn { color: var(--warn); }
+.pt-body { padding: 0 12px 12px; display: grid; gap: 12px; }
+.pt-body > button { width: auto; justify-self: start; padding: 12px 20px; }
+.pt-form { display: grid; gap: 8px; border-top: 1px solid var(--line); padding-top: 10px; }
+.pt-form h3 { margin: 0; font-size: 15px; }
+.pt-form button { width: auto; justify-self: start; margin-top: 0; padding: 10px 18px; }
+.pt-inline { display: flex; align-items: center; gap: 8px; }
+.pt-inline input { max-width: 140px; }
+.notice.ok { color: var(--ok); padding: 10px 12px; }

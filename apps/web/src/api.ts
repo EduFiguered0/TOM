@@ -5,6 +5,8 @@ import type {
   ErrorResponse,
   MeResponse,
   MyRoundResponse,
+  OverrideDto,
+  PanelResponse,
   RegisterRequest,
   ReportDto,
 } from '@tom/contracts';
@@ -51,6 +53,13 @@ export const createApi = (session: Session, base = '/api', fetchFn: typeof fetch
     myRound: () => call<MyRoundResponse>('GET', '/round/me'),
     report: (report: ReportDto) => call<MyRoundResponse>('POST', '/round/report', { report }),
     startRound: (bestOf: 1 | 3, roundMinutes: number | null) => call<BoardResponse>('POST', '/round/start', { bestOf, roundMinutes }),
+    panel: () => call<PanelResponse>('GET', '/panel'),
+    override: (table: number, override: OverrideDto, reason: string) =>
+      call<PanelResponse & { requiresTomFix: boolean }>('POST', `/panel/tables/${String(table)}/override`, { override, reason }),
+    extend: (table: number, minutes: number) => call<PanelResponse>('POST', `/panel/tables/${String(table)}/extend`, { minutes }),
+    keyLaunched: (table: number) => call<PanelResponse>('POST', `/panel/tables/${String(table)}/key-launched`),
+    staffReport: (table: number, side: 'player1' | 'player2', report: ReportDto) =>
+      call<PanelResponse>('POST', `/panel/tables/${String(table)}/report`, { side, report }),
     revokeEvent: (id: string) => call<{ id: string; revoked: boolean }>('POST', `/events/${encodeURIComponent(id)}/revoke`),
   };
 };
