@@ -1,4 +1,4 @@
-import type { ErrorResponse, MeResponse, RegisterRequest } from '@tom/contracts';
+import type { AccountResponse, ErrorResponse, MeResponse, RegisterRequest } from '@tom/contracts';
 import type { Session } from './auth/session.js';
 
 export type ApiResult<T> = { ok: true; status: number; body: T } | { ok: false; status: number; error: ErrorResponse };
@@ -35,6 +35,9 @@ export const createApi = (session: Session, base = '/api', fetchFn: typeof fetch
     me: () => call<MeResponse>('GET', '/me'),
     register: (request: RegisterRequest) => call<MeResponse>('POST', '/me', request),
     activateSession: (replace: boolean) => call<MeResponse>('POST', '/session', { replace }),
+    account: (id: string) => call<AccountResponse>('GET', `/accounts/${encodeURIComponent(id)}`),
+    confirmPlayerId: (id: string, playerId: string) =>
+      call<AccountResponse>('POST', `/accounts/${encodeURIComponent(id)}/player-id`, { playerId }),
   };
 };
 

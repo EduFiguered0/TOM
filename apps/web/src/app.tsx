@@ -43,7 +43,7 @@ export const App = ({ cognito, session, api }: Props) => {
       {screen.name === 'login' && <Login cognito={cognito} onSignedIn={(tokens) => { session.signedIn(tokens); void check(); }} />}
       {screen.name === 'register' && <Register api={api} onRegistered={(me) => { setScreen({ name: 'home', me }); }} />}
       {screen.name === 'device' && <Device api={api} onActivated={(me) => { setScreen({ name: 'home', me }); }} onCancel={signOut} />}
-      {screen.name === 'home' && <Home me={screen.me} onSignOut={signOut} />}
+      {screen.name === 'home' && <Home me={screen.me} api={api} onSignOut={signOut} />}
       {screen.name === 'error' && (
         <section class="card">
           <p class="error" role="alert">{screen.message}</p>
