@@ -6,3 +6,6 @@ export * from './round-state.js';
 export * from './round-service.js';
 export * from './snapshot-store.js';
 export * from './in-memory-snapshot-store.js';
+export * from './tournament-event.js';
+export * from './in-memory-event-registry.js';
+export * from './event-service.js';

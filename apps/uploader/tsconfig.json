@@ -6,5 +6,5 @@
     "types": ["node"]
   },
   "include": ["src"],
-  "references": [{ "path": "../../packages/core" }, { "path": "../../packages/tom-reports" }]
+  "references": [{ "path": "../../packages/core" }, { "path": "../../packages/tom-reports" }, { "path": "../../packages/contracts" }]
 }

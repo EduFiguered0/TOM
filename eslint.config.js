@@ -6,7 +6,7 @@ const restrictImports = (patterns) => ({
 });
 
 export default tseslint.config(
-  { ignores: ['**/dist/**', '**/node_modules/**', '**/test/fixtures/**', 'tools/**', 'infra/cdk.out/**'] },
+  { ignores: ['**/dist/**', '**/node_modules/**', '**/test/fixtures/**', 'tools/**', 'infra/cdk.out/**', 'apps/web/dist/**'] },
   eslint.configs.recommended,
   ...tseslint.configs.strictTypeChecked,
   {
@@ -36,14 +36,24 @@ export default tseslint.config(
   {
     files: ['apps/api/src/**'],
     rules: restrictImports([
-      { group: ['@tom/*', '!@tom/core', '!@tom/contracts', '!@tom/aws-adapters'], message: 'api só depende de core, contracts e aws-adapters.' },
+      { group: ['@tom/*', '!@tom/core', '!@tom/contracts', '!@tom/aws-adapters', '!@tom/tom-reports'], message: 'api só depende de core, contracts, tom-reports e aws-adapters.' },
     ]),
   },
   {
     files: ['apps/uploader/src/**'],
     rules: restrictImports([
-      { group: ['@tom/*', '!@tom/core', '!@tom/tom-reports'], message: 'uploader só depende de core e tom-reports.' },
+      { group: ['@tom/*', '!@tom/core', '!@tom/tom-reports', '!@tom/contracts'], message: 'uploader só depende de core, tom-reports e contracts.' },
     ]),
+  },
+  {
+    files: ['apps/web/**/*.{ts,tsx}'],
+    languageOptions: {
+      parserOptions: { project: './apps/web/tsconfig.json', tsconfigRootDir: import.meta.dirname },
+    },
+  },
+  {
+    files: ['apps/web/src/**'],
+    rules: restrictImports([{ group: ['@tom/*', '!@tom/contracts'], message: 'web só depende de contracts (fala com a API por HTTP).' }]),
   },
   {
     files: ['*.js'],

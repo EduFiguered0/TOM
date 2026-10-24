@@ -1,13 +1,31 @@
 import {
   InvalidRequestError,
   parseConfirmPlayerIdRequest,
+  parseCreateEventRequest,
   parseRegisterRequest,
+  parseReportRequest,
+  parseStartRoundRequest,
   parseSessionRequest,
+  parseUploadRequest,
   type AccountResponse,
+  type BoardResponse,
+  type CreateEventResponse,
   type ErrorResponse,
   type MeResponse,
 } from '@tom/contracts';
-import { CommandRejected, type Account, type AccountService, type Identity, type Principal, type RejectCode } from '@tom/core';
+import {
+  CommandRejected,
+  type Account,
+  type AccountService,
+  type EventRegistry,
+  type EventService,
+  type Identity,
+  type Principal,
+  type RejectCode,
+  type RoundService,
+} from '@tom/core';
+import type { Ingest } from './ingest.js';
+import { myRound, type RoundReader } from './rounds.js';
 
 export interface HttpRequest {
   method: string;
@@ -20,6 +38,8 @@ export interface HttpRequest {
 export interface HttpResponse {
   status: number;
   body: unknown;
+  /** Padrão: no-store. Respostas públicas podem ficar alguns segundos no cache do CloudFront. */
+  cacheControl?: string;
 }
 
 /** Valida o token de acesso do Cognito; lança se for inválido ou expirado. */
@@ -36,6 +56,13 @@ export interface ApiDeps {
   tokens: TokenVerifier;
   emails: EmailLookup;
   accounts: AccountService;
+  events: EventService;
+  ingest: Ingest;
+  board: () => Promise<BoardResponse | null>;
+  rounds: RoundService;
+  reader: RoundReader;
+  registry: EventRegistry;
+  clock: { now(): Date };
   logError: (error: unknown) => void;
 }
 
@@ -58,6 +85,9 @@ const STATUS: Record<RejectCode, number> = {
   table_locked: 409,
   not_green: 409,
   key_already_launched: 409,
+  invalid_token: 401,
+  tournament_mismatch: 409,
+  event_not_found: 404,
 };
 
 class Unauthorized extends Error {}
@@ -109,11 +139,19 @@ interface Route {
   handle: (ctx: Context) => Promise<HttpResponse>;
 }
 
-/** Identificador de conta no caminho: o `sub` do Cognito (UUID). */
+/** Rotas que não usam o login do Cognito: o enviador (token do evento) e a TV (pública). */
+interface OpenRoute {
+  method: string;
+  path: RegExp;
+  handle: (request: HttpRequest) => Promise<HttpResponse>;
+}
+
+/** Identificador de conta ou evento no caminho (UUID). */
 const ACCOUNT_ID = '([0-9a-f-]{36})';
+const EVENT_ID = ACCOUNT_ID;
 
 /** Roteador da API: uma Lambda atende todas as rotas. Todas exigem token de acesso válido. */
-export const createApi = ({ tokens, emails, accounts, logError }: ApiDeps) => {
+export const createApi = ({ tokens, emails, accounts, events, ingest, board, rounds, reader, registry, clock, logError }: ApiDeps) => {
   /**
    * Primeiro acesso por um login novo (ex.: Google de quem já tinha conta pelo código por e-mail):
    * liga o login à conta do mesmo e-mail verificado e repete. Sem conta com esse e-mail, segue o 404.
@@ -169,6 +207,90 @@ export const createApi = ({ tokens, emails, accounts, logError }: ApiDeps) => {
     },
   ];
 
+  const adminRoutes: Route[] = [
+    {
+      method: 'POST', path: /^\/events$/,
+      handle: async ({ request, identity }) => {
+        const { label } = parseCreateEventRequest(jsonBody(request));
+        const { actor } = await accounts.authenticate(identity);
+        const { event, token } = await events.createEvent(actor, label);
+        return { status: 201, body: { id: event.id, label: event.label, token } satisfies CreateEventResponse };
+      },
+    },
+    {
+      method: 'POST', path: new RegExp(`^/events/${EVENT_ID}/revoke$`),
+      handle: async ({ identity, params: [id = ''] }) => {
+        const { actor } = await accounts.authenticate(identity);
+        const event = await events.revoke(actor, id);
+        return { status: 200, body: { id: event.id, label: event.label, revoked: event.revoked } };
+      },
+    },
+  ];
+  routes.push(...adminRoutes);
+
+  const currentRef = async () => {
+    const current = await registry.current();
+    if (!current) throw new CommandRejected('round_not_paired', 'Nenhuma rodada publicada pelo TOM ainda');
+    return current.ref;
+  };
+
+  const roundRoutes: Route[] = [
+    {
+      method: 'GET', path: /^\/round\/me$/,
+      handle: async ({ identity }) => {
+        const { actor } = await accounts.authenticate(identity);
+        const current = await registry.current();
+        const state = current ? await reader.state(current.ref) : null;
+        return { status: 200, body: myRound(state, actor, clock.now()) };
+      },
+    },
+    {
+      method: 'POST', path: /^\/round\/report$/,
+      handle: async ({ request, identity }) => {
+        const { report } = parseReportRequest(jsonBody(request));
+        const { actor } = await accounts.authenticate(identity);
+        if (actor?.role !== 'player') throw new CommandRejected('forbidden', 'Só jogador com check-in feito reporta pela própria mesa');
+        const ref = await currentRef();
+        // A mesa do jogador não muda depois do pareamento: dá para usar o cache; o reporte em si relê o estado.
+        const table = (await reader.state(ref)).tables.find((t) => t.player1.playerId === actor.playerId || t.player2.playerId === actor.playerId);
+        if (!table) throw new CommandRejected('not_your_table', 'Você não está em nenhuma mesa desta rodada');
+        const state = reader.remember(await rounds.submitReport(actor, ref, { table: table.table, report }));
+        return { status: 200, body: myRound(state, actor, clock.now()) };
+      },
+    },
+    {
+      method: 'POST', path: /^\/round\/start$/,
+      handle: async ({ request, identity }) => {
+        const { bestOf, roundMinutes } = parseStartRoundRequest(jsonBody(request));
+        const { actor } = await accounts.authenticate(identity);
+        if (actor?.role !== 'admin') throw new CommandRejected('forbidden', 'Só o ADM inicia a rodada');
+        reader.remember(await rounds.startRound(actor, await currentRef(), { bestOf, ...(roundMinutes === null ? {} : { roundMinutes }) }));
+        return { status: 200, body: await board() };
+      },
+    },
+  ];
+  routes.push(...roundRoutes);
+
+  const openRoutes: OpenRoute[] = [
+    {
+      method: 'POST', path: /^\/uploads$/,
+      handle: async (request) => ({
+        status: 200,
+        body: await ingest(request.headers['x-upload-token'] ?? '', parseUploadRequest(jsonBody(request))),
+      }),
+    },
+    {
+      method: 'GET', path: /^\/board$/,
+      handle: async () => {
+        const current = await board();
+        // Muitas TVs e celulares olhando custam o mesmo que um: o CloudFront guarda por 5 s.
+        return current
+          ? { status: 200, body: current, cacheControl: 'public, max-age=5' }
+          : { ...error(404, 'no_round', 'Nenhuma rodada publicada ainda'), cacheControl: 'public, max-age=5' };
+      },
+    },
+  ];
+
   const match = (request: HttpRequest) => {
     for (const route of routes) {
       const found = route.method === request.method ? route.path.exec(request.path) : null;
@@ -177,7 +299,17 @@ export const createApi = ({ tokens, emails, accounts, logError }: ApiDeps) => {
     return null;
   };
 
+  const fail = (e: unknown): HttpResponse => {
+    if (e instanceof Unauthorized) return error(401, 'unauthorized', 'Token ausente, inválido ou expirado');
+    if (e instanceof InvalidRequestError) return error(400, 'invalid_input', e.message);
+    if (e instanceof CommandRejected) return error(STATUS[e.code], e.code, e.message);
+    logError(e);
+    return error(500, 'internal', 'Erro interno; tente de novo');
+  };
+
   return async (request: HttpRequest): Promise<HttpResponse> => {
+    const open = openRoutes.find((r) => r.method === request.method && r.path.test(request.path));
+    if (open) return open.handle(request).catch(fail);
     const found = match(request);
     if (!found) return error(404, 'not_found', 'Rota não encontrada');
     try {
@@ -187,11 +319,7 @@ export const createApi = ({ tokens, emails, accounts, logError }: ApiDeps) => {
       });
       return await found.route.handle({ request, token, identity, params: found.params });
     } catch (e) {
-      if (e instanceof Unauthorized) return error(401, 'unauthorized', 'Token ausente, inválido ou expirado');
-      if (e instanceof InvalidRequestError) return error(400, 'invalid_input', e.message);
-      if (e instanceof CommandRejected) return error(STATUS[e.code], e.code, e.message);
-      logError(e);
-      return error(500, 'internal', 'Erro interno; tente de novo');
+      return fail(e);
     }
   };
 };

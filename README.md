@@ -9,6 +9,7 @@ Detalhes do produto em [`docs/spec-tom.md`](docs/spec-tom.md); arquitetura em [`
 ```
 apps/
   api/           API: uma Lambda atrás de Function URL (rotas abaixo)
+  web/           telas em Preact: celular (/), TV do salão (/tv), cartões do ADM
   uploader/      enviador: observa a pasta do TOM (somente leitura)
 packages/
   core/          domínio e casos de uso, sem dependências
@@ -37,11 +38,21 @@ npm run test:aws  # testes reais contra as stacks de teste (TomTest, TomAuthTest
 npm run build     # compila os pacotes para dist/
 ```
 
-Enviador (até a fase 10 só detecta e registra no console; nada sai da máquina):
+Site (desenvolvimento local com o pool e a API de testes; publicação em produção):
 
 ```bash
-npm run uploader -- --folder "C:\Users\<você>\TOM_DATA\data\reports"
+npm run web:dev      # http://localhost:5173 e http://localhost:5173/tv
+npm run web:deploy   # build, envio ao S3 e limpeza do cache do CloudFront
 ```
+
+Enviador, no notebook do TOM (somente leitura da pasta). O ADM gera o token do evento na tela dele; o token vai pela variável de ambiente para não ficar no histórico do terminal:
+
+```powershell
+$env:TOM_UPLOAD_TOKEN="<token do evento>"
+npm run uploader -- --folder "C:\Users\<você>\TOM_DATA\data\reports" --api https://<site>/api
+```
+
+Sem `--api`, o enviador só mostra no console o que enviaria (modo de teste). Token revogado ou de outro torneio param o envio com instrução; sem internet, ele tenta de novo sozinho.
 
 Opções: `--state` (registro de envios, padrão `~/.tom-uploader/sent.json`, nunca dentro da pasta do TOM), `--interval` e `--quiet` em ms.
 
@@ -51,9 +62,10 @@ Região us-east-2, perfil `tom`. Cada stack de produção tem um gêmeo descart�
 
 | Stack | Gêmeo de teste | Recursos |
 | --- | --- | --- |
-| `TomData` | `TomTest` | DynamoDB `Events` e `Accounts` (sob demanda, TTL 24 meses), S3 `Snapshots` (privado, expira em 24 meses) |
+| `TomData` | `TomTest` | DynamoDB `Events`, `Accounts` e `Tournaments` (sob demanda, TTL 24 meses), S3 `Snapshots` (privado, expira em 24 meses) |
 | `TomAuth` | `TomAuthTest` | Cognito user pool (Essentials, código por e-mail), grupos `admin` e `judge` |
 | `TomApi` | `TomApiTest` | Lambda Node 22 Arm 256 MB + Function URL (sem API Gateway), logs por 14 dias |
+| `TomWeb` | — | Site no S3 + CloudFront, `/api` no mesmo endereço, `/api/board` guardado 5 s, CSP rígida |
 
 Custo projetado: **menos de US$ 0,20/mês** com 100 jogadores e 1 evento por mês. Preços, franquias e escolhas feitas por custo estão em [Recursos AWS e custos](docs/spec-tom.md#recursos-aws-e-custos-r3).
 
@@ -62,7 +74,7 @@ npm run cdk -- diff --profile tom
 npm run cdk -- deploy --all --profile tom   # num terminal interativo: mudanças de IAM pedem confirmação
 ```
 
-Rotas da API (todas exigem `Authorization: Bearer <token de acesso do Cognito>`):
+Rotas da API (as de conta e ADM exigem `Authorization: Bearer <token de acesso do Cognito>`):
 
 | Rota | Quem | Para quê |
 | --- | --- | --- |
@@ -71,6 +83,13 @@ Rotas da API (todas exigem `Authorization: Bearer <token de acesso do Cognito>`)
 | `POST /session` | qualquer conta | Ativa este dispositivo; com outro ativo, exige `{"replace": true}` e revoga o anterior |
 | `GET /accounts/{id}` | ADM | Consulta a conta do jogador no check-in |
 | `POST /accounts/{id}/player-id` | ADM | Confirma (ou corrige) o Player ID no check-in |
+| `GET /round/me` | qualquer conta | Rodada atual do ponto de vista do jogador: mesa, oponente, prazo, cor e o próprio reporte (sem o placar do oponente) |
+| `POST /round/report` | jogador com check-in | Reporta placar ou ID na própria mesa |
+| `POST /round/start` | ADM | Inicia a rodada publicada pelo TOM (melhor de 1 ou 3, tempo) |
+| `POST /events` | ADM | Cria o evento do dia; devolve o token do enviador uma única vez |
+| `POST /events/{id}/revoke` | ADM | Revoga o token do enviador |
+| `POST /uploads` | enviador (`x-upload-token`) | Recebe um HTML do TOM; com pareamento e guias da rodada, publica a rodada |
+| `GET /board` | público | Rodada atual para a TV (só nomes), guardada 5 s no CloudFront |
 
 Papéis vêm dos grupos do Cognito. Para dar o papel de ADM (ou `judge`) a uma conta já criada; vale no próximo token, em até 15 min:
 
@@ -98,5 +117,6 @@ Para mudar a policy: edite o JSON e rode `aws iam create-policy-version --profil
 | 4 | Enviador (observa a pasta do TOM) | ✅ |
 | 5 | Infraestrutura AWS, EventStore no DynamoDB, fotografias no S3 | ✅ |
 | 6 | Login por código no e-mail, sessão única, papéis, check-in do ADM (Google e SES pendentes, ver spec) | ✅ |
-| 7–9 | Telas: celular, TV e painel | |
+| 7 | Celular: site e login, ingestão do TOM e TV ao vivo, rodada e reporte (histórico do jogador fica para outra spec) | ✅ |
+| 8–9 | TV ✅ (estética pendente); painel do ADM/juiz | |
 | 10 | Upload do enviador para a API | |

@@ -33,16 +33,23 @@ describe('ApiStack', () => {
     template.hasResourceProperties('AWS::Logs::LogGroup', { RetentionInDays: 14 });
   });
 
-  it('IAM mínimo: logs só no próprio grupo; na tabela, só Get, Put e Delete', () => {
+  it('IAM mínimo: logs só no próprio grupo; em cada tabela e no bucket, só as ações usadas, sem curingas de ação', () => {
     template.resourceCountIs('AWS::IAM::Policy', 1);
-    template.hasResourceProperties('AWS::IAM::Policy', {
-      PolicyDocument: {
-        Statement: [
-          { Action: ['logs:CreateLogStream', 'logs:PutLogEvents'], Effect: 'Allow', Resource: { 'Fn::GetAtt': [Match.anyValue(), 'Arn'] } },
-          { Action: ['dynamodb:GetItem', 'dynamodb:PutItem', 'dynamodb:DeleteItem'], Effect: 'Allow', Resource: Match.anyValue() },
-        ],
-      },
-    });
+    const policy = Object.values(template.findResources('AWS::IAM::Policy'))[0] as { Properties: { PolicyDocument: { Statement: { Action: string | string[]; Resource: unknown }[] } } };
+    const statements = policy.Properties.PolicyDocument.Statement.map((s) => [s.Action].flat().sort());
+    expect(statements).toEqual([
+      ['logs:CreateLogStream', 'logs:PutLogEvents'],
+      ['dynamodb:DeleteItem', 'dynamodb:GetItem', 'dynamodb:PutItem'],
+      ['dynamodb:ConditionCheckItem', 'dynamodb:GetItem', 'dynamodb:PutItem', 'dynamodb:Query'],
+      ['dynamodb:GetItem', 'dynamodb:PutItem'],
+      ['s3:GetObject', 's3:PutObject'],
+      ['s3:ListBucket'],
+    ]);
+    expect(statements.flat().some((a) => a.includes('*'))).toBe(false);
+    expect(policy.Properties.PolicyDocument.Statement.slice(-2).map((s) => s.Resource)).toEqual([
+      'arn:aws:s3:::tom-snapshots-123456789012-us-east-2/*',
+      'arn:aws:s3:::tom-snapshots-123456789012-us-east-2',
+    ]);
     template.hasResourceProperties('AWS::IAM::Role', { ManagedPolicyArns: Match.absent() });
   });
 

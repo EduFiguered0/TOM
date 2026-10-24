@@ -4,8 +4,24 @@
     "noEmit": true,
     "composite": false,
     "declaration": false,
-    "customConditions": ["source"],
-    "types": ["node"]
+    "customConditions": [
+      "source"
+    ],
+    "types": [
+      "node"
+    ]
   },
-  "include": ["packages/*/src", "packages/*/test", "apps/*/src", "apps/*/test", "infra/src", "infra/test", "*.ts"]
+  "include": [
+    "packages/*/src",
+    "packages/*/test",
+    "apps/*/src",
+    "apps/*/test",
+    "infra/src",
+    "infra/test",
+    "infra/scripts",
+    "*.ts"
+  ],
+  "exclude": [
+    "apps/web"
+  ]
 }

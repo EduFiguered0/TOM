@@ -212,12 +212,15 @@ Tudo em us-east-2 (região única do projeto AWS). Cada recurso de produção te
 | --- | --- | --- | --- | --- |
 | DynamoDB `Events` (sob demanda, TTL 24 meses, PITR em produção) | TomData / TomTest | Eventos das rodadas | US$ 0,625 por milhão de escritas, US$ 0,125 por milhão de leituras; 25 GB grátis; PITR US$ 0,20/GB-mês | < US$ 0,10 |
 | DynamoDB `Accounts` (idem) | TomData / TomTest | Contas, auditoria de identidade e trava do Player ID | idem | < US$ 0,01 |
-| S3 `Snapshots` (privado, SSE-S3, só HTTPS, expira em 24 meses) | TomData / TomTest | Fotografias dos HTMLs do TOM | US$ 0,023/GB-mês; US$ 0,005 por mil gravações | < US$ 0,01 |
-| Cognito user pool, plano Essentials | TomAuth / TomAuthTest | Login (código por e-mail; Google na 6.3), grupos admin e judge | 10 mil usuários ativos/mês grátis; depois US$ 0,015 cada | US$ 0 |
+| DynamoDB `Tournaments` (idem) | TomData / TomTest | Eventos do ADM, trava do token do enviador, rodada atual | idem | < US$ 0,01 |
+| S3 `Snapshots` (nome fixo, privado, SSE-S3, só HTTPS, expira em 24 meses) | TomData / TomTest | Fotografias dos HTMLs do TOM | US$ 0,023/GB-mês; US$ 0,005 por mil gravações | < US$ 0,01 |
+| Cognito user pool, plano Essentials | TomAuth / TomAuthTest | Login (código por e-mail; Google pendente), grupos admin e judge | 10 mil usuários ativos/mês grátis; depois US$ 0,015 cada | US$ 0 |
 | E-mail do Cognito (padrão, sem SES) | TomAuth | Códigos de verificação e login | Grátis; limite de ~50 e-mails/dia | US$ 0 |
 | Lambda `Handler` (Node 22, Arm, 256 MB) | TomApi / TomApiTest | API inteira (roteador único) | US$ 0,20 por milhão + US$ 0,0000133/GB-s; 1 milhão de execuções e 400 mil GB-s grátis por mês | US$ 0 |
 | Lambda Function URL | TomApi / TomApiTest | Endereço HTTPS da API, sem API Gateway | Sem cobrança própria | US$ 0 |
 | CloudWatch Logs (14 dias) | TomApi / TomApiTest | Logs da Lambda | 5 GB/mês grátis; depois ~US$ 0,50/GB | US$ 0 |
+| CloudFront + S3 `Site` | TomWeb | Site (celular, TV, ADM) e `/api` no mesmo endereço | 1 TB e 10 milhões de requisições/mês grátis, permanentemente | US$ 0 |
+| CloudFront Function `SpaRoutes` | TomWeb | Rotas do app (`/tv`) servem o `index.html` sem mexer nos erros da API | 2 milhões de execuções/mês grátis | US$ 0 |
 | Bootstrap do CDK (`CDKToolkit`) | — | Bucket de assets e roles de deploy | S3 e ECR mínimos | ~US$ 0 |
 
 **Total projetado: menos de US$ 0,20/mês**, coberto pelos créditos do Free plan (US$ 100, até abril de 2027).
@@ -228,6 +231,8 @@ Escolhas feitas por custo:
 - **Cognito Essentials:** necessário para o código por e-mail; custo zero até 10 mil usuários ativos/mês. O plano Plus (proteção contra ameaças) custaria US$ 0,02 por usuário, sem franquia.
 - **Lambda em Arm com 256 MB:** ~20% mais barata que x86; pacote de 27 KB (o SDK da AWS vem no runtime).
 - **Logs por 14 dias** e **TTL** em tabelas e bucket: nada acumula custo de armazenamento.
+- **Quadro da TV guardado 5 s no CloudFront** (`/api/board`): dezenas de TVs e celulares olhando viram uma chamada à Lambda a cada 5 s por borda, em vez de uma por tela.
+- **Site publicado por script** (`npm run web:deploy`), sem a Lambda e a layer extras do `BucketDeployment` do CDK.
 
 Pontos de atenção:
 
@@ -268,8 +273,8 @@ Uma fase por vez; cada fase tem os próprios testes e só começa a próxima dep
 | 4 | Enviador: observar a pasta do TOM e detectar escrita completa | Não |
 | 5 | Infraestrutura AWS como código, IAM mínimo, adaptadores DynamoDB e S3 | Sim |
 | 6 | Login, papéis, sessão única, troca de dispositivo, confirmação de Player ID | Sim |
-| 7–9 | Telas: celular, TV e painel do ADM / juiz | Sim |
-| 10 | Upload do enviador para a API com token por evento | Sim |
+| 7 | **[R3]** Celular do jogador: 7.1 site e login; 7.2 envio do enviador para a API com token do evento (antes fase 10); 7.3 rodada atual, reporte e atualização automática | Sim |
+| 8–9 | Telas: TV e painel do ADM / juiz | Sim |
 
 ## Decisões em aberto e fora de escopo
 
@@ -279,8 +284,10 @@ Em aberto:
 - [x] Como o enviador percebe que o TOM terminou de escrever: o arquivo fica sem mudar de tamanho e data por 1,5 s e termina em `</html>`. A pasta é lida por polling a cada 1 s (o `fs.watch` perde eventos no Windows/OneDrive). Todos os HTMLs do evento mais recente são enviados, inclusive brackets; conteúdo idêntico (mesmo SHA-256) não é reenviado. A frequência real de regravação do TOM sai do log do enviador num evento real.
 - [ ] Login com Google **[R3]**: domínios de login prontos (`tom-pokemon-login`, `tom-pokemon-login-teste`); faltam o cliente OAuth no Google Cloud, o cadastro do provedor no Cognito (comando único, segredo fora do repositório; ver README) e liberar o Google no cliente do app.
 - [ ] Remetente dos e-mails e acesso de produção do SES **[R3]**: necessários antes do primeiro evento (limite atual de ~50 e-mails/dia) e para o e-mail do código de login em português.
+- [ ] Estética das telas (celular, TV, painel): o layout atual é funcional; o visual será revisto com as três telas lado a lado.
 - [ ] Top cut / eliminatória (arquivo brackets).
 - [ ] Critério do ranking (fase futura).
+- [ ] Histórico do jogador fora do evento (torneios, rodadas, oponentes e placares): fica para uma próxima spec. Os dados já ficam guardados (eventos das rodadas e fotografias do TOM), então nada se perde até lá.
 - [ ] Atualização em tempo real no celular sem polling (evolução).
 
 Fora de escopo:
@@ -318,3 +325,5 @@ Fora de escopo:
 | 3 | Custo não era critério explícito | Menor custo (ideal zero) é o critério principal; cada escolha traz diferença de custo e projeção |
 | 4 | API Gateway + Lambda | Lambda com Function URL (sem API Gateway); token validado no código |
 | 5 | Conta = usuário do Cognito | Conta com id próprio e vários logins (Google, código por e-mail) unificados pelo e-mail verificado |
+| 6 | Envio do enviador para a API na fase 10 | Na fase 7: as telas usam desde o início o fluxo real TOM → enviador → API, sem carga manual |
+| 7 | Telas em aberto | Preact + Vite; site estático no S3 com CloudFront, API em `/api` no mesmo endereço |

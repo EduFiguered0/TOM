@@ -25,13 +25,18 @@ describe('DataStack', () => {
     });
   });
 
-  it('tabela de contas: chave genérica (conta, auditoria e trava do Player ID), sob demanda, com TTL', () => {
-    prod.resourceCountIs('AWS::DynamoDB::Table', 2);
+  it('tabelas de contas e de eventos do ADM: chave genérica, sob demanda, com TTL', () => {
+    prod.resourceCountIs('AWS::DynamoDB::Table', 3);
     prod.hasResourceProperties('AWS::DynamoDB::Table', {
       AttributeDefinitions: [{ AttributeName: 'pk', AttributeType: 'S' }, { AttributeName: 'sk', AttributeType: 'S' }],
       BillingMode: 'PAY_PER_REQUEST',
       TimeToLiveSpecification: { AttributeName: 'expiresAt', Enabled: true },
     });
+  });
+
+  it('bucket de fotografias com nome fixo (a API recebe um ARN literal)', () => {
+    prod.hasResourceProperties('AWS::S3::Bucket', { BucketName: 'tom-snapshots-123456789012-us-east-2' });
+    temp.hasResourceProperties('AWS::S3::Bucket', { BucketName: 'tom-snapshots-test-123456789012-us-east-2' });
   });
 
   it('bucket privado, criptografado, só HTTPS', () => {

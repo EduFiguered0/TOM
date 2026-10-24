@@ -12,14 +12,16 @@
   },
   "scripts": {
     "build": "tsc -b",
-    "typecheck": "tsc -p tsconfig.dev.json",
+    "typecheck": "tsc -p tsconfig.dev.json && tsc -p apps/web/tsconfig.json",
     "lint": "eslint .",
     "test": "vitest run",
     "test:watch": "vitest",
     "check": "npm run typecheck && npm run lint && npm run test",
     "uploader": "npm run build && node apps/uploader/dist/main.js",
     "cdk": "npm run cdk -w @tom/infra --",
-    "test:aws": "vitest run -c vitest.aws.config.ts"
+    "test:aws": "vitest run -c vitest.aws.config.ts",
+    "web:deploy": "tsx infra/scripts/deploy-web.ts",
+    "web:dev": "npm run dev -w @tom/web"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.5",

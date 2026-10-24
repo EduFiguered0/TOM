@@ -16,7 +16,10 @@ export type RejectCode =
   | 'account_not_found'
   | 'session_conflict'
   | 'session_inactive'
-  | 'player_id_taken';
+  | 'player_id_taken'
+  | 'invalid_token'
+  | 'tournament_mismatch'
+  | 'event_not_found';
 
 /** Comando recusado por regra de negócio; nada foi gravado. */
 export class CommandRejected extends Error {
