@@ -39,6 +39,18 @@
 .tv-legend span { display: inline-flex; align-items: center; gap: .5vw; }
 .tv-legend .tv-dot { width: .9vw; height: .9vw; }
 .tv-empty { align-items: center; justify-content: center; font-size: 2.4vw; color: var(--tv-muted); }
+.tv-store { font-size: 6vw; font-weight: 800; color: var(--tv-text); margin: 0; }
+.tv-wait { align-items: center; justify-content: center; text-align: center; gap: 2.5vh; }
+.tv-wait .tv-event { font-size: 3.4vw; }
+.tv-qr { height: 58vh; width: auto; aspect-ratio: 1; border-radius: 1vw; }
+.tv-hint { font-size: 1.8vw; color: var(--tv-muted); margin: 0; }
+.tv-url { color: var(--tv-text); }
+.tv-count { font-size: 4vw; font-weight: 800; margin: 0; font-variant-numeric: tabular-nums; }
+.tv-call { font-size: 4.4vw; font-weight: 800; color: var(--orange); margin: 0; }
+.tv-standings { flex: 1; list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(2, 1fr); grid-auto-rows: minmax(0, 6vh); gap: 1vh 1.5vw; }
+.tv-standings li { display: flex; align-items: center; gap: 1.2vw; padding: 0 1.2vw; background: var(--tv-card); border: 1px solid var(--tv-line); border-radius: .8vw; font-size: 1.8vw; }
+.tv-standings .tv-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tv-record { font-variant-numeric: tabular-nums; color: var(--tv-muted); }
 .tv-offline {
   position: fixed; right: 2vw; bottom: 1.5vh; padding: .4vh 1vw; border-radius: .6vw;
   background: #7c2d12; color: #fff7ed; font: 600 1.1vw system-ui, sans-serif;

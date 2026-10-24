@@ -37,7 +37,7 @@ const api = createApi({
   accounts: new AccountService({ accounts: accountRepository, clock, ids }),
   events,
   ingest: createIngest({ events, registry, rounds, clock, snapshots: new S3SnapshotStore(new S3Client({}), env('SNAPSHOTS_BUCKET')) }),
-  board: createBoard({ registry, rounds: reader, clock }),
+  board: createBoard({ registry, rounds: reader, registrations, clock }),
   rounds,
   reader,
   registrations: new RegistrationService({ registry, registrations, accounts: accountRepository, clock }),

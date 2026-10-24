@@ -78,7 +78,7 @@ export interface ApiDeps {
   accounts: AccountService;
   events: EventService;
   ingest: Ingest;
-  board: () => Promise<BoardResponse | null>;
+  board: () => Promise<BoardResponse>;
   rounds: RoundService;
   reader: RoundReader;
   registry: EventRegistry;
@@ -579,11 +579,8 @@ export const createApi = ({ tokens, emails, accounts, events, ingest, board, rou
     {
       method: 'GET', path: /^\/board$/,
       handle: async () => {
-        const current = await board();
         // Muitas TVs e celulares olhando custam o mesmo que um: o CloudFront guarda por 5 s.
-        return current
-          ? { status: 200, body: current, cacheControl: 'public, max-age=5' }
-          : { ...error(404, 'no_round', 'Nenhuma rodada publicada ainda'), cacheControl: 'public, max-age=5' };
+        return { status: 200, body: await board(), cacheControl: 'public, max-age=5' };
       },
     },
   ];

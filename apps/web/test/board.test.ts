@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { pages, roundClock } from '../src/tv/board.js';
+import { joinUrl, pages, qrPath, roundClock } from '../src/tv/board.js';
 
 const endsAt = '2026-10-24T15:30:00.000Z';
 const at = (iso: string) => Date.parse(iso);
@@ -28,5 +28,16 @@ describe('páginas da TV', () => {
   it('divide as mesas e nunca devolve lista vazia de páginas', () => {
     expect(pages([1, 2, 3, 4, 5], 2)).toEqual([[1, 2], [3, 4], [5]]);
     expect(pages([], 20)).toEqual([[]]);
+  });
+});
+
+describe('QR da TV', () => {
+  it('cada módulo escuro vira um quadrado no caminho do SVG (sem innerHTML)', () => {
+    expect(qrPath([[true, false], [false, true]])).toBe('M0 0h1v1h-1zM1 1h1v1h-1z');
+    expect(qrPath([[false]])).toBe('');
+  });
+
+  it('endereço do QR: o site + /e/<código>', () => {
+    expect(joinUrl('https://dvaep2eni3fqm.cloudfront.net', 'ABCD2345')).toBe('https://dvaep2eni3fqm.cloudfront.net/e/ABCD2345');
   });
 });

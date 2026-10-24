@@ -12,23 +12,27 @@ describe('ingestão: TOM → enviador → API', () => {
     expect(created).toMatchObject({ status: 201, body: { label: 'Liga', token: expect.stringMatching(/^[\w-]{43}$/) as unknown } });
   });
 
-  it('TV sem rodada: 404 público, guardável pelo CloudFront', async () => {
+  it('TV sem evento: espera, pública e guardável pelo CloudFront', async () => {
     const { call } = setup();
-    expect(await call('GET', '/board', null)).toMatchObject({ status: 404, body: { error: 'no_round' }, cacheControl: 'public, max-age=5' });
+    expect(await call('GET', '/board', null)).toMatchObject({ status: 200, body: { state: 'idle' }, cacheControl: 'public, max-age=5' });
   });
 
-  it('pareamento sozinho espera as guias; com as guias a rodada é publicada e a TV mostra', async () => {
-    const { send, call } = await withEvent();
+  it('pareamento sozinho espera as guias; com as guias a rodada é publicada e a TV mostra ao iniciar', async () => {
+    const { send, call, eventId } = await withEvent();
     expect(await send(upload('pairings'))).toMatchObject({ status: 200, body: { stored: true, published: [], note: expect.stringMatching(/Aguardando/) as unknown } });
 
     const done = await send(upload('match_slips'));
     expect(done.status).toBe(200);
     expect(done.body.published).toHaveLength(1);
 
+    // Inscrições abertas: a TV mostra o QR até a rodada 1 começar.
+    expect((await call('GET', '/board', null)).body).toMatchObject({ state: 'open' });
+    await call('POST', `/events/${eventId}/confirmation`, 'adm:a1:admin');
+    await call('POST', '/round/start', 'adm:a1:admin', { bestOf: 3, roundMinutes: null });
     const board = await call('GET', '/board', null);
     expect(board).toMatchObject({ status: 200, cacheControl: 'public, max-age=5' });
-    const body = board.body as BoardResponse;
-    expect(body).toMatchObject({ tournament: 'FODASE', startedAt: null, endsAt: null });
+    const body = board.body as Extract<BoardResponse, { state: 'running' }>;
+    expect(body).toMatchObject({ state: 'running', tournament: 'FODASE', endsAt: expect.any(String) as unknown });
     expect(body.tables.length).toBeGreaterThan(0);
     expect(body.tables.every((t) => t.color === 'gray' && t.player1 && t.player2)).toBe(true);
     expect(JSON.stringify(body)).not.toMatch(/playerId|keys/);

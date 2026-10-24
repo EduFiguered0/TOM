@@ -48,7 +48,7 @@ export const setup = () => {
     accounts,
     events,
     ingest: createIngest({ events, registry, rounds, clock, snapshots: new InMemorySnapshotStore() }),
-    board: createBoard({ registry, rounds: reader, clock }),
+    board: createBoard({ registry, rounds: reader, registrations, clock }),
     rounds,
     reader,
     registry,

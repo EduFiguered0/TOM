@@ -111,7 +111,8 @@ export const parseSessionRequest = (body: unknown): SessionRequest => ({
 export type TableColor = 'gray' | 'orange' | 'green' | 'red';
 
 /** Rodada para a TV do salão: pública, só nomes (sem Player ID nem e-mail). */
-export interface BoardResponse {
+/** Rodada na TV: pareamentos e cronômetro. */
+export interface RoundBoard {
   tournament: string;
   division: string;
   round: number;
@@ -124,6 +125,28 @@ export interface BoardResponse {
   /** Momento em que o servidor montou a resposta; a TV corrige o relógio local por ele. */
   serverTime: string;
 }
+
+export interface FinalStandingDto {
+  division: string;
+  rank: number;
+  name: string;
+  wins: number;
+  losses: number;
+  ties: number;
+}
+
+interface BoardEvent {
+  label: string;
+  date: string;
+}
+
+/** Quadro público da TV por fase do evento; `serverTime` em todas (a TV acerta o relógio). */
+export type BoardResponse =
+  | { state: 'idle'; serverTime: string }
+  | { state: 'open'; event: BoardEvent; code: string; registered: number; serverTime: string }
+  | { state: 'confirming'; event: BoardEvent; registered: number; confirmed: number; serverTime: string }
+  | ({ state: 'running' } & RoundBoard)
+  | { state: 'final'; event: BoardEvent; standings: FinalStandingDto[]; serverTime: string };
 
 /** Uma versão completa de um HTML do TOM, enviada pelo enviador com o token do evento (cabeçalho `x-upload-token`). */
 export interface UploadRequest {
