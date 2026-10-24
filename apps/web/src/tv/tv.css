@@ -1,0 +1,40 @@
+/* TV: sempre escura, tipografia grande e contraste alto para leitura a vários metros. */
+.tv {
+  --tv-bg: #0b0f16; --tv-card: #151b26; --tv-text: #f2f5fa; --tv-muted: #9aa6ba; --tv-line: #263042;
+  --gray: #8b95a7; --orange: #f59e0b; --green: #22c55e; --red: #ef4444;
+  position: fixed; inset: 0; display: flex; flex-direction: column; gap: 1.2vh;
+  padding: 2.5vh 2.5vw; background: var(--tv-bg); color: var(--tv-text);
+  font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif; overflow: hidden;
+}
+.tv-head { display: flex; justify-content: space-between; align-items: center; gap: 2vw; }
+.tv-event { font-size: 2.2vw; font-weight: 700; }
+.tv-round { font-size: 1.6vw; color: var(--tv-muted); }
+.tv-clock { font-size: 5vw; font-weight: 800; font-variant-numeric: tabular-nums; letter-spacing: .05em; }
+.tv-clock.waiting { font-size: 2vw; color: var(--tv-muted); }
+.tv-clock.warning { color: var(--orange); }
+.tv-clock.over { font-size: 2.6vw; color: var(--red); }
+.tv-tables {
+  flex: 1; list-style: none; margin: 0; padding: 0; min-height: 0;
+  /* Numeração descendo a coluna (1–10 à esquerda, 11–20 à direita): é assim que se procura a mesa. */
+  display: grid; grid-template-columns: repeat(2, 1fr); grid-template-rows: repeat(10, minmax(0, 1fr));
+  grid-auto-flow: column; gap: 1vh 1.5vw;
+}
+.tv-table {
+  display: flex; align-items: center; gap: 1.2vw; padding: 0 1.2vw; min-width: 0;
+  background: var(--tv-card); border: 1px solid var(--tv-line); border-left: .5vw solid var(--gray); border-radius: .8vw;
+}
+.tv-table.orange { border-left-color: var(--orange); }
+.tv-table.green { border-left-color: var(--green); }
+.tv-table.red { border-left-color: var(--red); }
+.tv-number { width: 3.6vw; font-size: 2.2vw; font-weight: 800; text-align: right; font-variant-numeric: tabular-nums; }
+.tv-players { flex: 1; display: flex; gap: .8vw; align-items: baseline; min-width: 0; font-size: 1.55vw; }
+.tv-players > span:not(.tv-vs) { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tv-vs { color: var(--tv-muted); font-size: 1.1vw; }
+.tv-dot { display: inline-block; width: 1.1vw; height: 1.1vw; border-radius: 50%; background: var(--gray); flex: none; }
+.tv-table.orange .tv-dot, .tv-dot.orange { background: var(--orange); }
+.tv-table.green .tv-dot, .tv-dot.green { background: var(--green); }
+.tv-table.red .tv-dot, .tv-dot.red { background: var(--red); }
+.tv-foot { display: flex; justify-content: space-between; gap: 2vw; font-size: 1.2vw; color: var(--tv-muted); }
+.tv-legend { display: flex; gap: 1.6vw; }
+.tv-legend span { display: inline-flex; align-items: center; gap: .5vw; }
+.tv-legend .tv-dot { width: .9vw; height: .9vw; }

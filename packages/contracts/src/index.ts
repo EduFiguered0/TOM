@@ -85,3 +85,21 @@ export const parseConfirmPlayerIdRequest = (body: unknown): ConfirmPlayerIdReque
 export const parseSessionRequest = (body: unknown): SessionRequest => ({
   replace: field(object(body, 'Corpo'), 'replace', 'boolean'),
 });
+
+/** Cor do termômetro da mesa (spec, "Termômetro de validação de resultados"). */
+export type TableColor = 'gray' | 'orange' | 'green' | 'red';
+
+/** Rodada para a TV do salão: pública, só nomes (sem Player ID nem e-mail). */
+export interface BoardResponse {
+  tournament: string;
+  division: string;
+  round: number;
+  /** null antes de o ADM iniciar a rodada. */
+  startedAt: string | null;
+  /** Fim do tempo da rodada (sem acréscimos de mesa). */
+  endsAt: string | null;
+  tables: { table: number; player1: string; player2: string; color: TableColor }[];
+  byes: string[];
+  /** Momento em que o servidor montou a resposta; a TV corrige o relógio local por ele. */
+  serverTime: string;
+}
