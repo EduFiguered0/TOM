@@ -9,7 +9,8 @@ Detalhes do produto em [`docs/spec-tom.md`](docs/spec-tom.md); arquitetura em [`
 ```
 apps/
   api/           API: uma Lambda atrás de Function URL (rotas abaixo)
-  web/           telas em Preact: celular (/), TV do salão (/tv), painel do ADM e do juiz (/painel)
+  web/           site em Preact: home pública da loja (/), privacidade (/privacidade), conta do jogador (/conta),
+                 TV do salão (/tv), painel do ADM e do juiz (/painel)
   uploader/      enviador: observa a pasta do TOM (somente leitura)
 packages/
   core/          domínio e casos de uso, sem dependências
@@ -79,12 +80,13 @@ Rotas da API (as de conta e ADM exigem `Authorization: Bearer <token de acesso d
 | Rota | Quem | Para quê |
 | --- | --- | --- |
 | `GET /me` | qualquer conta | Dados da própria conta, papel e se já pode agir (404 se ainda não cadastrou) |
-| `POST /me` | qualquer conta | Cadastro (perfil LGPD e Player ID informado); o e-mail vem do Cognito |
+| `POST /me` | qualquer conta | Cadastro (perfil LGPD e Player ID); o e-mail vem do Cognito. Player ID já em uso: 409 |
 | `POST /session` | qualquer conta | Ativa este dispositivo; com outro ativo, exige `{"replace": true}` e revoga o anterior |
-| `GET /accounts/{id}` | ADM | Consulta a conta do jogador no check-in |
-| `POST /accounts/{id}/player-id` | ADM | Confirma (ou corrige) o Player ID no check-in |
+| `POST /me/player-id` | qualquer conta | Conta sem Player ID informa depois; para trocar, só o ADM (409) |
+| `GET /player-ids/{pid}` | ADM | Quem cadastrou esse Player ID |
+| `POST /player-ids/{pid}/unlink` | ADM | Desfaz o vínculo errado; o dono verdadeiro pode cadastrar o Player ID |
 | `GET /round/me` | qualquer conta | Rodada atual do ponto de vista do jogador: mesa, oponente, prazo, cor e o próprio reporte (sem o placar do oponente) |
-| `POST /round/report` | jogador com check-in | Reporta placar ou ID na própria mesa |
+| `POST /round/report` | jogador com Player ID | Reporta placar ou ID na própria mesa |
 | `POST /round/start` | ADM | Inicia a rodada publicada pelo TOM (melhor de 1 ou 3, tempo) |
 | `GET /panel` | juiz, ADM | Painel: todas as mesas com Player IDs, os dois reportes, cor e motivo, override, acréscimo e a key do TOM |
 | `POST /panel/tables/{n}/override` | juiz, ADM | Override (placar, ID, DGL, vitória por ausência) com motivo; avisa se a key já foi lançada |
@@ -138,7 +140,7 @@ Para mudar a policy: edite o JSON e rode `aws iam create-policy-version --profil
 | 3 | Modelo de eventos e recálculo do estado | ✅ |
 | 4 | Enviador (observa a pasta do TOM) | ✅ |
 | 5 | Infraestrutura AWS, EventStore no DynamoDB, fotografias no S3 | ✅ |
-| 6 | Login (e-mail e senha, Google), sessão única, papéis, check-in do ADM (SES pendente, ver spec) | ✅ |
+| 6 | Login (e-mail e senha, Google), sessão única, papéis, Player ID que vale no cadastro (SES pendente, ver spec) | ✅ |
 | 7 | Celular: site e login, ingestão do TOM e TV ao vivo, rodada e reporte (histórico do jogador fica para outra spec) | ✅ |
 | 8–9 | TV do salão e painel do ADM/juiz (estética pendente) | ✅ |
 | 10 | Upload do enviador para a API | |

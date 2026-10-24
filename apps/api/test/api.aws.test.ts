@@ -23,6 +23,7 @@ const [apiUrl, userPoolId, clientId] = await Promise.all([
 ]);
 const email = `teste-${randomUUID()}@example.com`;
 const adminEmail = `teste-adm-${randomUUID()}@example.com`;
+const otherEmail = `teste-outro-${randomUUID()}@example.com`;
 const password = `Aa1!${randomUUID()}`;
 
 /** Cada login gera um origin_jti novo: é como entrar por outro celular. */
@@ -55,12 +56,12 @@ const createUser = async (user: string) => {
 const profile = { name: 'Teste Automático', birthYear: 1990, phone: null, guardianConsent: false };
 
 beforeAll(async () => {
-  await Promise.all([createUser(email), createUser(adminEmail)]);
+  await Promise.all([createUser(email), createUser(adminEmail), createUser(otherEmail)]);
   await cognito.send(new AdminAddUserToGroupCommand({ UserPoolId: userPoolId, Username: adminEmail, GroupName: 'admin' }));
 });
 
 afterAll(async () => {
-  await Promise.all([email, adminEmail].map((user) => cognito.send(new AdminDeleteUserCommand({ UserPoolId: userPoolId, Username: user }))));
+  await Promise.all([email, adminEmail, otherEmail].map((user) => cognito.send(new AdminDeleteUserCommand({ UserPoolId: userPoolId, Username: user }))));
 });
 
 describe('API real (TomApiTest)', () => {
@@ -94,7 +95,7 @@ describe('API real (TomApiTest)', () => {
     const phone1 = await login();
     expect((await call('GET', '/me', phone1)).status).toBe(404);
 
-    const created = await call('POST', '/me', phone1, { profile, playerId: '100001', email: 'forjado@example.com' });
+    const created = await call('POST', '/me', phone1, { profile, playerId: null, email: 'forjado@example.com' });
     expect(created).toMatchObject({ status: 201, body: { email, role: 'player', canAct: false } });
     expect((await call('GET', '/me', phone1)).status).toBe(200);
 
@@ -107,21 +108,23 @@ describe('API real (TomApiTest)', () => {
     expect((await call('GET', '/me', phone2)).status).toBe(200);
   });
 
-  it('check-in: o ADM confirma o Player ID e o jogador passa a agir', async () => {
-    // O jogador já foi cadastrado no teste anterior: entra por outro "celular" e confirma a troca.
-    const [player, adm] = await Promise.all([login(), login(adminEmail)]);
-    const me = await call('POST', '/session', player, { replace: true });
+  it('Player ID vale na hora; em uso dá 409; o ADM desfaz o vínculo e o dono cadastra', async () => {
+    // O jogador já foi cadastrado (sem Player ID) no teste anterior: entra por outro "celular" e confirma a troca.
+    const [player, adm, other] = await Promise.all([login(), login(adminEmail), login(otherEmail)]);
+    await call('POST', '/session', player, { replace: true });
     expect((await call('POST', '/me', adm, { profile, playerId: null })).body).toMatchObject({ role: 'admin' });
-    const id = String(me.body['id']);
-
-    expect((await call('GET', `/accounts/${id}`, player)).status).toBe(403);
-    expect(await call('GET', `/accounts/${id}`, adm)).toMatchObject({ status: 200, body: { playerId: { value: '100001', confirmed: false } } });
-    // Player ID único por execução: a trava de unicidade é real.
+    // Player ID único por execução: as contas ficam na tabela, e a trava de unicidade é real.
     const playerId = String(Date.now());
-    expect(await call('POST', `/accounts/${id}/player-id`, adm, { playerId })).toMatchObject({
-      status: 200, body: { playerId: { value: playerId, confirmed: true } },
-    });
-    expect(await call('GET', '/me', player)).toMatchObject({ status: 200, body: { canAct: true } });
+    expect(await call('POST', '/me/player-id', player, { playerId })).toMatchObject({ status: 200, body: { playerId, canAct: true } });
+
+    expect(await call('POST', '/me', other, { profile, playerId })).toMatchObject({ status: 409, body: { error: 'player_id_taken' } });
+    expect((await call('POST', '/me', other, { profile, playerId: null })).status).toBe(201);
+    expect((await call('GET', `/player-ids/${playerId}`, player)).status).toBe(403);
+    expect(await call('GET', `/player-ids/${playerId}`, adm)).toMatchObject({ status: 200, body: { email, playerId } });
+    expect(await call('POST', `/player-ids/${playerId}/unlink`, adm)).toMatchObject({ status: 200, body: { playerId: null } });
+    expect(await call('GET', '/me', player)).toMatchObject({ status: 200, body: { canAct: false, playerId: null } });
+    // A trava saiu de verdade no DynamoDB: o dono cadastra o mesmo Player ID.
+    expect(await call('POST', '/me/player-id', other, { playerId })).toMatchObject({ status: 200, body: { playerId, canAct: true } });
   });
 
   it('ingestão: ADM cria o evento, o enviador manda os HTMLs reais do TOM e a TV mostra a rodada', async () => {
