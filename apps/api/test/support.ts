@@ -22,12 +22,12 @@ const tokens = {
   verify: (token: string): Promise<Identity> => {
     if (token === 'expirado') return Promise.reject(new Error('expirado'));
     const [login = '', session = '', groups = ''] = token.split(':');
-    return Promise.resolve({ login, session, groups: groups ? groups.split(',') : [] });
+    return Promise.resolve({ login, session, groups: groups ? groups.split(',') : [], provider: login.includes('google') ? 'google' : 'password' });
   },
 };
 
 /** E-mail verificado de cada login no "Cognito"; os dois logins da Ana têm o mesmo e-mail. */
-const EMAILS: Record<string, string> = { 'ana-email': 'ana@example.com', 'ana-google': 'Ana@Example.com', adm: 'adm@example.com' };
+const EMAILS: Record<string, string> = { 'ana-email': 'ana@example.com', 'ana-google': 'Ana@Example.com', 'ana-senha': 'ana@example.com', adm: 'adm@example.com' };
 
 export const setup = () => {
   const errors: unknown[] = [];

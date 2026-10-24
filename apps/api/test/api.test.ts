@@ -47,6 +47,13 @@ describe('API', () => {
     expect((await call('GET', '/me', 'ana-email:celular1')).status).toBe(401);
   });
 
+  it('senha depois do Google no mesmo e-mail: 409 com orientação', async () => {
+    const { call } = setup();
+    await register(call, 'ana-google:g1');
+    const res = await call('GET', '/me', 'ana-senha:s1');
+    expect(res).toMatchObject({ status: 409, body: { error: 'account_exists' } });
+  });
+
   it('login novo sem conta com o mesmo e-mail continua em 404 (vai para o cadastro)', async () => {
     const { call } = setup();
     await register(call, 'ana-email:s1');

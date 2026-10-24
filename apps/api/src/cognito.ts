@@ -3,6 +3,9 @@ import type { Identity } from '@tom/core';
 import { CognitoJwtVerifier } from 'aws-jwt-verify';
 import type { EmailLookup, TokenVerifier } from './api.js';
 
+/** Usuários federados do Cognito têm o nome `<Provedor>_<id>`; os de e-mail e senha, um UUID. */
+export const providerOf = (username: string): Identity['provider'] => (/^google_/i.test(username) ? 'google' : 'password');
+
 /** Confere assinatura, emissor, cliente, uso (`access`) e validade do token; as chaves públicas ficam em cache. */
 export class CognitoTokenVerifier implements TokenVerifier {
   private readonly verifier;
@@ -15,7 +18,7 @@ export class CognitoTokenVerifier implements TokenVerifier {
     const payload = await this.verifier.verify(accessToken);
     const session = payload['origin_jti'];
     if (typeof session !== 'string') throw new Error('Token sem origin_jti (revogação desligada no cliente?)');
-    return { login: payload.sub, session, groups: payload['cognito:groups'] ?? [] };
+    return { login: payload.sub, session, groups: payload['cognito:groups'] ?? [], provider: providerOf(payload.username) };
   }
 }
 
