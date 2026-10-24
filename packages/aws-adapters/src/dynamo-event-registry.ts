@@ -1,8 +1,10 @@
 import { TransactionCanceledException } from '@aws-sdk/client-dynamodb';
 import { GetCommand, PutCommand, TransactWriteCommand, type DynamoDBDocumentClient } from '@aws-sdk/lib-dynamodb';
-import { ConcurrencyError, type CurrentRound, type EventRegistry, type TournamentEvent } from '@tom/core';
+import { ConcurrencyError, DEFAULT_ROUND_MINUTES, type CurrentRound, type EventRegistry, type TournamentEvent } from '@tom/core';
 
 const DAY_SECONDS = 86_400;
+/** Brasília, sem horário de verão: o dia do evento é o dia local da loja. */
+const LOCAL_OFFSET_MS = -3 * 3_600_000;
 
 export interface DynamoEventRegistryOptions {
   tableName: string;
@@ -11,14 +13,24 @@ export interface DynamoEventRegistryOptions {
 }
 
 type Stored<T, K extends keyof T> = Omit<T, K> & Record<K, string>;
-type StoredEvent = Omit<Stored<TournamentEvent, 'createdAt'>, 'judges'> & { judges?: string[] };
+/** Eventos antigos não têm os campos que vieram depois (escala, fase, data, tempo, código, classificação). */
+type StoredEvent = Omit<Stored<TournamentEvent, 'createdAt'>, 'judges' | 'date' | 'roundMinutes' | 'status' | 'code' | 'standings'>
+  & Partial<Pick<TournamentEvent, 'judges' | 'date' | 'roundMinutes' | 'status' | 'code' | 'standings'>>;
 type StoredCurrent = Stored<CurrentRound, 'updatedAt'>;
 
 const eventKey = (id: string) => ({ pk: `event#${id}`, sk: 'event' });
 const tokenKey = (hash: string) => ({ pk: `token#${hash}`, sk: 'token' });
+const codeKey = (code: string) => ({ pk: `code#${code}`, sk: 'code' });
 const CURRENT = { pk: 'current', sk: 'current' };
+const LATEST = { pk: 'latest', sk: 'latest' };
 
-/** Evento (com versão), trava do hash do token (acha o evento pelo token) e ponteiro da rodada atual. */
+const failed = (error: unknown, index: number) =>
+  error instanceof TransactionCanceledException && error.CancellationReasons?.[index]?.Code === 'ConditionalCheckFailed';
+
+/**
+ * Evento (com versão), travas do token e do código do QR (acham o evento), ponteiro `latest`
+ * (último criado: um ativo por vez) e ponteiro da rodada atual.
+ */
 export class DynamoEventRegistry implements EventRegistry {
   private readonly tableName: string;
   private readonly retentionSeconds: number;
@@ -38,30 +50,66 @@ export class DynamoEventRegistry implements EventRegistry {
     return lock ? this.get(lock['eventId'] as string) : null;
   }
 
+  async findByCode(code: string) {
+    const lock = await this.item(codeKey(code));
+    return lock ? this.get(lock['eventId'] as string) : null;
+  }
+
+  async latest() {
+    const pointer = await this.item(LATEST);
+    return pointer ? this.get(pointer['eventId'] as string) : null;
+  }
+
   async save(event: TournamentEvent, expectedVersion: number): Promise<number> {
     const version = expectedVersion + 1;
-    const expiresAt = Math.floor(Date.now() / 1000) + this.retentionSeconds;
+    const expiresAt = this.expiresAt();
     const eventPut = {
       Put: {
         TableName: this.tableName,
-        Item: { ...eventKey(event.id), version, event: { ...event, createdAt: event.createdAt.toISOString() }, expiresAt },
+        Item: { ...eventKey(event.id), version, event: toStored(event), expiresAt },
         ConditionExpression: expectedVersion === 0 ? 'attribute_not_exists(pk)' : 'version = :expected',
         ...(expectedVersion === 0 ? {} : { ExpressionAttributeValues: { ':expected': expectedVersion } }),
       },
     };
     // O hash do token nunca muda: a trava só é gravada na criação.
-    const tokenPut = expectedVersion === 0
-      ? [{ Put: { TableName: this.tableName, Item: { ...tokenKey(event.tokenHash), eventId: event.id, expiresAt }, ConditionExpression: 'attribute_not_exists(pk)' } }]
-      : [];
+    const tokenPut = expectedVersion === 0 ? [this.lockPut(tokenKey(event.tokenHash), event.id, expiresAt)] : [];
     try {
       await this.client.send(new TransactWriteCommand({ TransactItems: [eventPut, ...tokenPut] }));
     } catch (error) {
-      if (error instanceof TransactionCanceledException && error.CancellationReasons?.[0]?.Code === 'ConditionalCheckFailed') {
-        throw new ConcurrencyError('Evento alterado por outra gravação');
-      }
+      if (failed(error, 0)) throw new ConcurrencyError('Evento alterado por outra gravação');
       throw error;
     }
     return version;
+  }
+
+  async create(event: TournamentEvent, previousLatest: string | null): Promise<void> {
+    const expiresAt = this.expiresAt();
+    const items = [
+      {
+        Put: {
+          TableName: this.tableName,
+          Item: { ...eventKey(event.id), version: 1, event: toStored(event), expiresAt },
+          ConditionExpression: 'attribute_not_exists(pk)',
+        },
+      },
+      {
+        // O ponteiro só anda se ninguém criou outro evento no meio: garante um ativo por vez.
+        Put: {
+          TableName: this.tableName,
+          Item: { ...LATEST, eventId: event.id },
+          ConditionExpression: previousLatest === null ? 'attribute_not_exists(pk)' : 'eventId = :prev',
+          ...(previousLatest === null ? {} : { ExpressionAttributeValues: { ':prev': previousLatest } }),
+        },
+      },
+      this.lockPut(tokenKey(event.tokenHash), event.id, expiresAt),
+      ...(event.code ? [this.lockPut(codeKey(event.code), event.id, expiresAt)] : []),
+    ];
+    try {
+      await this.client.send(new TransactWriteCommand({ TransactItems: items }));
+    } catch (error) {
+      if (failed(error, 1)) throw new ConcurrencyError('Outro evento foi criado ao mesmo tempo');
+      throw error;
+    }
   }
 
   async setCurrent(current: CurrentRound): Promise<void> {
@@ -75,15 +123,35 @@ export class DynamoEventRegistry implements EventRegistry {
     return stored ? { ...stored, updatedAt: new Date(stored.updatedAt) } : null;
   }
 
+  private expiresAt() {
+    return Math.floor(Date.now() / 1000) + this.retentionSeconds;
+  }
+
+  private lockPut(key: Record<string, string>, eventId: string, expiresAt: number) {
+    return { Put: { TableName: this.tableName, Item: { ...key, eventId, expiresAt }, ConditionExpression: 'attribute_not_exists(pk)' } };
+  }
+
   private async item(key: Record<string, string>) {
     const { Item } = await this.client.send(new GetCommand({ TableName: this.tableName, Key: key, ConsistentRead: true }));
     return Item;
   }
 }
 
-/** Eventos de antes da escala de juízes não têm `judges`. */
-export const eventFromStored = (stored: StoredEvent): TournamentEvent => ({
-  ...stored,
-  judges: stored.judges ?? [],
-  createdAt: new Date(stored.createdAt),
-});
+const toStored = (event: TournamentEvent) => ({ ...event, createdAt: event.createdAt.toISOString() });
+
+const localDate = (at: Date) => new Date(at.getTime() + LOCAL_OFFSET_MS).toISOString().slice(0, 10);
+
+/** Evento antigo: sem escala, 30 min, sem código, e encerrado (não bloqueia a criação do próximo). */
+export const eventFromStored = (stored: StoredEvent): TournamentEvent => {
+  const createdAt = new Date(stored.createdAt);
+  return {
+    ...stored,
+    createdAt,
+    judges: stored.judges ?? [],
+    date: stored.date ?? localDate(createdAt),
+    roundMinutes: stored.roundMinutes ?? DEFAULT_ROUND_MINUTES,
+    status: stored.status ?? 'closed',
+    code: stored.code ?? null,
+    standings: stored.standings ?? null,
+  };
+};

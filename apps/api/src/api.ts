@@ -97,6 +97,8 @@ const STATUS: Record<RejectCode, number> = {
   invalid_token: 401,
   tournament_mismatch: 409,
   event_not_found: 404,
+  event_active: 409,
+  event_state: 409,
 };
 
 class Unauthorized extends Error {}
@@ -244,7 +246,7 @@ export const createApi = ({ tokens, emails, accounts, events, ingest, board, rou
       handle: async ({ request, identity }) => {
         const { label, judges } = parseCreateEventRequest(jsonBody(request));
         const { actor } = await accounts.authenticate(identity);
-        const { event, token } = await events.createEvent(actor, label, judges);
+        const { event, token } = await events.createEvent(actor, { label, judges });
         return { status: 201, body: { id: event.id, label: event.label, token } satisfies CreateEventResponse };
       },
     },

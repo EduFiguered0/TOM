@@ -6,6 +6,7 @@ import {
   InMemoryAccountRepository,
   InMemoryEventRegistry,
   type Account,
+  type FinalStanding,
   type RejectCode,
 } from '../../src/index.js';
 import { actors, TestClock } from './support.js';
@@ -30,18 +31,21 @@ const member = async (accounts: InMemoryAccountRepository, id: string, judge: bo
   return id;
 };
 
-const rejects = async (promise: Promise<unknown>, code: RejectCode) => {
+const rejects = async (promise: Promise<unknown>, code: RejectCode, message?: string) => {
   const error = await promise.catch((e: unknown) => e);
   expect(error).toBeInstanceOf(CommandRejected);
   expect((error as CommandRejected).code).toBe(code);
+  if (message) expect((error as CommandRejected).message).toBe(message);
 };
+
+const standings: FinalStanding[] = [{ division: 'Divisão Mestre', rank: 1, name: 'teste5 5', wins: 3, losses: 0, ties: 0 }];
 
 describe('evento e token do enviador', () => {
   it('só o ADM cria; o token aparece uma vez e o banco guarda só o hash', async () => {
     const { service, events } = setup();
-    await rejects(service.createEvent(actors.judge, 'Liga'), 'forbidden');
-    await rejects(service.createEvent(null, 'Liga'), 'forbidden');
-    const { event, token } = await service.createEvent(actors.admin, '  Liga de Outubro ');
+    await rejects(service.createEvent(actors.judge, { label: 'Liga' }), 'forbidden');
+    await rejects(service.createEvent(null, { label: 'Liga' }), 'forbidden');
+    const { event, token } = await service.createEvent(actors.admin, { label: '  Liga de Outubro ' });
     expect(token).toMatch(/^[A-Za-z0-9_-]{43}$/);
     expect(event).toMatchObject({ label: 'Liga de Outubro', tournament: null, revoked: false, createdBy: 'adm' });
     const stored = await events.get(event.id);
@@ -49,9 +53,77 @@ describe('evento e token do enviador', () => {
     expect(JSON.stringify(stored)).not.toContain(token);
   });
 
+  it('cria aberto, com código, data de hoje e 30 min', async () => {
+    const { service, events } = setup();
+    const { event } = await service.createEvent(actors.admin, { label: 'Liga' });
+    expect(event).toMatchObject({ status: 'open', date: '2026-10-23', roundMinutes: 30, standings: null });
+    expect(event.code).toMatch(/^[ABCDEFGHJKMNPQRSTUVWXYZ23456789]{8}$/);
+    expect((await events.findByCode(event.code ?? ''))?.event.id).toBe(event.id);
+    expect((await service.active())?.id).toBe(event.id);
+  });
+
+  it('tempo de rodada e data validados', async () => {
+    const { service } = setup();
+    await rejects(service.createEvent(actors.admin, { label: 'Liga', roundMinutes: 5 }), 'invalid_input', 'Tempo de rodada deve ser de 10 a 180 minutos');
+    await rejects(service.createEvent(actors.admin, { label: 'Liga', date: '2026-13-40' }), 'invalid_input', 'Data inválida');
+    const { event } = await service.createEvent(actors.admin, { label: 'Liga', date: '2026-11-07', roundMinutes: 50 });
+    expect(event).toMatchObject({ date: '2026-11-07', roundMinutes: 50 });
+  });
+
+  it('um evento ativo por vez; encerrado ou cancelado libera o próximo', async () => {
+    const { service } = setup();
+    const { event } = await service.createEvent(actors.admin, { label: 'Liga' });
+    await rejects(service.createEvent(actors.admin, { label: 'Outra' }), 'event_active', 'Já existe um evento ativo. Encerre ou cancele antes de criar outro.');
+    await service.cancel(actors.admin, event.id);
+    expect(await service.active()).toBeNull();
+    expect((await service.createEvent(actors.admin, { label: 'Outra' })).event.status).toBe('open');
+  });
+
+  it('ciclo: abre → confirma → em andamento → final → encerrado', async () => {
+    const { service } = setup();
+    const { event } = await service.createEvent(actors.admin, { label: 'Liga' });
+    expect((await service.requestConfirmation(actors.admin, event.id)).status).toBe('confirming');
+    expect((await service.markRunning(event.id)).status).toBe('running');
+    expect((await service.markFinal(event.id, standings)).status).toBe('final');
+    expect((await service.close(actors.admin, event.id)).status).toBe('closed');
+    expect(await service.active()).toBeNull();
+  });
+
+  it('só encerra depois do resultado final', async () => {
+    const { service } = setup();
+    const { event } = await service.createEvent(actors.admin, { label: 'Liga' });
+    await rejects(service.close(actors.admin, event.id), 'event_state', 'O evento só encerra depois do resultado final do TOM');
+    await rejects(service.requestConfirmation(actors.p1, event.id), 'forbidden');
+  });
+
+  it('cancela a qualquer momento antes de encerrar; depois não muda', async () => {
+    const { service } = setup();
+    const { event } = await service.createEvent(actors.admin, { label: 'Liga' });
+    await service.requestConfirmation(actors.admin, event.id);
+    expect((await service.cancel(actors.admin, event.id)).status).toBe('cancelled');
+    await rejects(service.cancel(actors.admin, event.id), 'event_state', 'Evento encerrado ou cancelado não muda');
+    await rejects(service.update(actors.admin, event.id, { roundMinutes: 40 }), 'event_state', 'Evento encerrado ou cancelado não muda');
+  });
+
+  it('standings antes de iniciar não marcam final', async () => {
+    const { service } = setup();
+    const { event } = await service.createEvent(actors.admin, { label: 'Liga' });
+    expect((await service.markFinal(event.id, standings)).status).toBe('open');
+    await service.requestConfirmation(actors.admin, event.id);
+    await service.markRunning(event.id);
+    expect(await service.markFinal(event.id, standings)).toMatchObject({ status: 'final', standings });
+  });
+
+  it('ADM muda o tempo de rodada enquanto o evento está ativo', async () => {
+    const { service } = setup();
+    const { event } = await service.createEvent(actors.admin, { label: 'Liga' });
+    expect((await service.update(actors.admin, event.id, { roundMinutes: 45 })).roundMinutes).toBe(45);
+    await rejects(service.update(actors.admin, event.id, { roundMinutes: 500 }), 'invalid_input');
+  });
+
   it('primeiro envio amarra o torneio do TOM; outro torneio com o mesmo token é recusado', async () => {
     const { service } = setup();
-    const { token } = await service.createEvent(actors.admin, 'Liga');
+    const { token } = await service.createEvent(actors.admin, { label: 'Liga' });
     expect((await service.authorizeUpload(token, 'FODASE')).tournament).toBe('FODASE');
     expect((await service.authorizeUpload(token, 'FODASE')).tournament).toBe('FODASE');
     await rejects(service.authorizeUpload(token, 'Outro torneio'), 'tournament_mismatch');
@@ -59,7 +131,7 @@ describe('evento e token do enviador', () => {
 
   it('token desconhecido, vazio ou revogado é recusado', async () => {
     const { service } = setup();
-    const { event, token } = await service.createEvent(actors.admin, 'Liga');
+    const { event, token } = await service.createEvent(actors.admin, { label: 'Liga' });
     await rejects(service.authorizeUpload('inventado', 'FODASE'), 'invalid_token');
     await rejects(service.authorizeUpload('', 'FODASE'), 'invalid_token');
     await rejects(service.revoke(actors.judge, event.id), 'forbidden');
@@ -68,9 +140,16 @@ describe('evento e token do enviador', () => {
     await rejects(service.revoke(actors.admin, 'nao-existe'), 'event_not_found');
   });
 
+  it('token de evento cancelado não envia', async () => {
+    const { service } = setup();
+    const { event, token } = await service.createEvent(actors.admin, { label: 'Liga' });
+    await service.cancel(actors.admin, event.id);
+    await rejects(service.authorizeUpload(token, 'FODASE'), 'invalid_token');
+  });
+
   it('dois arquivos chegando juntos no primeiro envio não brigam pelo torneio', async () => {
     const { service } = setup();
-    const { token } = await service.createEvent(actors.admin, 'Liga');
+    const { token } = await service.createEvent(actors.admin, { label: 'Liga' });
     const results = await Promise.all([service.authorizeUpload(token, 'FODASE'), service.authorizeUpload(token, 'FODASE')]);
     expect(results.map((e) => e.tournament)).toEqual(['FODASE', 'FODASE']);
   });
@@ -80,32 +159,29 @@ describe('escala de juízes', () => {
   it('cria com juízes da equipe', async () => {
     const { service, accounts } = setup();
     const juiz = await member(accounts, 'juiz', true);
-    expect((await service.createEvent(actors.admin, 'Liga', [juiz])).event.judges).toEqual([juiz]);
-    expect((await service.createEvent(actors.admin, 'Liga')).event.judges).toEqual([]);
+    expect((await service.createEvent(actors.admin, { label: 'Liga', judges: [juiz] })).event.judges).toEqual([juiz]);
   });
 
   it('recusa escalar quem não é juiz da equipe; nada é gravado', async () => {
     const { service, accounts, events } = setup();
     const comum = await member(accounts, 'comum', false);
-    const creating = service.createEvent(actors.admin, 'Liga', [comum]);
-    await rejects(creating, 'invalid_input');
-    await expect(creating).rejects.toThrow('Só juízes da equipe podem ser escalados');
-    await rejects(service.createEvent(actors.admin, 'Liga', ['nao-existe']), 'invalid_input');
-    expect(await events.get('ev1')).toBeNull();
+    await rejects(service.createEvent(actors.admin, { label: 'Liga', judges: [comum] }), 'invalid_input', 'Só juízes da equipe podem ser escalados');
+    await rejects(service.createEvent(actors.admin, { label: 'Liga', judges: ['nao-existe'] }), 'invalid_input');
+    expect(await events.latest()).toBeNull();
   });
 
   it('ADM troca a escala; repetidos viram um', async () => {
     const { service, accounts } = setup();
     const juiz = await member(accounts, 'juiz', true);
-    const { event } = await service.createEvent(actors.admin, 'Liga');
+    const { event } = await service.createEvent(actors.admin, { label: 'Liga' });
     expect((await service.setJudges(actors.admin, event.id, [juiz, juiz])).judges).toEqual([juiz]);
-    expect((await service.setJudges(actors.admin, event.id, [])).judges).toEqual([]);
+    expect((await service.update(actors.admin, event.id, { judges: [] })).judges).toEqual([]);
     await rejects(service.setJudges(actors.admin, 'nao-existe', []), 'event_not_found');
   });
 
   it('só o ADM escala', async () => {
     const { service } = setup();
-    const { event } = await service.createEvent(actors.admin, 'Liga');
+    const { event } = await service.createEvent(actors.admin, { label: 'Liga' });
     await rejects(service.setJudges(actors.p1, event.id, []), 'forbidden');
     await rejects(service.setJudges(null, event.id, []), 'forbidden');
   });
