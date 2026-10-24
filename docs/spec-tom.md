@@ -12,6 +12,8 @@ Oct 20, 2026 · @Edduardo Souza Figueredo · revisão 2: Oct 21, 2026 · revisã
 
 > **Revisão 6.** Juiz deixa de ser grupo do Cognito: é marca na conta, posta pelo ADM na Equipe, e só age no evento em que foi escalado. Trechos marcados com **[R6]**.
 
+> **Revisão 7.** Ciclo do evento: QR na TV com inscrição automática, confirmação de presença que fecha o QR, rodada 1 só com todos confirmados, resultado final do TOM libera o encerramento. Trechos marcados com **[R7]**.
+
 ## Visão e problema
 
 O sistema é uma camada de auditoria de resultados entre os jogadores e o TOM: nenhuma rodada nova começa antes de todos os resultados da anterior estarem validados.
@@ -93,6 +95,7 @@ Os HTMLs reais gerados pelo TOM 1.86 num torneio de teste ficam em `packages/tom
 
 1. **Antes:** o jogador cria a conta online (a qualquer momento, inclusive em casa) entrando com a conta Google ou com e-mail e senha. **[R4]**
 2. **Check-in:** no salão, o jogador faz login pelo QR. O ADM lança os jogadores no TOM. **[R5]** Não há conferência do Player ID pelo ADM.
+   **[R7]** O ADM cria o evento (um ativo por vez) e a TV mostra o QR. Quem escaneia passa pelo login e pelo cadastro e fica inscrito sozinho. O ADM pede a confirmação de presença (o QR fecha na hora), digita no TOM os confirmados pelo painel de inscritos e só inicia a rodada 1 sem pendentes. Os standings da última rodada marcam o resultado final; aí o ADM encerra. A inscrição não decide quem reporta: continua valendo quem está nas guias do TOM.
 3. **Rodadas:** o ciclo abaixo, uma vez por rodada.
 4. **Depois:** resultados e histórico já estão online; o jogador consulta quando quiser.
 
@@ -359,3 +362,12 @@ Fora de escopo:
 | --- | --- | --- |
 | 1 | Juiz era grupo do Cognito, com poder em qualquer evento | Marca na conta (Equipe do ADM) + escala por evento; tirar da equipe corta o poder na hora |
 | 2 | Pool do Cognito com e-mail fixo | E-mail alterável: o Google regrava o e-mail a cada login e o segundo login falhava; pool novo, login em `ggtcg-login` |
+
+### Revisão 7 — Oct 24, 2026
+
+| # | Antes | Agora |
+| --- | --- | --- |
+| 1 | Evento era só o token do enviador | Evento com fases (inscrições abertas, confirmando presença, em andamento, resultado final, encerrado ou cancelado), data e tempo de rodada; um ativo por vez |
+| 2 | Jogadores lançados no TOM sem lista | QR na TV inscreve sozinho; painel de inscritos com Player ID, nome e ano para digitar no TOM |
+| 3 | Rodada 1 iniciava a qualquer momento | Só depois de pedir a confirmação de presença e com nenhum pendente |
+| 4 | TV só com a rodada | TV por fase: espera, QR, confirmação, rodada e classificação final |
