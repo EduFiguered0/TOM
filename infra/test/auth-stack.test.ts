@@ -25,6 +25,16 @@ describe('AuthStack', () => {
     });
   });
 
+  it('e-mail de verificação em português, com o código', () => {
+    prod.hasResourceProperties('AWS::Cognito::UserPool', {
+      VerificationMessageTemplate: Match.objectLike({
+        DefaultEmailOption: 'CONFIRM_WITH_CODE',
+        EmailSubject: 'Seu código de acesso - Torneios TOM',
+        EmailMessage: Match.stringLikeRegexp('\\{####\\}'),
+      }),
+    });
+  });
+
   it('grupos de papel: admin e judge', () => {
     for (const group of ['admin', 'judge']) prod.hasResourceProperties('AWS::Cognito::UserPoolGroup', { GroupName: group });
   });

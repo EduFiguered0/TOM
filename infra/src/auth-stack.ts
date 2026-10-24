@@ -6,6 +6,7 @@ import {
   Mfa,
   UserPool,
   UserPoolEmail,
+  VerificationEmailStyle,
   type UserPoolClient,
 } from 'aws-cdk-lib/aws-cognito';
 import type { Construct } from 'constructs';
@@ -38,6 +39,11 @@ export class AuthStack extends Stack {
       // O Cognito exige senha habilitada; ninguém usa, então a política é forte.
       passwordPolicy: { minLength: 16, requireLowercase: true, requireUppercase: true, requireDigits: true, requireSymbols: true },
       accountRecovery: AccountRecovery.EMAIL_ONLY,
+      userVerification: {
+        emailStyle: VerificationEmailStyle.CODE,
+        emailSubject: 'Seu código de acesso - Torneios TOM',
+        emailBody: 'Olá! Seu código de verificação é {####}. Se você não pediu este código, ignore este e-mail.',
+      },
       mfa: Mfa.OFF,
       // Remetente definitivo (SES) fica para antes do primeiro evento; até lá, o envio do Cognito (custo zero).
       email: UserPoolEmail.withCognito(),

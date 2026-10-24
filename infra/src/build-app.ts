@@ -1,5 +1,6 @@
 import { App, Validations } from 'aws-cdk-lib';
 import { AwsSolutionsChecks } from 'cdk-nag';
+import { ApiStack } from './api-stack.js';
 import { AuthStack } from './auth-stack.js';
 import { DataStack } from './data-stack.js';
 
@@ -7,11 +8,17 @@ import { DataStack } from './data-stack.js';
 export const REGION = 'us-east-2';
 
 export const buildApp = (account?: string, app = new App()) => {
+  // Referências fracas (Fn::GetStackOutput): sem exports, não há "deadly embrace" ao remover recursos.
+  app.node.setContext('@aws-cdk/core:defaultCrossStackReferences', 'weak');
   const env = account ? { account, region: REGION } : { region: REGION };
   const data = new DataStack(app, 'TomData', { env, ephemeral: false });
   const test = new DataStack(app, 'TomTest', { env, ephemeral: true });
   const auth = new AuthStack(app, 'TomAuth', { env, ephemeral: false });
   const authTest = new AuthStack(app, 'TomAuthTest', { env, ephemeral: true });
+  const api = new ApiStack(app, 'TomApi', { env, ephemeral: false, accounts: data.accounts, userPool: auth.userPool, client: auth.client });
+  const apiTest = new ApiStack(app, 'TomApiTest', {
+    env, ephemeral: true, accounts: test.accounts, userPool: authTest.userPool, client: authTest.client,
+  });
   Validations.of(app).addPlugins(new AwsSolutionsChecks(app, { verbose: true }));
-  return { app, data, test, auth, authTest };
+  return { app, data, test, auth, authTest, api, apiTest };
 };
