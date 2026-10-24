@@ -34,3 +34,17 @@ button.link { background: none; color: var(--accent); font-weight: 500; margin-t
 .ok { color: var(--ok); font-weight: 500; }
 .notice { border: 1px dashed var(--warn); border-radius: 10px; padding: 4px 12px; margin: 12px 0; }
 .code { font-family: ui-monospace, Consolas, monospace; font-size: 13px; word-break: break-all; background: var(--bg); padding: 8px; border-radius: 8px; }
+select { width: 100%; font: inherit; padding: 12px; border: 1px solid var(--line); border-radius: 10px; background: var(--bg); color: var(--text); }
+.round-table { display: flex; flex-direction: column; margin: 8px 0 4px; }
+.round-number { font-size: 28px; font-weight: 800; }
+.round-vs { font-size: 18px; }
+.round-status { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 8px 0; }
+.round-clock { margin-left: auto; font-size: 22px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.round-clock.warn { color: var(--warn); }
+.warn { color: var(--warn); font-weight: 500; }
+.dot { width: 12px; height: 12px; border-radius: 50%; background: #8b95a7; flex: none; }
+.dot.orange { background: #f59e0b; } .dot.green { background: #22c55e; } .dot.red { background: #ef4444; }
+.report-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 8px; margin-top: 8px; }
+.report-grid button { margin-top: 0; padding: 12px 8px; }
+button.report.loss { background: #475569; color: #fff; }
+button.report.draw { background: var(--card); color: var(--text); border: 1px solid var(--line); }

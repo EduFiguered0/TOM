@@ -2,6 +2,8 @@ import type { MeResponse } from '@tom/contracts';
 import type { Api } from '../api.js';
 import { Checkin } from './checkin.js';
 import { EventCard } from './event.js';
+import { RoundCard } from '../round/round-card.js';
+import { StartRoundCard } from '../round/start-card.js';
 
 interface Props {
   me: MeResponse;
@@ -24,11 +26,11 @@ export const Home = ({ me, api, onSignOut }: Props) => (
         <p class="code">{me.id}</p>
       </div>
     ))}
-    <p class="muted">
-      {me.role === 'player' ? 'A rodada atual aparece aqui quando o torneio começar.' : 'Painel completo da organização (termômetro, override, keys, rodadas) chega na fase 9.'}
-    </p>
+    {me.role !== 'player' && <p class="muted">Painel completo da organização (termômetro, override, keys) chega na fase 9.</p>}
     <button type="button" class="link" onClick={onSignOut}>Sair deste dispositivo</button>
   </section>
+  {me.role === 'player' && me.canAct && <RoundCard api={api} />}
+  {me.role === 'admin' && <StartRoundCard api={api} />}
   {me.role === 'admin' && <EventCard api={api} />}
   {me.role === 'admin' && <Checkin api={api} />}
   </>
