@@ -46,7 +46,13 @@ const main = async () => {
   const bucket = web('SiteBucket');
 
   execSync('npm run build -w @tom/web', { cwd: root, stdio: 'inherit' });
-  writeFileSync(join(dist, 'config.json'), `${JSON.stringify({ region: REGION, userPoolClientId: auth('UserPoolClientId') }, null, 2)}\n`);
+  const config = {
+    region: REGION,
+    userPoolClientId: auth('UserPoolClientId'),
+    loginDomain: auth('LoginDomain'),
+    google: auth('GoogleEnabled') === 'true',
+  };
+  writeFileSync(join(dist, 'config.json'), `${JSON.stringify(config, null, 2)}\n`);
 
   const s3 = new S3Client(aws);
   const keys = files(dist).map((f) => relative(dist, f).replaceAll('\\', '/')).filter((k) => !k.endsWith('.map'));

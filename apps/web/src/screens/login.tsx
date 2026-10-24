@@ -1,18 +1,21 @@
 import { useState } from 'preact/hooks';
 import { AuthError, type Cognito, type Tokens } from '../auth/cognito.js';
+import type { Google } from '../auth/google.js';
 
 interface Props {
   cognito: Cognito;
+  google: Pick<Google, 'authorizeUrl'> | null;
+  initialError: string | null;
   onSignedIn: (tokens: Tokens) => void;
 }
 
 const message = (e: unknown) => (e instanceof AuthError ? e.message : 'Sem conexão. Tente de novo.');
 
-export const Login = ({ cognito, onSignedIn }: Props) => {
+export const Login = ({ cognito, initialError, onSignedIn }: Props) => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(initialError);
 
   const enter = (e: Event) => {
     e.preventDefault();
