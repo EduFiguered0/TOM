@@ -73,7 +73,11 @@ export const createGoogle = ({ loginDomain, clientId, redirectUri }: GoogleConfi
       if (!code && !params.has('error')) return null;
       const pending = saved();
       store.clear();
-      if (!code) return { error: CANCELLED };
+      if (!code) {
+        // Cancelar no Google volta como access_denied sem explicação; o resto mostra o motivo do Cognito.
+        const reason = params.get('error_description')?.trim() || params.get('error');
+        return { error: params.get('error') === 'access_denied' && !params.get('error_description') ? CANCELLED : `${FAILED} (${reason ?? ''})` };
+      }
       if (!pending || pending.state !== params.get('state')) return { error: FAILED };
       try {
         return (await exchange(code, pending.verifier)) ?? { error: FAILED };

@@ -28,6 +28,16 @@ describe('AuthStack', () => {
     expect([auth.region, authTest.region]).toEqual([REGION, REGION]);
   });
 
+  it('e-mail alterável: o Google regrava o e-mail a cada login, e atributo fixo derruba o segundo login', () => {
+    for (const stack of [prod, temp]) {
+      stack.hasResourceProperties('AWS::Cognito::UserPool', {
+        Schema: Match.arrayWith([Match.objectLike({ Name: 'email', Mutable: true, Required: true })]),
+      });
+    }
+    // Atributo de pool existente não muda: o pool novo tem outro id lógico, e o antigo (produção) fica guardado.
+    expect(Object.keys(prod.findResources('AWS::Cognito::UserPool'))[0]).toMatch(/^UsersV2/);
+  });
+
   it('login por e-mail e senha (8 caracteres, letras e números), plano Essentials', () => {
     prod.hasResourceProperties('AWS::Cognito::UserPool', {
       UserPoolTier: 'ESSENTIALS',
@@ -71,8 +81,8 @@ describe('AuthStack', () => {
   });
 
   it('domínio de login próprio de cada pool', () => {
-    prod.hasResourceProperties('AWS::Cognito::UserPoolDomain', { Domain: 'tom-pokemon-login' });
-    temp.hasResourceProperties('AWS::Cognito::UserPoolDomain', { Domain: 'tom-pokemon-login-teste' });
+    prod.hasResourceProperties('AWS::Cognito::UserPoolDomain', { Domain: 'ggtcg-login' });
+    temp.hasResourceProperties('AWS::Cognito::UserPoolDomain', { Domain: 'ggtcg-login-teste' });
   });
 
   it('grupos de papel: admin e judge', () => {

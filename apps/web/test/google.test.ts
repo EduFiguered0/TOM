@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { createGoogle } from '../src/auth/google.js';
 
 const config = {
-  loginDomain: 'https://tom-pokemon-login.auth.us-east-2.amazoncognito.com',
+  loginDomain: 'https://ggtcg-login.auth.us-east-2.amazoncognito.com',
   clientId: 'cliente',
   redirectUri: 'https://site.example/',
 };
@@ -67,6 +67,15 @@ describe('entrar com o Google', () => {
     expect(await google.finish('?error=access_denied&state=x')).toEqual({ error: 'Entrada pelo Google cancelada.' });
     expect(calls).toHaveLength(0);
     expect(store.value).toBeNull();
+  });
+
+  it('outro erro do Cognito: mostra o motivo para dar para diagnosticar', async () => {
+    const { calls, google } = setup();
+    await google.authorizeUrl();
+    expect(await google.finish('?error_description=Invalid+ProviderName%2FUsername+combination.+&state=x&error=invalid_request'))
+      .toEqual({ error: 'Não foi possível entrar pelo Google. Tente de novo. (Invalid ProviderName/Username combination.)' });
+    expect(await google.finish('?error=server_error')).toEqual({ error: 'Não foi possível entrar pelo Google. Tente de novo. (server_error)' });
+    expect(calls).toHaveLength(0);
   });
 
   it('state diferente do salvo ou nada salvo: recusa sem trocar o código', async () => {

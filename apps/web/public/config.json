@@ -1,6 +1,6 @@
 {
   "region": "us-east-2",
-  "userPoolClientId": "3vphiueqd7n2cpiln7i0liftbm",
-  "loginDomain": "https://tom-pokemon-login-teste.auth.us-east-2.amazoncognito.com",
+  "userPoolClientId": "1tce8jso6f6vsenfsdprdasj4l",
+  "loginDomain": "https://ggtcg-login-teste.auth.us-east-2.amazoncognito.com",
   "google": false
 }
