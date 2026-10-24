@@ -85,8 +85,9 @@ describe('AuthStack', () => {
     temp.hasResourceProperties('AWS::Cognito::UserPoolDomain', { Domain: 'ggtcg-login-teste' });
   });
 
-  it('grupos de papel: admin e judge', () => {
-    for (const group of ['admin', 'judge']) prod.hasResourceProperties('AWS::Cognito::UserPoolGroup', { GroupName: group });
+  it('só o grupo admin: o juiz é marca na conta (Equipe), não grupo', () => {
+    prod.resourceCountIs('AWS::Cognito::UserPoolGroup', 1);
+    prod.hasResourceProperties('AWS::Cognito::UserPoolGroup', { GroupName: 'admin' });
   });
 
   it('cliente público, token de acesso de 15 min, revogação ligada', () => {

@@ -29,8 +29,8 @@ export interface AuthStackProps extends StackProps {
   callbackUrls: string[];
 }
 
-/** Papéis que vêm como grupos no token (`cognito:groups`); jogador é quem não está em grupo. */
-export const ROLE_GROUPS = ['admin', 'judge'] as const;
+/** Só o ADM vem como grupo no token (`cognito:groups`); o juiz é marca na conta, posta pelo ADM na Equipe. */
+export const ROLE_GROUPS = ['admin'] as const;
 
 /** Cadastro com senha confirmado na hora, sem e-mail de código; o e-mail fica verificado para o "Esqueci minha senha". */
 export const PRE_SIGN_UP_CODE = `exports.handler = async (event) => {

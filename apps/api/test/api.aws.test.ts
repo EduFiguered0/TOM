@@ -127,6 +127,22 @@ describe('API real (TomApiTest)', () => {
     expect(await call('POST', '/me/player-id', other, { playerId })).toMatchObject({ status: 200, body: { playerId, canAct: true } });
   });
 
+  it('equipe: ADM busca, marca juiz, escala no evento e desmarca', async () => {
+    // O jogador ficou sem Player ID no teste anterior (vínculo desfeito): informa um novo, único por execução.
+    const [player, adm] = await Promise.all([login(), login(adminEmail)]);
+    await Promise.all([call('POST', '/session', player, { replace: true }), call('POST', '/session', adm, { replace: true })]);
+    const playerId = `9${String(Date.now())}`;
+    const me = await call('POST', '/me/player-id', player, { playerId });
+    const id = String(me.body['id']);
+
+    expect(await call('POST', '/staff/search', adm, { query: playerId })).toMatchObject({ status: 200, body: [{ id, playerId, judge: false }] });
+    expect(await call('POST', `/staff/accounts/${id}/judge`, adm, { judge: true })).toMatchObject({ status: 200, body: { judge: true } });
+    expect((await call('POST', '/events', adm, { label: 'Teste da equipe', judges: [id] })).status).toBe(201);
+    expect((await call('GET', '/staff/judges', adm)).body).toEqual(expect.arrayContaining([expect.objectContaining({ id })]));
+    expect((await call('POST', '/staff/search', player, { query: playerId })).status).toBe(403);
+    expect(await call('POST', `/staff/accounts/${id}/judge`, adm, { judge: false })).toMatchObject({ status: 200, body: { judge: false } });
+  });
+
   it('ingestão: ADM cria o evento, o enviador manda os HTMLs reais do TOM e a TV mostra a rodada', async () => {
     const adm = await login(adminEmail);
     await call('POST', '/session', adm, { replace: true });

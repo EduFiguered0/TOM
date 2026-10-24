@@ -39,7 +39,7 @@ describe('ApiStack', () => {
     const statements = policy.Properties.PolicyDocument.Statement.map((s) => [s.Action].flat().sort());
     expect(statements).toEqual([
       ['logs:CreateLogStream', 'logs:PutLogEvents'],
-      ['dynamodb:DeleteItem', 'dynamodb:GetItem', 'dynamodb:PutItem'],
+      ['dynamodb:DeleteItem', 'dynamodb:GetItem', 'dynamodb:PutItem', 'dynamodb:Scan'],
       ['dynamodb:ConditionCheckItem', 'dynamodb:GetItem', 'dynamodb:PutItem', 'dynamodb:Query'],
       ['dynamodb:GetItem', 'dynamodb:PutItem'],
       ['s3:GetObject', 's3:PutObject'],
