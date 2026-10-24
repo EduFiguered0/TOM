@@ -58,6 +58,9 @@ const STATUS: Record<RejectCode, number> = {
   table_locked: 409,
   not_green: 409,
   key_already_launched: 409,
+  invalid_token: 401,
+  tournament_mismatch: 409,
+  event_not_found: 404,
 };
 
 class Unauthorized extends Error {}

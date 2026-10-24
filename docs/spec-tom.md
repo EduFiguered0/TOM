@@ -279,6 +279,7 @@ Em aberto:
 - [x] Como o enviador percebe que o TOM terminou de escrever: o arquivo fica sem mudar de tamanho e data por 1,5 s e termina em `</html>`. A pasta é lida por polling a cada 1 s (o `fs.watch` perde eventos no Windows/OneDrive). Todos os HTMLs do evento mais recente são enviados, inclusive brackets; conteúdo idêntico (mesmo SHA-256) não é reenviado. A frequência real de regravação do TOM sai do log do enviador num evento real.
 - [ ] Login com Google **[R3]**: domínios de login prontos (`tom-pokemon-login`, `tom-pokemon-login-teste`); faltam o cliente OAuth no Google Cloud, o cadastro do provedor no Cognito (comando único, segredo fora do repositório; ver README) e liberar o Google no cliente do app.
 - [ ] Remetente dos e-mails e acesso de produção do SES **[R3]**: necessários antes do primeiro evento (limite atual de ~50 e-mails/dia) e para o e-mail do código de login em português.
+- [ ] Estética das telas (celular, TV, painel): o layout atual é funcional; o visual será revisto com as três telas lado a lado.
 - [ ] Top cut / eliminatória (arquivo brackets).
 - [ ] Critério do ranking (fase futura).
 - [ ] Atualização em tempo real no celular sem polling (evolução).
