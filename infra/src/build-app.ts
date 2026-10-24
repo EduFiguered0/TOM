@@ -13,8 +13,8 @@ export const buildApp = (account?: string, app = new App()) => {
   const env = account ? { account, region: REGION } : { region: REGION };
   const data = new DataStack(app, 'TomData', { env, ephemeral: false });
   const test = new DataStack(app, 'TomTest', { env, ephemeral: true });
-  const auth = new AuthStack(app, 'TomAuth', { env, ephemeral: false });
-  const authTest = new AuthStack(app, 'TomAuthTest', { env, ephemeral: true });
+  const auth = new AuthStack(app, 'TomAuth', { env, ephemeral: false, domainPrefix: 'tom-pokemon-login' });
+  const authTest = new AuthStack(app, 'TomAuthTest', { env, ephemeral: true, domainPrefix: 'tom-pokemon-login-teste' });
   const api = new ApiStack(app, 'TomApi', { env, ephemeral: false, accounts: data.accounts, userPool: auth.userPool, client: auth.client });
   const apiTest = new ApiStack(app, 'TomApiTest', {
     env, ephemeral: true, accounts: test.accounts, userPool: authTest.userPool, client: authTest.client,

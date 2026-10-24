@@ -35,6 +35,11 @@ describe('AuthStack', () => {
     });
   });
 
+  it('domínio de login próprio de cada pool', () => {
+    prod.hasResourceProperties('AWS::Cognito::UserPoolDomain', { Domain: 'tom-pokemon-login' });
+    temp.hasResourceProperties('AWS::Cognito::UserPoolDomain', { Domain: 'tom-pokemon-login-teste' });
+  });
+
   it('grupos de papel: admin e judge', () => {
     for (const group of ['admin', 'judge']) prod.hasResourceProperties('AWS::Cognito::UserPoolGroup', { GroupName: group });
   });

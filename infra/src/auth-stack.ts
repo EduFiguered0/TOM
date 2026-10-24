@@ -3,6 +3,7 @@ import {
   AccountRecovery,
   CfnUserPoolGroup,
   FeaturePlan,
+  ManagedLoginVersion,
   Mfa,
   UserPool,
   UserPoolEmail,
@@ -14,6 +15,8 @@ import type { Construct } from 'constructs';
 export interface AuthStackProps extends StackProps {
   /** true para a stack de testes: pode ser destruída e permite login por senha via API de admin. */
   ephemeral: boolean;
+  /** Prefixo do domínio de login (`<prefixo>.auth.us-east-2.amazoncognito.com`), usado no retorno do Google. */
+  domainPrefix: string;
 }
 
 /** Papéis que vêm como grupos no token (`cognito:groups`); jogador é quem não está em grupo. */
@@ -23,8 +26,9 @@ export const ROLE_GROUPS = ['admin', 'judge'] as const;
 export class AuthStack extends Stack {
   readonly userPool: UserPool;
   readonly client: UserPoolClient;
+  readonly loginDomain: string;
 
-  constructor(scope: Construct, id: string, { ephemeral, ...props }: AuthStackProps) {
+  constructor(scope: Construct, id: string, { ephemeral, domainPrefix, ...props }: AuthStackProps) {
     super(scope, id, { terminationProtection: !ephemeral, ...props });
 
     this.userPool = new UserPool(this, 'Users', {
@@ -55,6 +59,13 @@ export class AuthStack extends Stack {
       { id: 'AwsSolutions-COG8', reason: 'Proteção contra ameaças só existe no plano Plus (US$ 0,02/usuário, sem franquia grátis).' },
     );
 
+    // Domínio de login grátis; o app manda direto para o Google, sem página intermediária do Cognito.
+    const domain = this.userPool.addDomain('Domain', {
+      cognitoDomain: { domainPrefix },
+      managedLoginVersion: ManagedLoginVersion.CLASSIC_HOSTED_UI,
+    });
+    this.loginDomain = domain.baseUrl();
+
     for (const group of ROLE_GROUPS) {
       new CfnUserPoolGroup(this, `Group-${group}`, { userPoolId: this.userPool.userPoolId, groupName: group });
     }
@@ -71,5 +82,6 @@ export class AuthStack extends Stack {
 
     new CfnOutput(this, 'UserPoolId', { value: this.userPool.userPoolId });
     new CfnOutput(this, 'UserPoolClientId', { value: this.client.userPoolClientId });
+    new CfnOutput(this, 'LoginDomain', { value: this.loginDomain });
   }
 }
