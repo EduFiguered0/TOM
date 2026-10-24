@@ -117,6 +117,6 @@ Para mudar a policy: edite o JSON e rode `aws iam create-policy-version --profil
 | 4 | Enviador (observa a pasta do TOM) | ✅ |
 | 5 | Infraestrutura AWS, EventStore no DynamoDB, fotografias no S3 | ✅ |
 | 6 | Login por código no e-mail, sessão única, papéis, check-in do ADM (Google e SES pendentes, ver spec) | ✅ |
-| 7 | Celular: site e login ✅, ingestão do TOM e TV ao vivo ✅, rodada e reporte ✅, histórico | ⏳ |
+| 7 | Celular: site e login, ingestão do TOM e TV ao vivo, rodada e reporte (histórico do jogador fica para outra spec) | ✅ |
 | 8–9 | TV ✅ (estética pendente); painel do ADM/juiz | |
 | 10 | Upload do enviador para a API | |

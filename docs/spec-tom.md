@@ -273,7 +273,7 @@ Uma fase por vez; cada fase tem os próprios testes e só começa a próxima dep
 | 4 | Enviador: observar a pasta do TOM e detectar escrita completa | Não |
 | 5 | Infraestrutura AWS como código, IAM mínimo, adaptadores DynamoDB e S3 | Sim |
 | 6 | Login, papéis, sessão única, troca de dispositivo, confirmação de Player ID | Sim |
-| 7 | **[R3]** Celular do jogador: 7.1 site e login; 7.2 envio do enviador para a API com token do evento (antes fase 10); 7.3 rodada atual, reporte e atualização automática; 7.4 histórico | Sim |
+| 7 | **[R3]** Celular do jogador: 7.1 site e login; 7.2 envio do enviador para a API com token do evento (antes fase 10); 7.3 rodada atual, reporte e atualização automática | Sim |
 | 8–9 | Telas: TV e painel do ADM / juiz | Sim |
 
 ## Decisões em aberto e fora de escopo
@@ -287,6 +287,7 @@ Em aberto:
 - [ ] Estética das telas (celular, TV, painel): o layout atual é funcional; o visual será revisto com as três telas lado a lado.
 - [ ] Top cut / eliminatória (arquivo brackets).
 - [ ] Critério do ranking (fase futura).
+- [ ] Histórico do jogador fora do evento (torneios, rodadas, oponentes e placares): fica para uma próxima spec. Os dados já ficam guardados (eventos das rodadas e fotografias do TOM), então nada se perde até lá.
 - [ ] Atualização em tempo real no celular sem polling (evolução).
 
 Fora de escopo:
