@@ -10,3 +10,5 @@ export * from './tournament-event.js';
 export * from './in-memory-event-registry.js';
 export * from './event-service.js';
 export * from './staff.js';
+export * from './registration.js';
+export * from './in-memory-registration-repository.js';
