@@ -31,6 +31,20 @@ describe('painel do ADM e do juiz', () => {
     expect((await call('GET', '/panel', JUIZ)).status).toBe(403);
   });
 
+  it('juiz escalado que está nas guias da rodada não usa o painel (nem na própria mesa)', async () => {
+    const { call, eventId, start } = await withPanel();
+    // p1 (100001) joga a mesa 1 e é escalado como juiz por engano.
+    const p1 = ((await call('GET', '/me', 'p1:c1')).body as { id: string }).id;
+    await call('POST', `/staff/accounts/${p1}/judge`, ADM, { judge: true });
+    await call('PUT', `/events/${eventId}/judges`, ADM, { judges: [p1] });
+    await start();
+    const override = { override: { kind: 'win_by_absence', winner: 'player1' }, reason: 'teste' };
+    expect(await call('POST', '/panel/tables/1/override', 'p1:c1', override)).toMatchObject({
+      status: 403, body: { message: 'Você é juiz deste evento' },
+    });
+    expect((await call('GET', '/panel', 'p1:c1')).status).toBe(403);
+  });
+
   it('juiz tirado da equipe perde o painel na hora', async () => {
     const { call, judgeId } = await withPanel();
     await call('POST', `/staff/accounts/${judgeId}/judge`, ADM, { judge: false });

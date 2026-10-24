@@ -339,8 +339,16 @@ export const createApi = ({ tokens, emails, accounts, events, ingest, board, rou
 
   /** Painel: ADM e juiz escalado no evento atual; cada comando aplica as regras do RoundService (papel, mesa travada, key lançada...). */
   const staff = async (identity: Identity) => {
-    const actor = staffActor(await accounts.authenticate(identity), await currentEvent());
+    const principal = await accounts.authenticate(identity);
+    const actor = staffActor(principal, await currentEvent());
     if (!actor) throw new CommandRejected('forbidden', 'Só o ADM e os juízes escalados no evento usam o painel');
+    // Escalado por engano estando nas guias do TOM: quem joga a rodada não julga (nem a própria mesa).
+    const { playerId } = principal.account;
+    const current = actor.role === 'judge' && playerId ? await registry.current() : null;
+    const tables = current ? (await reader.state(current.ref)).tables : [];
+    if (tables.some((t) => t.player1.playerId === playerId || t.player2.playerId === playerId)) {
+      throw new CommandRejected('forbidden', 'Você é juiz deste evento');
+    }
     return actor;
   };
   const respond = (state: Awaited<ReturnType<RoundService['state']>>, extra: Record<string, unknown> = {}): HttpResponse =>

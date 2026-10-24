@@ -76,6 +76,8 @@ export class DynamoAccountRepository implements AccountRepository {
         TableName: this.tableName,
         FilterExpression: 'sk = :account',
         ExpressionAttributeValues: { ':account': 'account' },
+        // O ADM marca o juiz e a lista é relida na hora: sem leitura forte, o recém-marcado pode faltar.
+        ConsistentRead: true,
         ExclusiveStartKey: start,
       }));
       accounts.push(...(page.Items ?? []).map((item) => fromStored(item['account'] as StoredAccount)));
