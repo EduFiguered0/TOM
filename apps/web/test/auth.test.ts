@@ -46,9 +46,10 @@ describe('login sem senha', () => {
     const cognito = createCognito(config, fetchFn);
     const pending = await cognito.start('ana@example.com');
     expect(pending.kind).toBe('signin');
-    await cognito.verify(pending, '654321');
+    await cognito.verify(pending, '1619 5633');
     expect(calls[1]?.body).toMatchObject({ AuthFlow: 'USER_AUTH', AuthParameters: { PREFERRED_CHALLENGE: 'EMAIL_OTP' } });
-    expect(calls[2]?.body).toMatchObject({ ChallengeResponses: { EMAIL_OTP_CODE: '654321' } });
+    // Código de login tem 8 dígitos (o de cadastro, 6).
+    expect(calls[2]?.body).toMatchObject({ ChallengeResponses: { EMAIL_OTP_CODE: '16195633' } });
   });
 
   it('código errado vira mensagem em português', async () => {

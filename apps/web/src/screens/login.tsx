@@ -44,8 +44,9 @@ export const Login = ({ cognito, onSignedIn }: Props) => {
       ) : (
         <form onSubmit={enter}>
           <p class="muted">Código enviado para <b>{pending.email}</b>. Confira também o spam.</p>
-          <label for="code">Código de 6 dígitos</label>
-          <input id="code" inputmode="numeric" autocomplete="one-time-code" maxLength={6} required value={code} onInput={(e) => { setCode(e.currentTarget.value); }} />
+          {/* Cadastro manda 6 dígitos; login, 8. */}
+          <label for="code">Código recebido por e-mail</label>
+          <input id="code" inputmode="numeric" autocomplete="one-time-code" maxLength={8} pattern="[0-9]{6,8}" required value={code} onInput={(e) => { setCode(e.currentTarget.value); }} />
           <button type="submit" disabled={busy}>{busy ? 'Entrando…' : 'Entrar'}</button>
           <button type="button" class="link" onClick={() => { setPending(null); }}>Usar outro e-mail</button>
         </form>
