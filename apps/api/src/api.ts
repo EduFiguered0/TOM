@@ -449,8 +449,14 @@ export const createApi = ({ tokens, emails, accounts, events, ingest, board, rou
   ];
   routes.push(...adminRoutes);
 
+  /** Rodada que vale agora: a última publicada, se for do evento ativo. Evento encerrado ou cancelado não muda. */
+  const activeRound = async () => {
+    const [current, active] = await Promise.all([registry.current(), events.active()]);
+    return current && current.eventId === active?.id ? current : null;
+  };
+
   const currentRef = async () => {
-    const current = await registry.current();
+    const current = await activeRound();
     if (!current) throw new CommandRejected('round_not_paired', 'Nenhuma rodada publicada pelo TOM ainda');
     return current.ref;
   };
@@ -460,7 +466,7 @@ export const createApi = ({ tokens, emails, accounts, events, ingest, board, rou
       method: 'GET', path: /^\/round\/me$/,
       handle: async ({ identity }) => {
         const { actor } = await accounts.authenticate(identity);
-        const current = await registry.current();
+        const current = await activeRound();
         const state = current ? await reader.state(current.ref) : null;
         return { status: 200, body: myRound(state, actor, clock.now()) };
       },
@@ -529,7 +535,7 @@ export const createApi = ({ tokens, emails, accounts, events, ingest, board, rou
       method: 'GET', path: /^\/panel$/,
       handle: async ({ identity }) => {
         await staff(identity);
-        const current = await registry.current();
+        const current = await activeRound();
         return { status: 200, body: panel(current ? await reader.state(current.ref) : null, clock.now()) };
       },
     },

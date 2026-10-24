@@ -12,6 +12,8 @@ const STATUS: Record<EventStatusDto, string> = {
   cancelled: 'Cancelado',
 };
 
+const POLL_MS = 15_000;
+
 const today = () => new Date(Date.now() - 3 * 3_600_000).toISOString().slice(0, 10);
 
 /** Caixas dos juízes da equipe: na criação e na edição do evento. */
@@ -56,7 +58,22 @@ export const EventPanel = ({ api }: { api: Api }) => {
     }
   }, [api]);
 
-  useEffect(() => { void load().catch((e: unknown) => { setMessage({ ok: false, text: (e as Error).message }); }); }, [load]);
+  useEffect(() => {
+    void load().catch((e: unknown) => { setMessage({ ok: false, text: (e as Error).message }); });
+    // A fase muda sozinha (rodada 1 iniciada, resultado final do TOM): "Encerrar" aparece sem recarregar.
+    const timer = setInterval(() => { void refreshStatus(); }, POLL_MS);
+    return () => { clearInterval(timer); };
+  }, [load]);
+
+  /** Só o status: não apaga o que o ADM está digitando no tempo de rodada e nos juízes. */
+  const refreshStatus = async () => {
+    try {
+      const result = await api.activeEvent();
+      if (result.ok) setActive((now) => (now && result.body.event?.id === now.id ? { ...now, status: result.body.event.status } : result.body.event));
+    } catch {
+      // Sem conexão: a próxima volta tenta de novo.
+    }
+  };
 
   const run = async (action: () => Promise<string | null>) => {
     setBusy(true);

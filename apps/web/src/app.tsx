@@ -29,15 +29,15 @@ export const App = ({ cognito, session, api, google, loginError, pendingJoin }: 
   const [joinError, setJoinError] = useState<string | null>(null);
   const [eventRefresh, setEventRefresh] = useState(0);
 
-  // Fim do caminho do QR: logado e com cadastro, a inscrição acontece sozinha.
+  // Fim do caminho do QR: logado e com cadastro completo (com Player ID), a inscrição acontece sozinha.
   useEffect(() => {
     if (screen.name !== 'home') return;
-    const code = pendingJoin.take();
+    const code = pendingJoin.takeIfReady(screen.me);
     if (!code) return;
     void api.joinEvent(code)
       .then((result) => { setJoinError(result.ok ? null : result.error.message); setEventRefresh((n) => n + 1); })
       .catch((e: unknown) => { setJoinError((e as Error).message); });
-  }, [screen.name, api, pendingJoin]);
+  }, [screen, api, pendingJoin]);
 
   /** Consulta a própria conta e decide a tela; também detecta quando outro dispositivo assumiu. */
   const check = useCallback(async () => {

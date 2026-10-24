@@ -20,6 +20,10 @@ export const createPendingJoin = (storage: Storage) => ({
       return null;
     }
   },
+  /** Sem Player ID a inscrição seria recusada: o código fica guardado até o jogador informar. */
+  takeIfReady(me: { playerId: string | null }): string | null {
+    return me.playerId ? this.take() : null;
+  },
 });
 
 export type PendingJoin = ReturnType<typeof createPendingJoin>;

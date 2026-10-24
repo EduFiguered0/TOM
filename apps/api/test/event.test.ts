@@ -143,3 +143,16 @@ describe('resultado final e rodada 1', () => {
     expect(new Date(board.endsAt).getTime() - new Date(board.startedAt).getTime()).toBe(45 * 60_000);
   });
 });
+
+describe('rodada de evento encerrado ou cancelado', () => {
+  it('some do celular, não aceita reporte e sai do painel', async () => {
+    const ctx = await setupRound();
+    await ctx.start();
+    expect((await ctx.me('p1:c1')).round).not.toBeNull();
+    await ctx.call('POST', `/events/${ctx.eventId}/cancel`, ADM);
+    expect((await ctx.me('p1:c1')).round).toBeNull();
+    expect(await ctx.report('p1:c1', { kind: 'score', own: 2, opponent: 1 })).toMatchObject({ status: 409, body: { error: 'round_not_paired' } });
+    expect((await ctx.call('GET', '/panel', ADM)).body).toMatchObject({ round: null });
+    expect((await ctx.call('POST', '/panel/tables/1/extend', ADM, { minutes: 5 })).status).toBe(409);
+  });
+});

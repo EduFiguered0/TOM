@@ -28,3 +28,13 @@ describe('código do QR guardado durante o login', () => {
     expect(joinCodeOf('/conta')).toBeNull();
   });
 });
+
+describe('inscrição pelo QR só quando a conta está pronta', () => {
+  it('sem Player ID o código fica guardado; com Player ID, é usado uma vez', () => {
+    const pending = createPendingJoin(memory());
+    pending.save('ABCD2345');
+    expect(pending.takeIfReady({ playerId: null })).toBeNull();
+    expect(pending.takeIfReady({ playerId: '100001' })).toBe('ABCD2345');
+    expect(pending.takeIfReady({ playerId: '100001' })).toBeNull();
+  });
+});
