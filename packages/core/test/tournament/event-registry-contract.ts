@@ -10,6 +10,7 @@ const event = (): TournamentEvent => ({
   revoked: false,
   createdAt: new Date('2026-10-24T13:00:00Z'),
   createdBy: 'adm',
+  judges: [],
 });
 
 /**

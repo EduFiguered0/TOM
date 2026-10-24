@@ -1,6 +1,9 @@
 import {
   InvalidRequestError,
   parseCreateEventRequest,
+  parseJudgesRequest,
+  parseSearchRequest,
+  parseSetJudgeRequest,
   parseExtendRequest,
   parseOverrideRequest,
   parsePlayerIdRequest,
@@ -26,6 +29,7 @@ import {
   type Principal,
   type RejectCode,
   type RoundService,
+  staffActor,
 } from '@tom/core';
 import type { Ingest } from './ingest.js';
 import { panel } from './panel.js';
@@ -107,13 +111,16 @@ const toAccount = (account: Account): AccountResponse => ({
   email: account.email,
   profile: account.profile,
   playerId: account.playerId,
+  judge: account.judge === true,
   createdAt: account.createdAt.toISOString(),
 });
 
-const toMe = ({ account, actor }: Principal): MeResponse => ({
+const toMe = ({ account, actor }: Principal, judging: boolean): MeResponse => ({
   ...toAccount(account),
-  role: actor?.role === 'admin' || actor?.role === 'judge' ? actor.role : 'player',
+  role: actor?.role === 'admin' ? 'admin' : 'player',
   canAct: actor !== null,
+  judge: account.judge === true,
+  judging,
 });
 
 const jsonBody = (request: HttpRequest): unknown => {
@@ -153,6 +160,8 @@ interface OpenRoute {
 
 /** Identificador de evento no caminho (UUID). */
 const EVENT_ID = '([0-9a-f-]{36})';
+/** Identificador de conta no caminho (UUID). */
+const ACCOUNT_ID = EVENT_ID;
 /** Player ID no caminho: só dígitos. */
 const PLAYER_ID = '([0-9]{1,20})';
 
@@ -172,12 +181,20 @@ export const createApi = ({ tokens, emails, accounts, events, ingest, board, rou
     }
   };
 
+  /** Evento atual: o da rodada publicada pelo TOM (até existir o evento ativo, no plano 4). */
+  const currentEvent = async () => {
+    const current = await registry.current();
+    return current ? ((await registry.get(current.eventId))?.event ?? null) : null;
+  };
+  const isJudging = async (principal: Principal) => staffActor(principal, await currentEvent())?.role === 'judge';
+  const me = async (principal: Principal) => toMe(principal, await isJudging(principal));
+
   const routes: Route[] = [
     {
       method: 'GET', path: /^\/me$/,
       handle: async ({ token, identity }) => ({
         status: 200,
-        body: toMe(await linkingNewLogin(token, identity, () => accounts.authenticate(identity))),
+        body: await me(await linkingNewLogin(token, identity, () => accounts.authenticate(identity))),
       }),
     },
     {
@@ -185,7 +202,7 @@ export const createApi = ({ tokens, emails, accounts, events, ingest, board, rou
       handle: async ({ request, token, identity }) => {
         const input = parseRegisterRequest(jsonBody(request));
         await accounts.register(identity, await emails.verifiedEmail(token), input);
-        return { status: 201, body: toMe(await accounts.authenticate(identity)) };
+        return { status: 201, body: await me(await accounts.authenticate(identity)) };
       },
     },
     {
@@ -193,7 +210,7 @@ export const createApi = ({ tokens, emails, accounts, events, ingest, board, rou
       handle: async ({ request, token, identity }) => {
         const { replace } = parseSessionRequest(jsonBody(request));
         await linkingNewLogin(token, identity, () => accounts.activateSession(identity, replace));
-        return { status: 200, body: toMe(await accounts.authenticate(identity)) };
+        return { status: 200, body: await me(await accounts.authenticate(identity)) };
       },
     },
     {
@@ -202,7 +219,7 @@ export const createApi = ({ tokens, emails, accounts, events, ingest, board, rou
         const { playerId } = parsePlayerIdRequest(jsonBody(request));
         await accounts.authenticate(identity);
         await accounts.claimPlayerId(identity, playerId);
-        return { status: 200, body: toMe(await accounts.authenticate(identity)) };
+        return { status: 200, body: await me(await accounts.authenticate(identity)) };
       },
     },
   ];
@@ -225,10 +242,42 @@ export const createApi = ({ tokens, emails, accounts, events, ingest, board, rou
     {
       method: 'POST', path: /^\/events$/,
       handle: async ({ request, identity }) => {
-        const { label } = parseCreateEventRequest(jsonBody(request));
+        const { label, judges } = parseCreateEventRequest(jsonBody(request));
         const { actor } = await accounts.authenticate(identity);
-        const { event, token } = await events.createEvent(actor, label);
+        const { event, token } = await events.createEvent(actor, label, judges);
         return { status: 201, body: { id: event.id, label: event.label, token } satisfies CreateEventResponse };
+      },
+    },
+    {
+      method: 'PUT', path: new RegExp(`^/events/${EVENT_ID}/judges$`),
+      handle: async ({ request, identity, params: [id = ''] }) => {
+        const { judges } = parseJudgesRequest(jsonBody(request));
+        const { actor } = await accounts.authenticate(identity);
+        const event = await events.setJudges(actor, id, judges);
+        return { status: 200, body: { id: event.id, label: event.label, judges: event.judges } };
+      },
+    },
+    {
+      method: 'POST', path: /^\/staff\/search$/,
+      handle: async ({ request, identity }) => {
+        const { query } = parseSearchRequest(jsonBody(request));
+        const { actor } = await accounts.authenticate(identity);
+        return { status: 200, body: (await accounts.search(actor, query)).map(toAccount) };
+      },
+    },
+    {
+      method: 'GET', path: /^\/staff\/judges$/,
+      handle: async ({ identity }) => {
+        const { actor } = await accounts.authenticate(identity);
+        return { status: 200, body: (await accounts.listJudges(actor)).map(toAccount) };
+      },
+    },
+    {
+      method: 'POST', path: new RegExp(`^/staff/accounts/${ACCOUNT_ID}/judge$`),
+      handle: async ({ request, identity, params: [id = ''] }) => {
+        const { judge } = parseSetJudgeRequest(jsonBody(request));
+        const { actor } = await accounts.authenticate(identity);
+        return { status: 200, body: toAccount(await accounts.setJudge(actor, id, judge)) };
       },
     },
     {
@@ -262,7 +311,10 @@ export const createApi = ({ tokens, emails, accounts, events, ingest, board, rou
       method: 'POST', path: /^\/round\/report$/,
       handle: async ({ request, identity }) => {
         const { report } = parseReportRequest(jsonBody(request));
-        const { actor } = await accounts.authenticate(identity);
+        const principal = await accounts.authenticate(identity);
+        const { actor } = principal;
+        // Quem julga o evento não joga nele.
+        if (await isJudging(principal)) throw new CommandRejected('forbidden', 'Você é juiz deste evento');
         if (actor?.role !== 'player') throw new CommandRejected('forbidden', 'Informe seu Player ID para reportar pela própria mesa');
         const ref = await currentRef();
         // A mesa do jogador não muda depois do pareamento: dá para usar o cache; o reporte em si relê o estado.
@@ -285,10 +337,18 @@ export const createApi = ({ tokens, emails, accounts, events, ingest, board, rou
   ];
   routes.push(...roundRoutes);
 
-  /** Painel: juiz e ADM; cada comando aplica as regras do RoundService (papel, mesa travada, key lançada...). */
+  /** Painel: ADM e juiz escalado no evento atual; cada comando aplica as regras do RoundService (papel, mesa travada, key lançada...). */
   const staff = async (identity: Identity) => {
-    const { actor } = await accounts.authenticate(identity);
-    if (actor?.role !== 'judge' && actor?.role !== 'admin') throw new CommandRejected('forbidden', 'Só juiz e ADM usam o painel');
+    const principal = await accounts.authenticate(identity);
+    const actor = staffActor(principal, await currentEvent());
+    if (!actor) throw new CommandRejected('forbidden', 'Só o ADM e os juízes escalados no evento usam o painel');
+    // Escalado por engano estando nas guias do TOM: quem joga a rodada não julga (nem a própria mesa).
+    const { playerId } = principal.account;
+    const current = actor.role === 'judge' && playerId ? await registry.current() : null;
+    const tables = current ? (await reader.state(current.ref)).tables : [];
+    if (tables.some((t) => t.player1.playerId === playerId || t.player2.playerId === playerId)) {
+      throw new CommandRejected('forbidden', 'Você é juiz deste evento');
+    }
     return actor;
   };
   const respond = (state: Awaited<ReturnType<RoundService['state']>>, extra: Record<string, unknown> = {}): HttpResponse =>

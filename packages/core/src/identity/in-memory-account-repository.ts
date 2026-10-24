@@ -24,6 +24,10 @@ export class InMemoryAccountRepository implements AccountRepository {
     return this.find((a) => a.playerId === playerId);
   }
 
+  all(): Promise<Account[]> {
+    return Promise.resolve([...this.accounts.values()].map((r) => structuredClone(r.account)));
+  }
+
   save(account: Account, events: readonly IdentityEvent[], expectedVersion: number): Promise<number> {
     const current = this.accounts.get(account.id)?.version ?? 0;
     if (current !== expectedVersion) {

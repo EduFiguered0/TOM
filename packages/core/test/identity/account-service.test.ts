@@ -216,10 +216,70 @@ describe('papéis e Player ID', () => {
     await rejects(service.unlinkPlayerId(admin, '999999'), 'account_not_found');
   });
 
-  it('grupos do Cognito definem juiz e ADM', async () => {
+  it('grupo admin do Cognito define o ADM; o grupo judge não vale mais', async () => {
+    const { service } = setup();
+    const { id } = await service.register(identity(), 'ana@example.com', { profile: adult, playerId: '100001' });
+    expect((await service.authenticate(identity({ groups: ['judge'] }))).actor).toEqual({ role: 'player', accountId: id, playerId: '100001' });
+    expect((await service.authenticate(identity({ groups: ['judge', 'admin'] }))).actor).toEqual({ role: 'admin', accountId: id });
+  });
+});
+
+describe('equipe', () => {
+  const joao = identity({ login: 'l-joao', session: 'sj' });
+  const maria = identity({ login: 'l-maria', session: 'sm' });
+  const team = async () => {
+    const ctx = setup();
+    const j = await ctx.service.register(joao, 'joao@example.com', { profile: { ...adult, name: 'João Silva' }, playerId: '100001' });
+    const m = await ctx.service.register(maria, 'maria@example.com', { profile: { ...adult, name: 'Maria Joana' }, playerId: '100002' });
+    return { ...ctx, j, m };
+  };
+
+  it('ADM marca e desmarca juiz; fica registrado', async () => {
+    const { service, accounts, j } = await team();
+    expect((await service.setJudge(admin, j.id, true)).judge).toBe(true);
+    expect(accounts.events.at(-1)).toMatchObject({ type: 'judge_set', judge: true, actor: admin, accountId: j.id });
+    const before = accounts.events.length;
+    await service.setJudge(admin, j.id, true);
+    expect(accounts.events).toHaveLength(before);
+    expect((await service.setJudge(admin, j.id, false)).judge).toBe(false);
+  });
+
+  it('juiz precisa de Player ID', async () => {
     const { service } = setup();
     const { id } = await service.register(identity(), 'ana@example.com', { profile: adult, playerId: null });
-    expect((await service.authenticate(identity({ groups: ['judge'] }))).actor).toEqual({ role: 'judge', accountId: id });
-    expect((await service.authenticate(identity({ groups: ['judge', 'admin'] }))).actor?.role).toBe('admin');
+    const marking = service.setJudge(admin, id, true);
+    await rejects(marking, 'invalid_input');
+    await expect(marking).rejects.toThrow('O juiz precisa ter Player ID cadastrado');
+  });
+
+  it('só o ADM mexe na equipe', async () => {
+    const { service, j } = await team();
+    const player = { role: 'player', accountId: j.id, playerId: toPlayerId('100001') } as const;
+    await rejects(service.setJudge(player, j.id, true), 'forbidden');
+    await rejects(service.search(player, 'joao'), 'forbidden');
+    await rejects(service.listJudges(null), 'forbidden');
+  });
+
+  it('busca por nome sem acento e por Player ID exato', async () => {
+    const { service } = await team();
+    const names = async (q: string) => (await service.search(admin, q)).map((a) => a.profile.name);
+    expect(await names('joao')).toEqual(['João Silva']);
+    expect(await names('JO')).toEqual(['João Silva', 'Maria Joana']);
+    expect(await names('100002')).toEqual(['Maria Joana']);
+    expect(await names('1000')).toEqual([]);
+    const short = service.search(admin, ' a ');
+    await rejects(short, 'invalid_input');
+    await expect(short).rejects.toThrow('Digite pelo menos 2 caracteres');
+  });
+
+  it('lista os juízes da equipe', async () => {
+    const { service, j } = await team();
+    expect(await service.listJudges(admin)).toEqual([]);
+    await service.setJudge(admin, j.id, true);
+    expect((await service.listJudges(admin)).map((a) => a.id)).toEqual([j.id]);
+  });
+
+  it('marcar conta inexistente dá 404', async () => {
+    await rejects(setup().service.setJudge(admin, 'nao-existe', true), 'account_not_found');
   });
 });

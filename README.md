@@ -64,7 +64,7 @@ Região us-east-2, perfil `tom`. Cada stack de produção tem um gêmeo descart�
 | Stack | Gêmeo de teste | Recursos |
 | --- | --- | --- |
 | `TomData` | `TomTest` | DynamoDB `Events`, `Accounts` e `Tournaments` (sob demanda, TTL 24 meses), S3 `Snapshots` (privado, expira em 24 meses) |
-| `TomAuth` | `TomAuthTest` | Cognito user pool (Essentials, e-mail e senha; Google só em produção), gatilho de pré-cadastro (Lambda 128 MB), grupos `admin` e `judge` |
+| `TomAuth` | `TomAuthTest` | Cognito user pool (Essentials, e-mail e senha; Google só em produção), gatilho de pré-cadastro (Lambda 128 MB), grupo `admin` |
 | `TomApi` | `TomApiTest` | Lambda Node 22 Arm 256 MB + Function URL (sem API Gateway), logs por 14 dias |
 | `TomWeb` | — | Site no S3 + CloudFront, `/api` no mesmo endereço, `/api/board` guardado 5 s, CSP rígida |
 
@@ -85,20 +85,24 @@ Rotas da API (as de conta e ADM exigem `Authorization: Bearer <token de acesso d
 | `POST /me/player-id` | qualquer conta | Conta sem Player ID informa depois; para trocar, só o ADM (409) |
 | `GET /player-ids/{pid}` | ADM | Quem cadastrou esse Player ID |
 | `POST /player-ids/{pid}/unlink` | ADM | Desfaz o vínculo errado; o dono verdadeiro pode cadastrar o Player ID |
+| `POST /staff/search` | ADM | Equipe: busca conta por nome (sem acento) ou Player ID exato |
+| `GET /staff/judges` | ADM | Juízes da equipe |
+| `POST /staff/accounts/{id}/judge` | ADM | Marca ou tira o juiz da equipe (`{"judge": true}`); o juiz precisa de Player ID |
 | `GET /round/me` | qualquer conta | Rodada atual do ponto de vista do jogador: mesa, oponente, prazo, cor e o próprio reporte (sem o placar do oponente) |
 | `POST /round/report` | jogador com Player ID | Reporta placar ou ID na própria mesa |
 | `POST /round/start` | ADM | Inicia a rodada publicada pelo TOM (melhor de 1 ou 3, tempo) |
-| `GET /panel` | juiz, ADM | Painel: todas as mesas com Player IDs, os dois reportes, cor e motivo, override, acréscimo e a key do TOM |
+| `GET /panel` | juiz escalado no evento atual, ADM | Painel: todas as mesas com Player IDs, os dois reportes, cor e motivo, override, acréscimo e a key do TOM |
 | `POST /panel/tables/{n}/override` | juiz, ADM | Override (placar, ID, DGL, vitória por ausência) com motivo; avisa se a key já foi lançada |
 | `POST /panel/tables/{n}/extend` | juiz, ADM | Acréscimo de tempo na mesa |
 | `POST /panel/tables/{n}/key-launched` | ADM | Marca a key como lançada no TOM (só mesa verde) |
 | `POST /panel/tables/{n}/report` | ADM | Reporte em nome de jogador sem celular |
-| `POST /events` | ADM | Cria o evento do dia; devolve o token do enviador uma única vez |
+| `POST /events` | ADM | Cria o evento do dia (com `judges`, os juízes escalados); devolve o token do enviador uma única vez |
+| `PUT /events/{id}/judges` | ADM | Troca os juízes escalados no evento (só juízes da equipe) |
 | `POST /events/{id}/revoke` | ADM | Revoga o token do enviador |
 | `POST /uploads` | enviador (`x-upload-token`) | Recebe um HTML do TOM; com pareamento e guias da rodada, publica a rodada |
 | `GET /board` | público | Rodada atual para a TV (só nomes), guardada 5 s no CloudFront |
 
-Papéis vêm dos grupos do Cognito. Para dar o papel de ADM (ou `judge`) a uma conta já criada; vale no próximo token, em até 15 min:
+O ADM vem do grupo `admin` do Cognito; o juiz é marcado pelo ADM no cartão "Equipe" do site e só age no evento em que for escalado (até o plano 4, o evento atual é o da rodada publicada pelo TOM). Para dar o papel de ADM a uma conta já criada; vale no próximo token, em até 15 min:
 
 ```bash
 aws cognito-idp admin-add-user-to-group --profile tom --user-pool-id <TomAuth.UserPoolId> --username <e-mail> --group-name admin

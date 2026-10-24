@@ -54,7 +54,7 @@ export const App = ({ cognito, session, api, google, loginError }: Props) => {
       )}
       {screen.name === 'register' && <Register api={api} onRegistered={(me) => { setScreen({ name: 'home', me }); }} />}
       {screen.name === 'device' && <Device api={api} onActivated={(me) => { setScreen({ name: 'home', me }); }} onCancel={signOut} />}
-      {screen.name === 'home' && (location.pathname.startsWith('/painel') && screen.me.role !== 'player'
+      {screen.name === 'home' && (location.pathname.startsWith('/painel') && (screen.me.role === 'admin' || screen.me.judging)
         ? <PanelScreen api={api} me={screen.me} />
         : <Home me={screen.me} api={api} onSignOut={signOut} onChanged={(me) => { setScreen({ name: 'home', me }); }} />)}
       {screen.name === 'error' && (

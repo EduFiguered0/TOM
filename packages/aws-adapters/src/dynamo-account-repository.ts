@@ -1,5 +1,5 @@
 import { TransactionCanceledException } from '@aws-sdk/client-dynamodb';
-import { GetCommand, TransactWriteCommand, type DynamoDBDocumentClient } from '@aws-sdk/lib-dynamodb';
+import { GetCommand, ScanCommand, TransactWriteCommand, type DynamoDBDocumentClient } from '@aws-sdk/lib-dynamodb';
 import {
   AccountConflictError,
   ConcurrencyError,
@@ -65,6 +65,25 @@ export class DynamoAccountRepository implements AccountRepository {
   async findByPlayerId(playerId: PlayerId): Promise<AccountRecord | null> {
     const record = await this.byLock({ kind: 'playerId', value: playerId });
     return record?.account.playerId === playerId ? record : null;
+  }
+
+  /** Scan da tabela inteira (contas, travas e eventos), filtrando as contas: a loja tem poucas centenas. */
+  async all(): Promise<Account[]> {
+    const accounts: Account[] = [];
+    let start: Record<string, unknown> | undefined;
+    do {
+      const page = await this.client.send(new ScanCommand({
+        TableName: this.tableName,
+        FilterExpression: 'sk = :account',
+        ExpressionAttributeValues: { ':account': 'account' },
+        // O ADM marca o juiz e a lista é relida na hora: sem leitura forte, o recém-marcado pode faltar.
+        ConsistentRead: true,
+        ExclusiveStartKey: start,
+      }));
+      accounts.push(...(page.Items ?? []).map((item) => fromStored(item['account'] as StoredAccount)));
+      start = page.LastEvaluatedKey;
+    } while (start);
+    return accounts;
   }
 
   async save(account: Account, events: readonly IdentityEvent[], expectedVersion: number): Promise<number> {

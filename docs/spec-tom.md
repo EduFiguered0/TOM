@@ -10,6 +10,8 @@ Oct 20, 2026 · @Edduardo Souza Figueredo · revisão 2: Oct 21, 2026 · revisã
 
 > **Revisão 5.** Player ID vale desde o cadastro, sem conferência do ADM; home pública da loja e política de privacidade. Trechos marcados com **[R5]**.
 
+> **Revisão 6.** Juiz deixa de ser grupo do Cognito: é marca na conta, posta pelo ADM na Equipe, e só age no evento em que foi escalado. Trechos marcados com **[R6]**.
+
 ## Visão e problema
 
 O sistema é uma camada de auditoria de resultados entre os jogadores e o TOM: nenhuma rodada nova começa antes de todos os resultados da anterior estarem validados.
@@ -161,7 +163,7 @@ São três visões do mesmo estado, todas servidas online.
 | --- | --- | --- |
 | Celular do jogador | Só o jogador logado | Mesa e oponente da rodada atual (ex.: Mesa 1 — você x teste2), botões de reporte com placar e, fora do evento, o histórico do jogador |
 | TV do salão | Todos | Todos os pareamentos e o cronômetro da rodada; atende jogadores sem celular e o juiz |
-| Painel do ADM / juiz | Organização | Termômetro por mesa, motivo dos vermelhos, override, keys validadas, "key lançada", iniciar rodada, acréscimo por mesa, reporte em nome do jogador, desfazer vínculo de Player ID **[R5]** |
+| Painel do ADM / juiz | Organização | Termômetro por mesa, motivo dos vermelhos, override, keys validadas, "key lançada", iniciar rodada, acréscimo por mesa, reporte em nome do jogador, desfazer vínculo de Player ID **[R5]**, Equipe (marcar juiz) e escala de juízes no evento **[R6]** |
 
 Atualização no celular: na primeira versão, por consulta periódica à API (polling) e atualização manual. Com o sistema online, notificação push (Web Push) e conexão aberta (WebSocket) passam a ser possíveis numa evolução.
 
@@ -169,7 +171,7 @@ O celular precisa deixar claro quando um reporte **não** foi enviado. Nunca mos
 
 ## Identidade, acesso e segurança **[R2]**
 
-**Papéis.** Jogador, juiz e ADM são papéis diferentes:
+**Papéis.** Jogador, juiz e ADM são papéis diferentes. **[R6]** O juiz é uma conta de jogador marcada pelo ADM na Equipe e só age no evento em que foi escalado; nesse evento não reporta como jogador.
 
 | Ação | Jogador | Juiz | ADM |
 | --- | --- | --- | --- |
@@ -178,7 +180,7 @@ O celular precisa deixar claro quando um reporte **não** foi enviado. Nunca mos
 | Acréscimo de tempo na mesa | | ✓ | ✓ |
 | Reportar em nome de jogador sem celular | | | ✓ |
 | Iniciar rodada, marcar "key lançada" | | | ✓ |
-| Desfazer vínculo de Player ID **[R5]**, gerar token do enviador, configurar evento | | | ✓ |
+| Desfazer vínculo de Player ID **[R5]**, Equipe e escala de juízes **[R6]**, gerar token do enviador, configurar evento | | | ✓ |
 
 **Conta e Player ID.**
 
@@ -350,3 +352,10 @@ Fora de escopo:
 | 1 | Player ID só vale depois que o ADM confere no primeiro check-in | Vale no cadastro; o primeiro a cadastrar fica com ele; o ADM desfaz vínculos errados |
 | 2 | Site só com a área logada | Home pública da loja (`/`), política de privacidade (`/privacidade`) e área logada em `/conta` |
 | 3 | Canal do titular (LGPD) não definido | Direct do Instagram `@goodgame.tcg`, resposta em até 15 dias |
+
+### Revisão 6 — Oct 24, 2026
+
+| # | Antes | Agora |
+| --- | --- | --- |
+| 1 | Juiz era grupo do Cognito, com poder em qualquer evento | Marca na conta (Equipe do ADM) + escala por evento; tirar da equipe corta o poder na hora |
+| 2 | Pool do Cognito com e-mail fixo | E-mail alterável: o Google regrava o e-mail a cada login e o segundo login falhava; pool novo, login em `ggtcg-login` |

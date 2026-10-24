@@ -22,6 +22,18 @@ describe('rodada no celular do jogador', () => {
       .toMatchObject({ error: 'forbidden', message: 'Informe seu Player ID para reportar pela própria mesa' });
   });
 
+  it('juiz escalado não reporta pela própria mesa', async () => {
+    const ctx = await setupRound();
+    // p1 (100001) está nas guias e vira juiz escalado: o mesmo evento não se joga e se julga.
+    const me = (await ctx.call('GET', '/me', 'p1:c1')).body as { id: string };
+    await ctx.call('POST', `/staff/accounts/${me.id}/judge`, 'adm:a1:admin', { judge: true });
+    await ctx.call('PUT', `/events/${ctx.eventId}/judges`, 'adm:a1:admin', { judges: [me.id] });
+    await ctx.start();
+    expect(await ctx.report('p1:c1', { kind: 'score', own: 2, opponent: 1 })).toMatchObject({
+      status: 403, body: { message: 'Você é juiz deste evento' },
+    });
+  });
+
   it('só reporta depois que o ADM inicia; só o ADM inicia', async () => {
     const { report, call, start } = await setupRound();
     expect((await report('p1:c1', { kind: 'score', own: 2, opponent: 1 })).body).toMatchObject({ error: 'round_not_started' });

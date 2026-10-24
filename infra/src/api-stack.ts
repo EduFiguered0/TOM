@@ -70,7 +70,8 @@ export class ApiStack extends Stack {
       },
     });
     // Só o que o DynamoAccountRepository usa (a transação exige a permissão de cada item: Put e Delete).
-    accounts.grant(fn, 'dynamodb:GetItem', 'dynamodb:PutItem', 'dynamodb:DeleteItem');
+    // Scan: busca da Equipe (poucas centenas de contas).
+    accounts.grant(fn, 'dynamodb:GetItem', 'dynamodb:PutItem', 'dynamodb:DeleteItem', 'dynamodb:Scan');
     // DynamoEventStore: lê o stream (Query) e grava em transação (Put + ConditionCheck).
     events.grant(fn, 'dynamodb:GetItem', 'dynamodb:PutItem', 'dynamodb:Query', 'dynamodb:ConditionCheckItem');
     tournaments.grant(fn, 'dynamodb:GetItem', 'dynamodb:PutItem');

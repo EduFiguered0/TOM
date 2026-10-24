@@ -79,6 +79,16 @@ export const accountRepositoryContract = (name: string, create: () => AccountRep
       expect(await repo.get(sameLogin.id)).toBeNull();
     });
 
+    it('all devolve as contas gravadas', async () => {
+      const repo = create();
+      const [a, b] = [account(), account()];
+      await repo.save(a, [registered(a)], 0);
+      await repo.save(b, [registered(b)], 0);
+      const ids = (await repo.all()).map((x) => x.id);
+      expect(ids).toEqual(expect.arrayContaining([a.id, b.id]));
+      expect((await repo.all()).find((x) => x.id === a.id)).toEqual(a);
+    });
+
     it('acha a conta pelo Player ID assim que gravada', async () => {
       const repo = create();
       const playerId = uniquePlayerId();
