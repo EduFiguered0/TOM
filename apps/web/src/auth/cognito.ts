@@ -1,4 +1,4 @@
-/** Login sem senha direto na API do Cognito (sem Amplify): cadastro e entrada pelo mesmo fluxo de código por e-mail. */
+/** Login com e-mail e senha direto na API do Cognito (sem Amplify); o cadastro é confirmado na hora, sem código. */
 
 export interface CognitoConfig {
   region: string;
@@ -12,17 +12,18 @@ export interface Tokens {
   expiresAt: number;
 }
 
-/** Código enviado e aguardando digitação. `signup` = primeira vez (confirma o e-mail e já entra). */
-export interface PendingCode {
-  kind: 'signup' | 'signin';
-  email: string;
-  session: string;
-}
+/** Contas antigas (código por e-mail) não têm senha: o caminho delas é o "Esqueci minha senha". */
+const WRONG_LOGIN = 'E-mail ou senha incorretos. Conta antiga ou senha esquecida? Use "Esqueci minha senha".';
 
 const MESSAGES: Record<string, string> = {
   CodeMismatchException: 'Código incorreto. Confira o e-mail e tente de novo.',
   ExpiredCodeException: 'Código expirado. Peça um novo.',
-  NotAuthorizedException: 'Tempo esgotado ou tentativas demais. Peça um novo código.',
+  NotAuthorizedException: WRONG_LOGIN,
+  UserNotFoundException: WRONG_LOGIN,
+  // Usuário sem senha: o Cognito oferece outro desafio em vez dos tokens.
+  NoTokens: WRONG_LOGIN,
+  UsernameExistsException: 'Esse e-mail já tem conta. Entre com a sua senha ou pelo Google.',
+  InvalidPasswordException: 'A senha precisa ter pelo menos 8 caracteres, com uma letra minúscula e um número.',
   LimitExceededException: 'Muitas tentativas. Aguarde alguns minutos.',
   TooManyRequestsException: 'Muitas tentativas. Aguarde alguns minutos.',
   InvalidParameterException: 'E-mail inválido.',
@@ -62,36 +63,34 @@ export const createCognito = ({ region, clientId }: CognitoConfig, fetchFn: type
     return { access: auth.AccessToken, refresh: refreshToken, expiresAt: now() + auth.ExpiresIn * 1000 };
   };
 
+  const normalize = (email: string) => email.trim().toLowerCase();
+  const digits = (code: string) => code.replace(/\D/g, '');
+
+  const signIn = async (rawEmail: string, password: string): Promise<Tokens> => {
+    const email = normalize(rawEmail);
+    return tokens(await call<AuthResult>('InitiateAuth', {
+      AuthFlow: 'USER_AUTH',
+      AuthParameters: { USERNAME: email, PASSWORD: password, PREFERRED_CHALLENGE: 'PASSWORD' },
+    }));
+  };
+
   return {
-    /** Primeira vez: cria a conta sem senha e o Cognito envia o código. Já cadastrado: envia o código de login. */
-    async start(rawEmail: string): Promise<PendingCode> {
-      const email = rawEmail.trim().toLowerCase();
-      try {
-        const { Session } = await call<{ Session: string }>('SignUp', { Username: email, UserAttributes: [{ Name: 'email', Value: email }] });
-        return { kind: 'signup', email, session: Session };
-      } catch (e) {
-        if (!(e instanceof AuthError) || e.type !== 'UsernameExistsException') throw e;
-      }
-      const { Session } = await call<{ Session: string }>('InitiateAuth', {
-        AuthFlow: 'USER_AUTH',
-        AuthParameters: { USERNAME: email, PREFERRED_CHALLENGE: 'EMAIL_OTP' },
-      });
-      return { kind: 'signin', email, session: Session };
+    signIn,
+
+    /** O gatilho de pré-cadastro confirma a conta na hora: entra em seguida. */
+    async signUp(rawEmail: string, password: string): Promise<Tokens> {
+      const email = normalize(rawEmail);
+      await call('SignUp', { Username: email, Password: password, UserAttributes: [{ Name: 'email', Value: email }] });
+      return signIn(email, password);
     },
 
-    async verify(pending: PendingCode, rawCode: string): Promise<Tokens> {
-      const code = rawCode.replace(/\D/g, '');
-      if (pending.kind === 'signup') {
-        const { Session } = await call<{ Session: string }>('ConfirmSignUp', {
-          Username: pending.email, ConfirmationCode: code, Session: pending.session,
-        });
-        return tokens(await call<AuthResult>('InitiateAuth', { AuthFlow: 'USER_AUTH', AuthParameters: { USERNAME: pending.email }, Session }));
-      }
-      return tokens(await call<AuthResult>('RespondToAuthChallenge', {
-        ChallengeName: 'EMAIL_OTP',
-        Session: pending.session,
-        ChallengeResponses: { USERNAME: pending.email, EMAIL_OTP_CODE: code },
-      }));
+    /** Único e-mail que o sistema manda: o código para criar uma nova senha. */
+    async forgotPassword(rawEmail: string): Promise<void> {
+      await call('ForgotPassword', { Username: normalize(rawEmail) });
+    },
+
+    async resetPassword(rawEmail: string, code: string, password: string): Promise<void> {
+      await call('ConfirmForgotPassword', { Username: normalize(rawEmail), ConfirmationCode: digits(code), Password: password });
     },
 
     async refresh(refreshToken: string): Promise<Tokens> {

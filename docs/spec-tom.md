@@ -5,6 +5,8 @@ Oct 20, 2026 · @Edduardo Souza Figueredo · revisão 2: Oct 21, 2026 · revisã
 > **Revisão 2.** O sistema deixou de ser local-first e passou a ser 100% online. Os trechos marcados com **[R2]** mudaram nesta revisão; o registro completo está em "Registro de decisões", no fim do documento.
 >
 > **Revisão 3.** Login com conta Google (ou código por e-mail para quem não usa Google), confirmação na tela para troca de dispositivo e custo como critério principal. Trechos marcados com **[R3]**.
+>
+> **Revisão 4.** Login com e-mail e senha no lugar do código por e-mail; Google pronto para ativar. Trechos marcados com **[R4]**.
 
 ## Visão e problema
 
@@ -85,7 +87,7 @@ Os HTMLs reais gerados pelo TOM 1.86 num torneio de teste ficam em `packages/tom
 
 ## Fluxo do evento **[R2]**
 
-1. **Antes:** o jogador cria a conta online (a qualquer momento, inclusive em casa) entrando com a conta Google ou com um código enviado ao e-mail. **[R3]**
+1. **Antes:** o jogador cria a conta online (a qualquer momento, inclusive em casa) entrando com a conta Google ou com e-mail e senha. **[R4]**
 2. **Check-in:** no salão, o jogador faz login pelo QR. No primeiro evento, o ADM confirma presencialmente que o Player ID é dele. O ADM lança os jogadores no TOM.
 3. **Rodadas:** o ciclo abaixo, uma vez por rodada.
 4. **Depois:** resultados e histórico já estão online; o jogador consulta quando quiser.
@@ -178,9 +180,9 @@ O celular precisa deixar claro quando um reporte **não** foi enviado. Nunca mos
 
 **Conta e Player ID.**
 
-- O jogador cria a conta online entrando com a **conta Google** ou, para quem não tem ou não pode usar Google (ex.: crianças), com um **código de uso único enviado ao e-mail**, sem senha. Os dois caminhos levam ao mesmo e-mail verificado. **[R3]**
+- **[R4]** O jogador cria a conta online entrando com a **conta Google** ou com **e-mail e senha**. O cadastro com senha é confirmado na hora, sem código por e-mail (o e-mail não é verificado; risco aceito). O único e-mail enviado é o de "Esqueci minha senha".
 - Uma conta por e-mail; na v1 um responsável não gerencia mais de uma conta.
-- **[R3]** Quem entra pelo Google e também pelo código por e-mail continua com uma conta só: no primeiro acesso por uma forma nova, a conta é encontrada pelo e-mail verificado e o novo login é ligado a ela. O Google só é aceito com e-mail verificado.
+- **[R4]** Quem entra pelo Google e também por e-mail e senha continua com uma conta só: no primeiro acesso pelo Google, a conta é encontrada pelo e-mail e o login do Google é ligado a ela. Como a senha não prova o e-mail, um login por senha nunca é ligado a uma conta existente ("Esse e-mail já tem conta"). Numa conta criada com senha, o primeiro acesso pelo Google prova o dono e retira os logins de senha: quem cadastrou o e-mail de outra pessoa perde o acesso. O Google só é aceito com e-mail verificado.
 - O vínculo conta ↔ Player ID só fica ativo depois que o ADM confirma presencialmente, no primeiro check-in. Isso impede alguém de registrar o Player ID de outra pessoa antes dela. Depois da confirmação, não precisa repetir.
 
 **Sessão única e dispositivo.**
@@ -214,8 +216,9 @@ Tudo em us-east-2 (região única do projeto AWS). Cada recurso de produção te
 | DynamoDB `Accounts` (idem) | TomData / TomTest | Contas, auditoria de identidade e trava do Player ID | idem | < US$ 0,01 |
 | DynamoDB `Tournaments` (idem) | TomData / TomTest | Eventos do ADM, trava do token do enviador, rodada atual | idem | < US$ 0,01 |
 | S3 `Snapshots` (nome fixo, privado, SSE-S3, só HTTPS, expira em 24 meses) | TomData / TomTest | Fotografias dos HTMLs do TOM | US$ 0,023/GB-mês; US$ 0,005 por mil gravações | < US$ 0,01 |
-| Cognito user pool, plano Essentials | TomAuth / TomAuthTest | Login (código por e-mail; Google pendente), grupos admin e judge | 10 mil usuários ativos/mês grátis; depois US$ 0,015 cada | US$ 0 |
-| E-mail do Cognito (padrão, sem SES) | TomAuth | Códigos de verificação e login | Grátis; limite de ~50 e-mails/dia | US$ 0 |
+| Cognito user pool, plano Essentials | TomAuth / TomAuthTest | Login (e-mail e senha; Google), grupos admin e judge | 10 mil usuários ativos/mês grátis; depois US$ 0,015 cada | US$ 0 |
+| Lambda `PreSignUp` (Node 22, Arm, 128 MB, inline) **[R4]** | TomAuth / TomAuthTest | Confirma o cadastro com senha na hora, sem e-mail | Franquia mensal da Lambda | US$ 0 |
+| E-mail do Cognito (padrão, sem SES) | TomAuth | Só o código do "Esqueci minha senha" **[R4]** | Grátis; limite de ~50 e-mails/dia | US$ 0 |
 | Lambda `Handler` (Node 22, Arm, 256 MB) | TomApi / TomApiTest | API inteira (roteador único) | US$ 0,20 por milhão + US$ 0,0000133/GB-s; 1 milhão de execuções e 400 mil GB-s grátis por mês | US$ 0 |
 | Lambda Function URL | TomApi / TomApiTest | Endereço HTTPS da API, sem API Gateway | Sem cobrança própria | US$ 0 |
 | CloudWatch Logs (14 dias) | TomApi / TomApiTest | Logs da Lambda | 5 GB/mês grátis; depois ~US$ 0,50/GB | US$ 0 |
@@ -282,7 +285,7 @@ Em aberto:
 
 - [x] Dependência do match_slips: as guias são obrigatórias em toda rodada com mesas. Sem elas (ou com guias de outra rodada), o pareamento é recusado e o sistema pede para gerar as guias no TOM. Sem fallback por nome na v1.
 - [x] Como o enviador percebe que o TOM terminou de escrever: o arquivo fica sem mudar de tamanho e data por 1,5 s e termina em `</html>`. A pasta é lida por polling a cada 1 s (o `fs.watch` perde eventos no Windows/OneDrive). Todos os HTMLs do evento mais recente são enviados, inclusive brackets; conteúdo idêntico (mesmo SHA-256) não é reenviado. A frequência real de regravação do TOM sai do log do enviador num evento real.
-- [ ] Login com Google **[R3]**: domínios de login prontos (`tom-pokemon-login`, `tom-pokemon-login-teste`); faltam o cliente OAuth no Google Cloud, o cadastro do provedor no Cognito (comando único, segredo fora do repositório; ver README) e liberar o Google no cliente do app.
+- [x] Login com Google **[R4]**: pronto no código e na infra; ativado com o cadastro do provedor no Cognito e a flag `google` (README, "Ativar o Google"). Publicar o app no Google exige home e política de privacidade públicas.
 - [ ] Remetente dos e-mails e acesso de produção do SES **[R3]**: necessários antes do primeiro evento (limite atual de ~50 e-mails/dia) e para o e-mail do código de login em português.
 - [ ] Estética das telas (celular, TV, painel): o layout atual é funcional; o visual será revisto com as três telas lado a lado.
 - [ ] Top cut / eliminatória (arquivo brackets).
@@ -327,3 +330,12 @@ Fora de escopo:
 | 5 | Conta = usuário do Cognito | Conta com id próprio e vários logins (Google, código por e-mail) unificados pelo e-mail verificado |
 | 6 | Envio do enviador para a API na fase 10 | Na fase 7: as telas usam desde o início o fluxo real TOM → enviador → API, sem carga manual |
 | 7 | Telas em aberto | Preact + Vite; site estático no S3 com CloudFront, API em `/api` no mesmo endereço |
+
+### Revisão 4 — Oct 24, 2026
+
+| # | Antes | Agora |
+| --- | --- | --- |
+| 1 | Código de uso único por e-mail para quem não usa Google | E-mail e senha, cadastro confirmado na hora (gatilho de pré-cadastro); o limite de ~50 e-mails/dia do Cognito não comporta 100 jogadores entrando no mesmo dia |
+| 2 | E-mail verificado em toda conta | Só o Google prova o e-mail; o e-mail serve apenas para o "Esqueci minha senha" |
+| 3 | Qualquer login novo é ligado pela conta do mesmo e-mail | Só o Google liga; senha num e-mail que já tem conta é recusada |
+| 4 | Token de renovação de 30 dias | 365 dias: o jogador não digita a senha a cada evento mensal |

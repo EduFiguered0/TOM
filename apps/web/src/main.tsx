@@ -2,6 +2,7 @@ import { render } from 'preact';
 import { createApi } from './api.js';
 import { App } from './app.js';
 import { createCognito } from './auth/cognito.js';
+import { createGoogle } from './auth/google.js';
 import { browserStorage, createSession } from './auth/session.js';
 import { demoBoard } from './tv/demo-board.js';
 import { LiveTv } from './tv/live.js';
@@ -11,7 +12,17 @@ import './styles.css';
 interface Config {
   region: string;
   userPoolClientId: string;
+  loginDomain: string;
+  /** O Google só aparece depois de ligado no Cognito (README, "Ativar o Google"). */
+  google: boolean;
 }
+
+/** Verifier e state do Google: só enquanto a aba vai ao Google e volta. */
+const googleStore = {
+  get: () => { try { return sessionStorage.getItem('tom.google'); } catch { return null; } },
+  set: (value: string) => { try { sessionStorage.setItem('tom.google', value); } catch { /* sem armazenamento: a volta falha com mensagem */ } },
+  clear: () => { try { sessionStorage.removeItem('tom.google'); } catch { /* nada a limpar */ } },
+};
 
 /** A configuração vem do deploy (`config.json`): o mesmo build serve produção e testes. */
 const start = async () => {
@@ -25,7 +36,19 @@ const start = async () => {
   const config = (await (await fetch('/config.json', { cache: 'no-store' })).json()) as Config;
   const cognito = createCognito({ region: config.region, clientId: config.userPoolClientId });
   const session = createSession(cognito, browserStorage);
-  render(<App cognito={cognito} session={session} api={createApi(session)} />, root);
+  const google = createGoogle(
+    { loginDomain: config.loginDomain, clientId: config.userPoolClientId, redirectUri: `${location.origin}/` },
+    { fetchFn: fetch.bind(window), store: googleStore, random: () => crypto.getRandomValues(new Uint8Array(32)), now: () => Date.now() },
+  );
+  // Volta do Google: guarda o login e limpa o código da URL antes de mostrar o app.
+  const returned = await google.finish(location.search);
+  if (returned) history.replaceState(null, '', '/');
+  if (returned && 'access' in returned) session.signedIn(returned);
+  const loginError = returned && 'error' in returned ? returned.error : null;
+  render(
+    <App cognito={cognito} session={session} api={createApi(session)} google={config.google ? google : null} loginError={loginError} />,
+    root,
+  );
 };
 
 void start();

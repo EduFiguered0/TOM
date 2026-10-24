@@ -21,44 +21,64 @@ const fakeCognito = (replies: Record<string, Reply | Reply[]>) => {
 const auth = (access: string, refresh?: string) => ({ body: { AuthenticationResult: { AccessToken: access, RefreshToken: refresh, ExpiresIn: 900 } } });
 const config = { region: 'us-east-2', clientId: 'cliente' };
 
-describe('login sem senha', () => {
-  it('primeira vez: cria a conta, confirma o código e já entra', async () => {
-    const { calls, fetchFn } = fakeCognito({
-      SignUp: { body: { Session: 's1' } },
-      ConfirmSignUp: { body: { Session: 's2' } },
-      InitiateAuth: auth('acesso', 'renovacao'),
+const failure = (type: string) => ({ status: 400, body: { __type: `com.amazon#${type}`, message: type } });
+const messageOf = async (promise: Promise<unknown>) => {
+  const error = await promise.catch((e: unknown) => e);
+  expect(error).toBeInstanceOf(AuthError);
+  return (error as AuthError).message;
+};
+
+describe('login com e-mail e senha', () => {
+  it('cadastro: cria com senha e já entra, sem código', async () => {
+    const { calls, fetchFn } = fakeCognito({ SignUp: { body: { UserConfirmed: true } }, InitiateAuth: auth('acesso', 'renovacao') });
+    expect(await createCognito(config, fetchFn, () => 0).signUp(' Ana@Example.COM ', 'senha123'))
+      .toEqual({ access: 'acesso', refresh: 'renovacao', expiresAt: 900_000 });
+    expect(calls.map((c) => c.action)).toEqual(['SignUp', 'InitiateAuth']);
+    expect(calls[0]?.body).toMatchObject({ Username: 'ana@example.com', Password: 'senha123' });
+    expect(calls[1]?.body).toMatchObject({
+      AuthFlow: 'USER_AUTH', AuthParameters: { USERNAME: 'ana@example.com', PASSWORD: 'senha123', PREFERRED_CHALLENGE: 'PASSWORD' },
     });
-    const cognito = createCognito(config, fetchFn, () => 0);
-    const pending = await cognito.start('  Ana@Example.COM ');
-    expect(pending).toEqual({ kind: 'signup', email: 'ana@example.com', session: 's1' });
-    expect(await cognito.verify(pending, '123 456')).toEqual({ access: 'acesso', refresh: 'renovacao', expiresAt: 900_000 });
-    expect(calls.map((c) => c.action)).toEqual(['SignUp', 'ConfirmSignUp', 'InitiateAuth']);
-    expect(calls[1]?.body).toMatchObject({ ConfirmationCode: '123456', Session: 's1' });
-    expect(calls[0]?.body).not.toHaveProperty('Password');
   });
 
-  it('já cadastrado: pede o código de login e responde o desafio', async () => {
-    const { calls, fetchFn } = fakeCognito({
-      SignUp: { status: 400, body: { __type: 'UsernameExistsException', message: 'existe' } },
-      InitiateAuth: { body: { Session: 's1', ChallengeName: 'EMAIL_OTP' } },
-      RespondToAuthChallenge: auth('acesso', 'renovacao'),
-    });
+  const WRONG = 'E-mail ou senha incorretos. Conta antiga ou senha esquecida? Use "Esqueci minha senha".';
+
+  it('entrar: senha errada orienta para o "Esqueci minha senha"', async () => {
+    const { fetchFn } = fakeCognito({ InitiateAuth: failure('NotAuthorizedException') });
+    expect(await messageOf(createCognito(config, fetchFn).signIn('ana@example.com', 'errada1'))).toBe(WRONG);
+  });
+
+  it('conta antiga sem senha: o Cognito pede outro desafio, e a mensagem leva ao "Esqueci minha senha"', async () => {
+    const { fetchFn } = fakeCognito({ InitiateAuth: { body: { ChallengeName: 'SELECT_CHALLENGE', Session: 's', AvailableChallenges: [] } } });
+    expect(await messageOf(createCognito(config, fetchFn).signIn('antiga@example.com', 'qualquer1'))).toBe(WRONG);
+  });
+
+  it('senha fraca no cadastro vira mensagem e não tenta entrar', async () => {
+    const { calls, fetchFn } = fakeCognito({ SignUp: failure('InvalidPasswordException') });
+    expect(await messageOf(createCognito(config, fetchFn).signUp('ana@example.com', 'abc')))
+      .toBe('A senha precisa ter pelo menos 8 caracteres, com uma letra minúscula e um número.');
+    expect(calls.map((c) => c.action)).toEqual(['SignUp']);
+  });
+
+  it('e-mail que já tem conta vira orientação', async () => {
+    const { fetchFn } = fakeCognito({ SignUp: failure('UsernameExistsException') });
+    expect(await messageOf(createCognito(config, fetchFn).signUp('ana@example.com', 'senha123')))
+      .toBe('Esse e-mail já tem conta. Entre com a sua senha ou pelo Google.');
+  });
+
+  it('esqueci a senha: pede o código e redefine com o código só em dígitos', async () => {
+    const { calls, fetchFn } = fakeCognito({ ForgotPassword: { body: {} }, ConfirmForgotPassword: { body: {} } });
     const cognito = createCognito(config, fetchFn);
-    const pending = await cognito.start('ana@example.com');
-    expect(pending.kind).toBe('signin');
-    await cognito.verify(pending, '1619 5633');
-    expect(calls[1]?.body).toMatchObject({ AuthFlow: 'USER_AUTH', AuthParameters: { PREFERRED_CHALLENGE: 'EMAIL_OTP' } });
-    // Código de login tem 8 dígitos (o de cadastro, 6).
-    expect(calls[2]?.body).toMatchObject({ ChallengeResponses: { EMAIL_OTP_CODE: '16195633' } });
+    await cognito.forgotPassword(' Ana@Example.com');
+    await cognito.resetPassword('Ana@Example.com', '123 456', 'nova1234');
+    expect(calls).toMatchObject([
+      { action: 'ForgotPassword', body: { Username: 'ana@example.com' } },
+      { action: 'ConfirmForgotPassword', body: { Username: 'ana@example.com', ConfirmationCode: '123456', Password: 'nova1234' } },
+    ]);
   });
 
-  it('código errado vira mensagem em português', async () => {
-    const { fetchFn } = fakeCognito({
-      RespondToAuthChallenge: { status: 400, body: { __type: 'com.amazon#CodeMismatchException', message: 'Invalid code' } },
-    });
-    const error = await createCognito(config, fetchFn).verify({ kind: 'signin', email: 'a@b.c', session: 's' }, '000000').catch((e: unknown) => e);
-    expect(error).toBeInstanceOf(AuthError);
-    expect((error as AuthError).message).toMatch(/Código incorreto/);
+  it('código errado na redefinição vira mensagem em português', async () => {
+    const { fetchFn } = fakeCognito({ ConfirmForgotPassword: failure('CodeMismatchException') });
+    expect(await messageOf(createCognito(config, fetchFn).resetPassword('a@b.c', '000000', 'nova1234'))).toMatch(/Código incorreto/);
   });
 });
 

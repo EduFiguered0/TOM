@@ -16,7 +16,7 @@ const adult: Profile = { name: '  Ana   Souza ', birthYear: 1990, phone: '(11) 9
 const admin = { role: 'admin', accountId: 'adm' } as const;
 
 const identity = (overrides: Partial<Identity> = {}): Identity => ({
-  login: 'login-email', session: 'celular-1', groups: [], ...overrides,
+  login: 'login-email', session: 'celular-1', groups: [], provider: 'password', ...overrides,
 });
 
 const setup = () => {
@@ -67,10 +67,14 @@ describe('cadastro', () => {
 });
 
 describe('vários logins na mesma conta', () => {
-  it('Google depois do código por e-mail: liga pelo e-mail e cai na confirmação de dispositivo', async () => {
+  it('Google numa conta antiga (código por e-mail): liga pelo e-mail e cai na confirmação de dispositivo', async () => {
     const { service, accounts } = setup();
-    const account = await service.register(identity(), 'ana@example.com', { profile: adult, playerId: null });
-    const google = identity({ login: 'login-google', session: 'celular-1-google' });
+    const created = await service.register(identity(), 'ana@example.com', { profile: adult, playerId: null });
+    // Contas de antes da senha não têm a marca: o código por e-mail já provou o dono.
+    const account = { ...created };
+    delete account.emailProven;
+    await accounts.save(account, [], 1);
+    const google = identity({ login: 'login-google', session: 'celular-1-google', provider: 'google' });
     await rejects(service.authenticate(google), 'account_not_found');
 
     expect((await service.linkLogin(google, 'Ana@Example.com')).logins).toEqual(['login-email', 'login-google']);
@@ -86,6 +90,38 @@ describe('vários logins na mesma conta', () => {
     await service.linkLogin(identity(), 'ana@example.com');
     expect(accounts.events.filter((e) => e.type === 'login_linked')).toHaveLength(0);
     await rejects(service.linkLogin(identity({ login: 'x' }), 'outra@example.com'), 'account_not_found');
+  });
+
+  it('senha num e-mail que já tem conta: recusa e não liga', async () => {
+    const { service } = setup();
+    await service.register(identity({ login: 'login-google', provider: 'google' }), 'ana@example.com', { profile: adult, playerId: null });
+    const senha = identity({ login: 'login-senha', provider: 'password' });
+    await rejects(service.linkLogin(senha, 'Ana@Example.com'), 'account_exists');
+    await rejects(service.authenticate(senha), 'account_not_found');
+  });
+
+  it('Google num e-mail cadastrado só com senha: o Google prova o dono e os logins de senha caem', async () => {
+    const { service, accounts } = setup();
+    const account = await service.register(identity({ login: 'senha-intruso', provider: 'password' }), 'ana@example.com', { profile: adult, playerId: null });
+    expect(account.emailProven).toBe(false);
+    const google = identity({ login: 'login-google', session: 'celular-ana', provider: 'google' });
+    const linked = await service.linkLogin(google, 'ana@example.com');
+    expect(linked).toMatchObject({ logins: ['login-google'], emailProven: true });
+    expect(accounts.events.at(-1)).toMatchObject({ type: 'login_linked', login: 'login-google', dropped: ['senha-intruso'] });
+    await rejects(service.authenticate(identity({ login: 'senha-intruso', provider: 'password' })), 'account_not_found');
+  });
+
+  it('conta criada pelo Google ou antiga (código por e-mail) mantém os logins ao ligar outro Google', async () => {
+    const { service } = setup();
+    expect((await service.register(identity({ login: 'g1', provider: 'google' }), 'a@example.com', { profile: adult, playerId: null })).emailProven).toBe(true);
+    expect((await service.linkLogin(identity({ login: 'g2', provider: 'google' }), 'a@example.com')).logins).toEqual(['g1', 'g2']);
+  });
+
+  it('mensagem da recusa orienta a entrar com a conta existente', async () => {
+    const { service } = setup();
+    await service.register(identity({ login: 'a', provider: 'password' }), 'ana@example.com', { profile: adult, playerId: null });
+    await expect(service.linkLogin(identity({ login: 'b', provider: 'password' }), 'ana@example.com'))
+      .rejects.toThrow('Esse e-mail já tem conta pelo Google. Entre com o Google.');
   });
 });
 

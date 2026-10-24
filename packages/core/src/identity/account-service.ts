@@ -8,8 +8,10 @@ import { AccountConflictError, PlayerIdTakenError, type AccountRecord, type Acco
 
 /** O que o token validado (Cognito) diz sobre quem chama. */
 export interface Identity {
-  /** `sub` do Cognito: um por forma de login (código por e-mail, Google). */
+  /** `sub` do Cognito: um por forma de login (e-mail e senha, Google). */
   login: string;
+  /** De onde veio o login; só o Google prova o e-mail. */
+  provider: 'password' | 'google';
   /** `origin_jti`: identifica o login neste dispositivo e sobrevive às renovações do token. */
   session: string;
   /** `cognito:groups`. */
@@ -60,7 +62,7 @@ export class AccountService {
 
   /**
    * Cadastro após o primeiro login; o Player ID informado fica pendente até o ADM confirmar.
-   * O e-mail vem do Cognito (já verificado), nunca do corpo da requisição.
+   * O e-mail vem do Cognito, nunca do corpo da requisição.
    */
   async register(identity: Identity, email: string, input: { profile: Profile; playerId: string | null }): Promise<Account> {
     const now = this.deps.clock.now();
@@ -74,6 +76,7 @@ export class AccountService {
       id: this.deps.ids.next(),
       email: normalized,
       logins: [identity.login],
+      emailProven: identity.provider === 'google',
       profile,
       playerId: playerId ? { value: playerId, confirmed: false } : null,
       activeSession: identity.session,
@@ -94,14 +97,25 @@ export class AccountService {
   }
 
   /**
-   * Primeiro acesso por outra forma de login (ex.: Google depois do código por e-mail): liga o login
-   * à conta que já tem o mesmo e-mail verificado. Sem conta com esse e-mail, recusa como não cadastrada.
+   * Primeiro acesso pelo Google de quem já tinha conta: liga o login à conta do mesmo e-mail.
+   * Sem conta com esse e-mail, recusa como não cadastrada. Login por senha não prova o e-mail, então nunca liga.
+   * Conta criada com senha (e-mail não provado): o Google prova o dono, e os logins de senha caem — quem
+   * cadastrou o e-mail de outra pessoa perde o acesso.
    */
   async linkLogin(identity: Identity, email: string): Promise<Account> {
     const record = await this.deps.accounts.findByEmail(normalizeEmail(email));
     if (!record) throw notFound();
+    if (record.account.logins.includes(identity.login)) return record.account;
+    if (identity.provider === 'password') throw googleAccountExists();
     return this.execute(record.account.id, (account) => {
       if (account.logins.includes(identity.login)) return null;
+      if (account.emailProven === false) {
+        return {
+          actor: self(identity),
+          account: { ...account, logins: [identity.login], emailProven: true },
+          data: { type: 'login_linked', login: identity.login, dropped: account.logins },
+        };
+      }
       return {
         actor: self(identity),
         account: { ...account, logins: [...account.logins, identity.login] },
@@ -205,7 +219,10 @@ interface Change {
   data: IdentityEventData;
 }
 
-const accountExists = () => new CommandRejected('account_exists', 'Já existe uma conta com este login ou e-mail');
+const accountExists = () => new CommandRejected('account_exists', 'Esse e-mail já tem conta. Entre com a sua senha ou pelo Google.');
+
+/** Senha num e-mail de conta existente: os logins de senha usam o e-mail como nome, então a conta é do Google. */
+const googleAccountExists = () => new CommandRejected('account_exists', 'Esse e-mail já tem conta pelo Google. Entre com o Google.');
 
 const takenRejection = (playerId: string) =>
   new CommandRejected('player_id_taken', `Player ID ${playerId} já está confirmado em outra conta`);
