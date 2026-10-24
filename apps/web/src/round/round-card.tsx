@@ -60,7 +60,7 @@ export const RoundCard = ({ api }: { api: Api }) => {
 
   const header = <p class="muted">{round.tournament} · Rodada {round.round} · {round.division}</p>;
   const seat = round.seat;
-  if (seat.kind === 'not_checked_in') return <section class="card">{header}<p>Faça o check-in com o ADM para ver a sua mesa e reportar.</p></section>;
+  if (seat.kind === 'not_checked_in') return <section class="card">{header}<p>Informe seu Player ID para ver a sua mesa e reportar.</p></section>;
   if (seat.kind === 'not_paired') {
     return <section class="card">{header}<p>Você não está em nenhuma mesa nesta rodada (bye ou fora do pareamento). Confira na TV do salão.</p></section>;
   }

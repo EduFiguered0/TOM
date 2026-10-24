@@ -56,7 +56,7 @@ export const App = ({ cognito, session, api, google, loginError }: Props) => {
       {screen.name === 'device' && <Device api={api} onActivated={(me) => { setScreen({ name: 'home', me }); }} onCancel={signOut} />}
       {screen.name === 'home' && (location.pathname.startsWith('/painel') && screen.me.role !== 'player'
         ? <PanelScreen api={api} me={screen.me} />
-        : <Home me={screen.me} api={api} onSignOut={signOut} />)}
+        : <Home me={screen.me} api={api} onSignOut={signOut} onChanged={(me) => { setScreen({ name: 'home', me }); }} />)}
       {screen.name === 'error' && (
         <section class="card">
           <p class="error" role="alert">{screen.message}</p>
