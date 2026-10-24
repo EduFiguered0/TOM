@@ -36,14 +36,18 @@ export const Register = ({ api, onRegistered }: Props) => {
   return (
     <section class="card">
       <h1>Cadastro</h1>
-      <p class="muted">Usamos estes dados só para organizar os torneios, o seu histórico e um ranking futuro. Nada é compartilhado com terceiros.</p>
+      <p class="muted">
+        Usamos estes dados só para organizar os torneios, o seu histórico e um ranking futuro. Nada é compartilhado com terceiros.{' '}
+        <a href="/privacidade" target="_blank" rel="noopener">Política de privacidade</a>
+      </p>
       <form onSubmit={(e) => { void submit(e); }}>
         <label for="name">Nome completo</label>
         <input id="name" autocomplete="name" required minLength={2} value={form.name} onInput={field('name')} />
         <label for="year">Ano de nascimento</label>
         <input id="year" inputmode="numeric" maxLength={4} required value={form.birthYear} onInput={field('birthYear')} />
         <label for="pid">Player ID da Pokémon</label>
-        <input id="pid" inputmode="numeric" value={form.playerId} onInput={field('playerId')} />
+        <input id="pid" inputmode="numeric" aria-describedby="pid-hint" value={form.playerId} onInput={field('playerId')} />
+        <span id="pid-hint" class="muted">Obrigatório para jogar</span>
         <label for="phone">Telefone (opcional)</label>
         <input id="phone" type="tel" autocomplete="tel" value={form.phone} onInput={field('phone')} />
         {minor && (

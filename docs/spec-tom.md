@@ -8,6 +8,8 @@ Oct 20, 2026 · @Edduardo Souza Figueredo · revisão 2: Oct 21, 2026 · revisã
 >
 > **Revisão 4.** Login com e-mail e senha no lugar do código por e-mail; Google pronto para ativar. Trechos marcados com **[R4]**.
 
+> **Revisão 5.** Player ID vale desde o cadastro, sem conferência do ADM; home pública da loja e política de privacidade. Trechos marcados com **[R5]**.
+
 ## Visão e problema
 
 O sistema é uma camada de auditoria de resultados entre os jogadores e o TOM: nenhuma rodada nova começa antes de todos os resultados da anterior estarem validados.
@@ -88,7 +90,7 @@ Os HTMLs reais gerados pelo TOM 1.86 num torneio de teste ficam em `packages/tom
 ## Fluxo do evento **[R2]**
 
 1. **Antes:** o jogador cria a conta online (a qualquer momento, inclusive em casa) entrando com a conta Google ou com e-mail e senha. **[R4]**
-2. **Check-in:** no salão, o jogador faz login pelo QR. No primeiro evento, o ADM confirma presencialmente que o Player ID é dele. O ADM lança os jogadores no TOM.
+2. **Check-in:** no salão, o jogador faz login pelo QR. O ADM lança os jogadores no TOM. **[R5]** Não há conferência do Player ID pelo ADM.
 3. **Rodadas:** o ciclo abaixo, uma vez por rodada.
 4. **Depois:** resultados e histórico já estão online; o jogador consulta quando quiser.
 
@@ -159,7 +161,7 @@ São três visões do mesmo estado, todas servidas online.
 | --- | --- | --- |
 | Celular do jogador | Só o jogador logado | Mesa e oponente da rodada atual (ex.: Mesa 1 — você x teste2), botões de reporte com placar e, fora do evento, o histórico do jogador |
 | TV do salão | Todos | Todos os pareamentos e o cronômetro da rodada; atende jogadores sem celular e o juiz |
-| Painel do ADM / juiz | Organização | Termômetro por mesa, motivo dos vermelhos, override, keys validadas, "key lançada", iniciar rodada, acréscimo por mesa, reporte em nome do jogador, confirmação de Player ID |
+| Painel do ADM / juiz | Organização | Termômetro por mesa, motivo dos vermelhos, override, keys validadas, "key lançada", iniciar rodada, acréscimo por mesa, reporte em nome do jogador, desfazer vínculo de Player ID **[R5]** |
 
 Atualização no celular: na primeira versão, por consulta periódica à API (polling) e atualização manual. Com o sistema online, notificação push (Web Push) e conexão aberta (WebSocket) passam a ser possíveis numa evolução.
 
@@ -176,14 +178,15 @@ O celular precisa deixar claro quando um reporte **não** foi enviado. Nunca mos
 | Acréscimo de tempo na mesa | | ✓ | ✓ |
 | Reportar em nome de jogador sem celular | | | ✓ |
 | Iniciar rodada, marcar "key lançada" | | | ✓ |
-| Confirmar Player ID no check-in, gerar token do enviador, configurar evento | | | ✓ |
+| Desfazer vínculo de Player ID **[R5]**, gerar token do enviador, configurar evento | | | ✓ |
 
 **Conta e Player ID.**
 
 - **[R4]** O jogador cria a conta online entrando com a **conta Google** ou com **e-mail e senha**. O cadastro com senha é confirmado na hora, sem código por e-mail (o e-mail não é verificado; risco aceito). O único e-mail enviado é o de "Esqueci minha senha".
 - Uma conta por e-mail; na v1 um responsável não gerencia mais de uma conta.
 - **[R4]** Quem entra pelo Google e também por e-mail e senha continua com uma conta só: no primeiro acesso pelo Google, a conta é encontrada pelo e-mail e o login do Google é ligado a ela. Como a senha não prova o e-mail, um login por senha nunca é ligado a uma conta existente ("Esse e-mail já tem conta"). Numa conta criada com senha, o primeiro acesso pelo Google prova o dono e retira os logins de senha: quem cadastrou o e-mail de outra pessoa perde o acesso. O Google só é aceito com e-mail verificado.
-- O vínculo conta ↔ Player ID só fica ativo depois que o ADM confirma presencialmente, no primeiro check-in. Isso impede alguém de registrar o Player ID de outra pessoa antes dela. Depois da confirmação, não precisa repetir.
+- **[R5]** O Player ID trava na hora do cadastro: o primeiro a cadastrar fica com ele. Quem tenta um Player ID em uso vê "Esse Player ID já está em uso, procure o ADM". Conta sem Player ID (ex.: entrou pelo Google) informa depois; para trocar um Player ID já cadastrado, só o ADM.
+- **[R5]** Se alguém cadastrou o Player ID de outra pessoa, o ADM usa **"Desfazer vínculo"**: o Player ID sai da conta errada (que continua existindo, mas não age) e o dono verdadeiro pode cadastrá-lo. Fica registrado como evento de auditoria (autor, horário, conta afetada).
 
 **Sessão única e dispositivo.**
 
@@ -256,7 +259,7 @@ Pontos de atenção:
 
 Todo toque vira um evento gravado, e o que as telas mostram é estado calculado em cima desses eventos.
 
-- **Eventos:** reporte (conta, Player ID, torneio, rodada, mesa, placar, horário), correção de reporte, override (autor, papel, motivo), acréscimo de tempo, início de rodada, key lançada, check-in, confirmação de Player ID, troca de dispositivo.
+- **Eventos:** reporte (conta, Player ID, torneio, rodada, mesa, placar, horário), correção de reporte, override (autor, papel, motivo), acréscimo de tempo, início de rodada, key lançada, check-in, Player ID informado e vínculo desfeito **[R5]**, troca de dispositivo.
 - **Fotografias do TOM:** cada nova versão dos HTMLs vai para o S3, particionada por torneio e data, e o histórico sai da comparação entre versões (rodada nova, resultado lançado, drop).
 - **Divisões:** o modelo de dados já leva a divisão na chave da mesa, mesmo que a v1 trate um evento com uma divisão só.
 - **Preparado para ranking:** o ranking não entra agora, mas os dados guardados já permitem calculá-lo depois sem migração: placar por partida, data do torneio, colocação final (standings), presença e divisão. O critério (pontos por vitória, presença, colocação) fica para a fase do ranking.
@@ -275,7 +278,7 @@ Uma fase por vez; cada fase tem os próprios testes e só começa a próxima dep
 | 3 | Modelo de eventos e recálculo do estado (repositório em memória, atrás de interface) | Não |
 | 4 | Enviador: observar a pasta do TOM e detectar escrita completa | Não |
 | 5 | Infraestrutura AWS como código, IAM mínimo, adaptadores DynamoDB e S3 | Sim |
-| 6 | Login, papéis, sessão única, troca de dispositivo, confirmação de Player ID | Sim |
+| 6 | Login, papéis, sessão única, troca de dispositivo, Player ID **[R5]** | Sim |
 | 7 | **[R3]** Celular do jogador: 7.1 site e login; 7.2 envio do enviador para a API com token do evento (antes fase 10); 7.3 rodada atual, reporte e atualização automática | Sim |
 | 8–9 | Telas: TV e painel do ADM / juiz | Sim |
 
@@ -339,3 +342,11 @@ Fora de escopo:
 | 2 | E-mail verificado em toda conta | Só o Google prova o e-mail; o e-mail serve apenas para o "Esqueci minha senha" |
 | 3 | Qualquer login novo é ligado pela conta do mesmo e-mail | Só o Google liga; senha num e-mail que já tem conta é recusada |
 | 4 | Token de renovação de 30 dias | 365 dias: o jogador não digita a senha a cada evento mensal |
+
+### Revisão 5 — Oct 24, 2026
+
+| # | Antes | Agora |
+| --- | --- | --- |
+| 1 | Player ID só vale depois que o ADM confere no primeiro check-in | Vale no cadastro; o primeiro a cadastrar fica com ele; o ADM desfaz vínculos errados |
+| 2 | Site só com a área logada | Home pública da loja (`/`), política de privacidade (`/privacidade`) e área logada em `/conta` |
+| 3 | Canal do titular (LGPD) não definido | Direct do Instagram `@goodgame.tcg`, resposta em até 15 dias |

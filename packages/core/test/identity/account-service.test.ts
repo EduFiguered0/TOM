@@ -6,6 +6,7 @@ import {
   type Identity,
   type Profile,
   type RejectCode,
+  toPlayerId,
 } from '../../src/index.js';
 import { TestClock } from '../tournament/support.js';
 import { accountRepositoryContract } from './account-repository-contract.js';
@@ -32,12 +33,12 @@ const rejects = async (promise: Promise<unknown>, code: RejectCode) => {
 };
 
 describe('cadastro', () => {
-  it('normaliza o perfil, deixa o Player ID pendente e ativa o primeiro dispositivo', async () => {
+  it('normaliza o perfil, grava o Player ID e ativa o primeiro dispositivo', async () => {
     const { service, accounts } = setup();
     const account = await service.register(identity(), ' Ana@Example.com ', { profile: adult, playerId: ' 100001 ' });
     expect(account).toMatchObject({ email: 'ana@example.com', logins: ['login-email'] });
     expect(account.profile).toEqual({ name: 'Ana Souza', birthYear: 1990, phone: '11988887777', guardianConsent: false });
-    expect(account.playerId).toEqual({ value: '100001', confirmed: false });
+    expect(account.playerId).toBe('100001');
     expect(account.activeSession).toBe('celular-1');
     expect(accounts.events.map((e) => e.type)).toEqual(['account_registered', 'player_id_claimed', 'session_activated']);
   });
@@ -155,35 +156,64 @@ describe('sessão única', () => {
 });
 
 describe('papéis e Player ID', () => {
-  it('jogador sem Player ID confirmado entra, mas ainda não age', async () => {
-    const { service } = setup();
-    await service.register(identity(), 'ana@example.com', { profile: adult, playerId: '100001' });
-    expect((await service.authenticate(identity())).actor).toBeNull();
-  });
+  const other = identity({ login: 'login-2', session: 's2' });
 
-  it('ADM confirma (e pode corrigir) o Player ID; aí o jogador vira ator', async () => {
+  it('cadastro com Player ID já age como jogador', async () => {
     const { service } = setup();
-    const { id } = await service.register(identity(), 'ana@example.com', { profile: adult, playerId: '100009' });
-    await service.confirmPlayerId(admin, id, '100001');
+    const { id } = await service.register(identity(), 'ana@example.com', { profile: adult, playerId: '100001' });
     expect((await service.authenticate(identity())).actor).toEqual({ role: 'player', accountId: id, playerId: '100001' });
   });
 
-  it('só o ADM consulta conta alheia e confirma Player ID', async () => {
+  it('Player ID em uso no cadastro: recusa com a mensagem e não grava a conta', async () => {
     const { service } = setup();
-    const { id } = await service.register(identity(), 'ana@example.com', { profile: adult, playerId: '100001' });
-    expect((await service.getAccount(admin, id)).playerId).toEqual({ value: '100001', confirmed: false });
-    await rejects(service.getAccount(null, id), 'forbidden');
-    await rejects(service.getAccount(admin, 'conta-9'), 'account_not_found');
-    await rejects(service.confirmPlayerId({ role: 'judge', accountId: 'juiz' }, id, '100001'), 'forbidden');
-    await rejects(service.confirmPlayerId(null, id, '100001'), 'forbidden');
+    await service.register(identity(), 'ana@example.com', { profile: adult, playerId: '100001' });
+    const second = service.register(other, 'bia@example.com', { profile: adult, playerId: '100001' });
+    await rejects(second, 'player_id_taken');
+    await expect(second).rejects.toThrow('Esse Player ID já está em uso, procure o ADM');
+    await rejects(service.authenticate(other), 'account_not_found');
   });
 
-  it('Player ID confirmado em outra conta é recusado', async () => {
+  it('conta sem Player ID informa depois; com Player ID, só o ADM troca', async () => {
+    const { service, accounts } = setup();
+    const { id } = await service.register(identity(), 'ana@example.com', { profile: adult, playerId: null });
+    expect((await service.authenticate(identity())).actor).toBeNull();
+    expect((await service.claimPlayerId(identity(), ' 100001 ')).playerId).toBe('100001');
+    expect(accounts.events.at(-1)).toMatchObject({ type: 'player_id_claimed', playerId: '100001' });
+    expect((await service.authenticate(identity())).actor).toEqual({ role: 'player', accountId: id, playerId: '100001' });
+    const again = service.claimPlayerId(identity(), '100002');
+    await rejects(again, 'player_id_set');
+    await expect(again).rejects.toThrow('Seu Player ID já está cadastrado. Para trocar, procure o ADM.');
+  });
+
+  it('informar depois um Player ID em uso é recusado com a mensagem', async () => {
     const { service } = setup();
-    const first = await service.register(identity(), 'ana@example.com', { profile: adult, playerId: '100001' });
-    const second = await service.register(identity({ login: 'login-2', session: 's2' }), 'bia@example.com', { profile: adult, playerId: '100001' });
-    await service.confirmPlayerId(admin, first.id, '100001');
-    await rejects(service.confirmPlayerId(admin, second.id, '100001'), 'player_id_taken');
+    await service.register(identity(), 'ana@example.com', { profile: adult, playerId: '100001' });
+    await service.register(other, 'bia@example.com', { profile: adult, playerId: null });
+    const claim = service.claimPlayerId(other, '100001');
+    await rejects(claim, 'player_id_taken');
+    await expect(claim).rejects.toThrow('Esse Player ID já está em uso, procure o ADM');
+  });
+
+  it('ADM desfaz o vínculo: a conta perde o poder de agir e o dono verdadeiro cadastra o mesmo Player ID', async () => {
+    const { service, accounts } = setup();
+    await service.register(identity(), 'ana@example.com', { profile: adult, playerId: '100001' });
+    expect((await service.findByPlayerId(admin, '100001')).email).toBe('ana@example.com');
+    expect((await service.unlinkPlayerId(admin, '100001')).playerId).toBeNull();
+    expect(accounts.events.at(-1)).toMatchObject({ type: 'player_id_unlinked', playerId: '100001', actor: admin });
+    expect((await service.authenticate(identity())).actor).toBeNull();
+    expect((await service.register(other, 'bia@example.com', { profile: adult, playerId: '100001' })).playerId).toBe('100001');
+  });
+
+  it('só o ADM busca e desfaz; Player ID sem conta dá 404', async () => {
+    const { service } = setup();
+    await service.register(identity(), 'ana@example.com', { profile: adult, playerId: '100001' });
+    const player = { role: 'player', accountId: 'x', playerId: toPlayerId('100002') } as const;
+    await rejects(service.findByPlayerId(player, '100001'), 'forbidden');
+    await rejects(service.unlinkPlayerId(player, '100001'), 'forbidden');
+    await rejects(service.findByPlayerId(null, '100001'), 'forbidden');
+    await rejects(service.findByPlayerId(admin, '999999'), 'account_not_found');
+    await expect(service.findByPlayerId(admin, '999999')).rejects.toThrow('Nenhuma conta com esse Player ID');
+    await rejects(service.unlinkPlayerId(admin, '999999'), 'account_not_found');
   });
 
   it('grupos do Cognito definem juiz e ADM', async () => {

@@ -48,7 +48,7 @@ export const PanelScreen = ({ api, me }: { api: Api; me: MeResponse }) => {
   return (
     <div class="panel">
       <header class="panel-head">
-        <a href="/" class="link">← Início</a>
+        <a href="/conta" class="link">← Início</a>
         <h1>Painel {admin ? 'do ADM' : 'do juiz'}</h1>
         {offline && <span class="error">Sem conexão · dados podem estar desatualizados</span>}
       </header>

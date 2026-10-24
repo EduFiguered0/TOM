@@ -22,8 +22,8 @@ export interface Account {
    */
   emailProven?: boolean;
   profile: Profile;
-  /** Informado pelo jogador; só vale para reportar depois que o ADM confirma no check-in. */
-  playerId: { value: PlayerId; confirmed: boolean } | null;
+  /** Informado pelo jogador; vale desde o cadastro. O primeiro a cadastrar fica com ele. */
+  playerId: PlayerId | null;
   /** Sessão do dispositivo ativo (`origin_jti` do token); tokens de outra sessão são recusados. */
   activeSession: string | null;
   createdAt: Date;
@@ -34,7 +34,8 @@ export type IdentityEventData =
   /** `dropped`: logins de senha retirados porque o Google provou o dono do e-mail. */
   | { type: 'login_linked'; login: string; dropped?: string[] }
   | { type: 'player_id_claimed'; playerId: PlayerId }
-  | { type: 'player_id_confirmed'; playerId: PlayerId }
+  /** O ADM tirou o Player ID da conta (vínculo errado); o dono verdadeiro pode cadastrá-lo. */
+  | { type: 'player_id_unlinked'; playerId: PlayerId }
   | { type: 'session_activated'; session: string; replaced: string | null };
 
 /** Fato gravado junto com a conta, para auditoria. */

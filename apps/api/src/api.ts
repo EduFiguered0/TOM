@@ -1,9 +1,9 @@
 import {
   InvalidRequestError,
-  parseConfirmPlayerIdRequest,
   parseCreateEventRequest,
   parseExtendRequest,
   parseOverrideRequest,
+  parsePlayerIdRequest,
   parseStaffReportRequest,
   parseRegisterRequest,
   parseReportRequest,
@@ -80,6 +80,7 @@ const STATUS: Record<RejectCode, number> = {
   account_exists: 409,
   session_conflict: 409,
   player_id_taken: 409,
+  player_id_set: 409,
   concurrency: 409,
   round_not_paired: 409,
   round_already_started: 409,
@@ -150,9 +151,10 @@ interface OpenRoute {
   handle: (request: HttpRequest) => Promise<HttpResponse>;
 }
 
-/** Identificador de conta ou evento no caminho (UUID). */
-const ACCOUNT_ID = '([0-9a-f-]{36})';
-const EVENT_ID = ACCOUNT_ID;
+/** Identificador de evento no caminho (UUID). */
+const EVENT_ID = '([0-9a-f-]{36})';
+/** Player ID no caminho: só dígitos. */
+const PLAYER_ID = '([0-9]{1,20})';
 
 /** Roteador da API: uma Lambda atende todas as rotas. Todas exigem token de acesso válido. */
 export const createApi = ({ tokens, emails, accounts, events, ingest, board, rounds, reader, registry, clock, logError }: ApiDeps) => {
@@ -195,23 +197,31 @@ export const createApi = ({ tokens, emails, accounts, events, ingest, board, rou
       },
     },
     {
-      method: 'GET', path: new RegExp(`^/accounts/${ACCOUNT_ID}$`),
-      handle: async ({ identity, params: [id = ''] }) => {
-        const { actor } = await accounts.authenticate(identity);
-        return { status: 200, body: toAccount(await accounts.getAccount(actor, id)) };
-      },
-    },
-    {
-      method: 'POST', path: new RegExp(`^/accounts/${ACCOUNT_ID}/player-id$`),
-      handle: async ({ request, identity, params: [id = ''] }) => {
-        const { playerId } = parseConfirmPlayerIdRequest(jsonBody(request));
-        const { actor } = await accounts.authenticate(identity);
-        return { status: 200, body: toAccount(await accounts.confirmPlayerId(actor, id, playerId)) };
+      method: 'POST', path: /^\/me\/player-id$/,
+      handle: async ({ request, identity }) => {
+        const { playerId } = parsePlayerIdRequest(jsonBody(request));
+        await accounts.authenticate(identity);
+        await accounts.claimPlayerId(identity, playerId);
+        return { status: 200, body: toMe(await accounts.authenticate(identity)) };
       },
     },
   ];
 
   const adminRoutes: Route[] = [
+    {
+      method: 'GET', path: new RegExp(`^/player-ids/${PLAYER_ID}$`),
+      handle: async ({ identity, params: [pid = ''] }) => {
+        const { actor } = await accounts.authenticate(identity);
+        return { status: 200, body: toAccount(await accounts.findByPlayerId(actor, pid)) };
+      },
+    },
+    {
+      method: 'POST', path: new RegExp(`^/player-ids/${PLAYER_ID}/unlink$`),
+      handle: async ({ identity, params: [pid = ''] }) => {
+        const { actor } = await accounts.authenticate(identity);
+        return { status: 200, body: toAccount(await accounts.unlinkPlayerId(actor, pid)) };
+      },
+    },
     {
       method: 'POST', path: /^\/events$/,
       handle: async ({ request, identity }) => {
@@ -253,7 +263,7 @@ export const createApi = ({ tokens, emails, accounts, events, ingest, board, rou
       handle: async ({ request, identity }) => {
         const { report } = parseReportRequest(jsonBody(request));
         const { actor } = await accounts.authenticate(identity);
-        if (actor?.role !== 'player') throw new CommandRejected('forbidden', 'Só jogador com check-in feito reporta pela própria mesa');
+        if (actor?.role !== 'player') throw new CommandRejected('forbidden', 'Informe seu Player ID para reportar pela própria mesa');
         const ref = await currentRef();
         // A mesa do jogador não muda depois do pareamento: dá para usar o cache; o reporte em si relê o estado.
         const table = (await reader.state(ref)).tables.find((t) => t.player1.playerId === actor.playerId || t.player2.playerId === actor.playerId);

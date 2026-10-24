@@ -46,9 +46,9 @@ export const createApi = (session: Session, base = '/api', fetchFn: typeof fetch
     me: () => call<MeResponse>('GET', '/me'),
     register: (request: RegisterRequest) => call<MeResponse>('POST', '/me', request),
     activateSession: (replace: boolean) => call<MeResponse>('POST', '/session', { replace }),
-    account: (id: string) => call<AccountResponse>('GET', `/accounts/${encodeURIComponent(id)}`),
-    confirmPlayerId: (id: string, playerId: string) =>
-      call<AccountResponse>('POST', `/accounts/${encodeURIComponent(id)}/player-id`, { playerId }),
+    claimPlayerId: (playerId: string) => call<MeResponse>('POST', '/me/player-id', { playerId }),
+    accountByPlayerId: (playerId: string) => call<AccountResponse>('GET', `/player-ids/${encodeURIComponent(playerId)}`),
+    unlinkPlayerId: (playerId: string) => call<AccountResponse>('POST', `/player-ids/${encodeURIComponent(playerId)}/unlink`),
     createEvent: (label: string) => call<CreateEventResponse>('POST', '/events', { label }),
     myRound: () => call<MyRoundResponse>('GET', '/round/me'),
     report: (report: ReportDto) => call<MyRoundResponse>('POST', '/round/report', { report }),

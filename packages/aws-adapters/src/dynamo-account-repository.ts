@@ -19,9 +19,13 @@ export interface DynamoAccountRepositoryOptions {
   retentionDays?: number;
 }
 
-type StoredAccount = Omit<Account, 'createdAt'> & { createdAt: string };
+/** Contas de antes do plano 2 guardam o Player ID como `{ value, confirmed }`; só o confirmado tem trava. */
+type StoredAccount = Omit<Account, 'createdAt' | 'playerId'> & {
+  createdAt: string;
+  playerId: PlayerId | { value: PlayerId; confirmed: boolean } | null;
+};
 
-/** Travas de unicidade: cada login, o e-mail e o Player ID confirmado apontam para uma única conta. */
+/** Travas de unicidade: cada login, o e-mail e o Player ID apontam para uma única conta. */
 type LockKind = 'login' | 'email' | 'playerId';
 interface Lock { kind: LockKind; value: string }
 
@@ -32,7 +36,7 @@ const lockId = (lock: Lock) => `${lock.kind}#${lock.value}`;
 const locksOf = (account: Account): Lock[] => [
   ...account.logins.map((value) => ({ kind: 'login' as const, value })),
   { kind: 'email', value: account.email },
-  ...(account.playerId?.confirmed ? [{ kind: 'playerId' as const, value: account.playerId.value }] : []),
+  ...(account.playerId ? [{ kind: 'playerId' as const, value: account.playerId }] : []),
 ];
 
 /** Itens na mesma tabela: a conta (com a versão), os eventos de auditoria e as travas de unicidade. */
@@ -58,10 +62,9 @@ export class DynamoAccountRepository implements AccountRepository {
     return this.byLock({ kind: 'email', value: email });
   }
 
-  async findByConfirmedPlayerId(playerId: PlayerId): Promise<Account | null> {
+  async findByPlayerId(playerId: PlayerId): Promise<AccountRecord | null> {
     const record = await this.byLock({ kind: 'playerId', value: playerId });
-    const confirmed = record?.account.playerId;
-    return record && confirmed?.confirmed && confirmed.value === playerId ? record.account : null;
+    return record?.account.playerId === playerId ? record : null;
   }
 
   async save(account: Account, events: readonly IdentityEvent[], expectedVersion: number): Promise<number> {
@@ -92,7 +95,15 @@ export class DynamoAccountRepository implements AccountRepository {
         ExpressionAttributeValues: { ':me': account.id },
       },
     }));
-    const lockDeletes = removed.map((lock) => ({ Delete: { TableName: this.tableName, Key: lockKey(lock) } }));
+    // Só apaga a trava que é desta conta.
+    const lockDeletes = removed.map((lock) => ({
+      Delete: {
+        TableName: this.tableName,
+        Key: lockKey(lock),
+        ConditionExpression: 'attribute_not_exists(pk) OR accountId = :me',
+        ExpressionAttributeValues: { ':me': account.id },
+      },
+    }));
     const eventPuts = events.map((event) => ({
       Put: {
         TableName: this.tableName,
@@ -114,7 +125,7 @@ export class DynamoAccountRepository implements AccountRepository {
       const failed = (i: number) => reasons[i]?.Code === 'ConditionalCheckFailed';
       if (failed(0)) throw new ConcurrencyError('Conta alterada por outra gravação');
       const lock = added.find((_, i) => failed(i + 1));
-      if (lock?.kind === 'playerId') throw new PlayerIdTakenError(`Player ID ${lock.value} já confirmado em outra conta`);
+      if (lock?.kind === 'playerId') throw new PlayerIdTakenError(`Player ID ${lock.value} já pertence a outra conta`);
       if (lock) throw new AccountConflictError(`${lock.kind === 'email' ? 'E-mail' : 'Login'} já pertence a outra conta`);
       throw error;
     }
@@ -134,4 +145,12 @@ export class DynamoAccountRepository implements AccountRepository {
 
 const toStored = (account: Account): StoredAccount => ({ ...account, createdAt: account.createdAt.toISOString() });
 
-const fromStored = (stored: StoredAccount): Account => ({ ...stored, createdAt: new Date(stored.createdAt) });
+export const fromStored = (stored: StoredAccount): Account => {
+  const { playerId } = stored;
+  return {
+    ...stored,
+    // Pendente antigo não tem trava (pode haver outro com o mesmo valor): volta a não ter Player ID e informa de novo.
+    playerId: playerId !== null && typeof playerId === 'object' ? (playerId.confirmed ? playerId.value : null) : playerId,
+    createdAt: new Date(stored.createdAt),
+  };
+};
