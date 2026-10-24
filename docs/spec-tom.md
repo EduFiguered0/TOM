@@ -1,8 +1,10 @@
 # Spec — Sistema de apoio a torneios Pokémon TCG (TOM)
 
-Oct 20, 2026 · @Edduardo Souza Figueredo · revisão 2: Oct 21, 2026
+Oct 20, 2026 · @Edduardo Souza Figueredo · revisão 2: Oct 21, 2026 · revisão 3: Oct 23, 2026
 
 > **Revisão 2.** O sistema deixou de ser local-first e passou a ser 100% online. Os trechos marcados com **[R2]** mudaram nesta revisão; o registro completo está em "Registro de decisões", no fim do documento.
+>
+> **Revisão 3.** Login com conta Google (ou código por e-mail para quem não usa Google), confirmação na tela para troca de dispositivo e custo como critério principal. Trechos marcados com **[R3]**.
 
 ## Visão e problema
 
@@ -28,7 +30,7 @@ flowchart TB
     ADM -->|ADM lança as keys manualmente| TOM
   end
   subgraph AWS["Online (AWS)"]
-    API["API<br/>API Gateway + Lambda"]
+    API["API<br/>Lambda Function URL"]
     AUTH["Login<br/>Cognito"]
     DB["Banco<br/>DynamoDB"]
     S3["HTMLs brutos<br/>S3"]
@@ -55,8 +57,9 @@ Tudo roda online, com HTTPS de ponta a ponta. A única peça local é o **enviad
 
 - Domínio puro (parser do TOM, termômetro, regras de resultado) em TypeScript sem nenhuma dependência de AWS. A AWS fica atrás de interfaces (inversão de dependência), então o núcleo roda e é testado sem nuvem.
 - Arquitetura do repositório (camadas, pacotes e regra de dependência): ver `docs/adr/0001-arquitetura-do-repositorio.md`.
-- AWS: Cognito (login e códigos por e-mail), API Gateway + Lambda, DynamoDB, S3 (HTMLs brutos), CloudFront (site).
-- Escala: até 100 jogadores (50 mesas) por evento. Os serviços "sempre gratuitos" cobrem isso com folga; as condições do Free Tier para contas novas mudaram em 2025 e devem ser conferidas na criação da conta.
+- AWS: Cognito (login com Google e códigos por e-mail) **[R3]**, Lambda com Function URL, sem API Gateway **[R3]**, DynamoDB, S3 (HTMLs brutos), CloudFront (site). Recursos, preços e projeções em "Recursos AWS e custos".
+- **Custo é o critério principal [R3]:** entre opções que atendem a spec, vence a que consome menos recursos da AWS (o ideal é custo zero). Cada escolha de serviço vem com a diferença de custo e uma projeção por evento/mês.
+- Escala: até 100 jogadores (50 mesas) por evento.
 
 ## Fontes de dados do TOM
 
@@ -82,7 +85,7 @@ Os HTMLs reais gerados pelo TOM 1.86 num torneio de teste ficam em `packages/tom
 
 ## Fluxo do evento **[R2]**
 
-1. **Antes:** o jogador cria a conta online (a qualquer momento, inclusive em casa) e verifica o e-mail.
+1. **Antes:** o jogador cria a conta online (a qualquer momento, inclusive em casa) entrando com a conta Google ou com um código enviado ao e-mail. **[R3]**
 2. **Check-in:** no salão, o jogador faz login pelo QR. No primeiro evento, o ADM confirma presencialmente que o Player ID é dele. O ADM lança os jogadores no TOM.
 3. **Rodadas:** o ciclo abaixo, uma vez por rodada.
 4. **Depois:** resultados e histórico já estão online; o jogador consulta quando quiser.
@@ -175,14 +178,17 @@ O celular precisa deixar claro quando um reporte **não** foi enviado. Nunca mos
 
 **Conta e Player ID.**
 
-- O jogador cria a conta online com e-mail verificado. Uma conta por e-mail; na v1 um responsável não gerencia mais de uma conta.
+- O jogador cria a conta online entrando com a **conta Google** ou, para quem não tem ou não pode usar Google (ex.: crianças), com um **código de uso único enviado ao e-mail**, sem senha. Os dois caminhos levam ao mesmo e-mail verificado. **[R3]**
+- Uma conta por e-mail; na v1 um responsável não gerencia mais de uma conta.
+- **[R3]** Quem entra pelo Google e também pelo código por e-mail continua com uma conta só: no primeiro acesso por uma forma nova, a conta é encontrada pelo e-mail verificado e o novo login é ligado a ela. O Google só é aceito com e-mail verificado.
 - O vínculo conta ↔ Player ID só fica ativo depois que o ADM confirma presencialmente, no primeiro check-in. Isso impede alguém de registrar o Player ID de outra pessoa antes dela. Depois da confirmação, não precisa repetir.
 
 **Sessão única e dispositivo.**
 
 - Cada conta tem um único dispositivo ativo. Não há duas sessões simultâneas, então ninguém reporta pela conta de outro em paralelo.
-- Login num dispositivo novo exige um código enviado ao e-mail da conta. Ao confirmar, o dispositivo antigo é revogado na hora.
-- Só e-mail na v1 (sem SMS).
+- **[R3]** No primeiro acesso a sessão é ativada direto. Ao entrar num dispositivo novo com outro já ativo, o jogador confirma na tela ("entrar aqui desconecta o outro dispositivo") e o anterior é revogado na hora. Quem entra por e-mail já recebe um código a cada login num dispositivo novo; quem entra pelo Google já provou o e-mail no próprio Google.
+- A revogação vale na hora: a API guarda a sessão ativa de cada conta e recusa tokens de outra sessão, mesmo que ainda não tenham expirado. O token de acesso dura 15 minutos.
+- Só e-mail na v1 (sem SMS). O remetente dos e-mails (domínio próprio ou não) e o acesso de produção do SES são definidos antes do primeiro evento.
 
 **Transporte.** HTTPS em tudo, desde o início.
 
@@ -197,6 +203,37 @@ O consentimento dado à Pokémon na criação do Player ID não cobre a base pr�
 - Um contato e uma opção para pedido de exclusão dos dados.
 
 **Retenção.** Todos os dados têm prazo de validade (TTL) de **24 meses**: a conta expira após 24 meses sem participar de evento, e os resultados expiram 24 meses após o torneio. O ranking futuro fica limitado a essa janela. Pedido de exclusão apaga antes do prazo.
+
+## Recursos AWS e custos **[R3]**
+
+Tudo em us-east-2 (região única do projeto AWS). Cada recurso de produção tem um gêmeo descartável usado só nos testes reais (`npm run test:aws`), com retenção de 1 dia. Preços oficiais conferidos em Oct 23, 2026 (região da AWS nos EUA); projeção para 100 jogadores e 1 evento por mês.
+
+| Recurso | Stack (produção / testes) | Para quê | Preço | Projeção/mês |
+| --- | --- | --- | --- | --- |
+| DynamoDB `Events` (sob demanda, TTL 24 meses, PITR em produção) | TomData / TomTest | Eventos das rodadas | US$ 0,625 por milhão de escritas, US$ 0,125 por milhão de leituras; 25 GB grátis; PITR US$ 0,20/GB-mês | < US$ 0,10 |
+| DynamoDB `Accounts` (idem) | TomData / TomTest | Contas, auditoria de identidade e trava do Player ID | idem | < US$ 0,01 |
+| S3 `Snapshots` (privado, SSE-S3, só HTTPS, expira em 24 meses) | TomData / TomTest | Fotografias dos HTMLs do TOM | US$ 0,023/GB-mês; US$ 0,005 por mil gravações | < US$ 0,01 |
+| Cognito user pool, plano Essentials | TomAuth / TomAuthTest | Login (código por e-mail; Google na 6.3), grupos admin e judge | 10 mil usuários ativos/mês grátis; depois US$ 0,015 cada | US$ 0 |
+| E-mail do Cognito (padrão, sem SES) | TomAuth | Códigos de verificação e login | Grátis; limite de ~50 e-mails/dia | US$ 0 |
+| Lambda `Handler` (Node 22, Arm, 256 MB) | TomApi / TomApiTest | API inteira (roteador único) | US$ 0,20 por milhão + US$ 0,0000133/GB-s; 1 milhão de execuções e 400 mil GB-s grátis por mês | US$ 0 |
+| Lambda Function URL | TomApi / TomApiTest | Endereço HTTPS da API, sem API Gateway | Sem cobrança própria | US$ 0 |
+| CloudWatch Logs (14 dias) | TomApi / TomApiTest | Logs da Lambda | 5 GB/mês grátis; depois ~US$ 0,50/GB | US$ 0 |
+| Bootstrap do CDK (`CDKToolkit`) | — | Bucket de assets e roles de deploy | S3 e ECR mínimos | ~US$ 0 |
+
+**Total projetado: menos de US$ 0,20/mês**, coberto pelos créditos do Free plan (US$ 100, até abril de 2027).
+
+Escolhas feitas por custo:
+
+- **Function URL em vez de API Gateway:** o HTTP API custaria US$ 1,00 por milhão de chamadas (franquia só nos primeiros 12 meses); a Function URL só cobra a Lambda, que tem franquia mensal permanente. O token é validado no código (`aws-jwt-verify`); a cota de 10 execuções simultâneas da conta limita o gasto em caso de abuso.
+- **Cognito Essentials:** necessário para o código por e-mail; custo zero até 10 mil usuários ativos/mês. O plano Plus (proteção contra ameaças) custaria US$ 0,02 por usuário, sem franquia.
+- **Lambda em Arm com 256 MB:** ~20% mais barata que x86; pacote de 27 KB (o SDK da AWS vem no runtime).
+- **Logs por 14 dias** e **TTL** em tabelas e bucket: nada acumula custo de armazenamento.
+
+Pontos de atenção:
+
+- **DynamoDB sob demanda não tem requisições grátis**; a franquia permanente (25 unidades de leitura e 25 de escrita) só vale no modo provisionado. O polling da fase 7 (~290 mil chamadas por evento) é o maior consumidor previsto; a fase 7 avalia cache e o modo provisionado para chegar a custo zero.
+- **SES:** remetente e acesso de produção definidos antes do primeiro evento (US$ 0,10 por mil e-mails; ~US$ 0,02/mês).
+- O Free plan termina em abril de 2027; depois disso a conta precisa passar para o plano pago para continuar.
 
 ## Resiliência **[R2]**
 
@@ -240,6 +277,8 @@ Em aberto:
 
 - [x] Dependência do match_slips: as guias são obrigatórias em toda rodada com mesas. Sem elas (ou com guias de outra rodada), o pareamento é recusado e o sistema pede para gerar as guias no TOM. Sem fallback por nome na v1.
 - [x] Como o enviador percebe que o TOM terminou de escrever: o arquivo fica sem mudar de tamanho e data por 1,5 s e termina em `</html>`. A pasta é lida por polling a cada 1 s (o `fs.watch` perde eventos no Windows/OneDrive). Todos os HTMLs do evento mais recente são enviados, inclusive brackets; conteúdo idêntico (mesmo SHA-256) não é reenviado. A frequência real de regravação do TOM sai do log do enviador num evento real.
+- [ ] Login com Google **[R3]**: domínios de login prontos (`tom-pokemon-login`, `tom-pokemon-login-teste`); faltam o cliente OAuth no Google Cloud, o cadastro do provedor no Cognito (comando único, segredo fora do repositório; ver README) e liberar o Google no cliente do app.
+- [ ] Remetente dos e-mails e acesso de produção do SES **[R3]**: necessários antes do primeiro evento (limite atual de ~50 e-mails/dia) e para o e-mail do código de login em português.
 - [ ] Top cut / eliminatória (arquivo brackets).
 - [ ] Critério do ranking (fase futura).
 - [ ] Atualização em tempo real no celular sem polling (evolução).
@@ -269,3 +308,13 @@ Fora de escopo:
 | 10 | Dados: nome e Player ID | Nome, Player ID, e-mail, ano de nascimento, telefone opcional; TTL de 24 meses |
 | 11 | Stack em aberto | TypeScript de ponta a ponta; Cognito, API Gateway, Lambda, DynamoDB, S3, CloudFront |
 | 12 | Uma divisão | Modelo preparado para várias divisões e para ranking futuro |
+
+### Revisão 3 — Oct 23, 2026
+
+| # | Antes | Agora |
+| --- | --- | --- |
+| 1 | Conta com e-mail verificado | Login com conta Google; alternativa sem senha com código por e-mail para quem não usa Google |
+| 2 | Dispositivo novo exige código por e-mail | Dispositivo novo pede confirmação na tela e revoga o anterior na hora; o código por e-mail fica só no login de quem não usa Google |
+| 3 | Custo não era critério explícito | Menor custo (ideal zero) é o critério principal; cada escolha traz diferença de custo e projeção |
+| 4 | API Gateway + Lambda | Lambda com Function URL (sem API Gateway); token validado no código |
+| 5 | Conta = usuário do Cognito | Conta com id próprio e vários logins (Google, código por e-mail) unificados pelo e-mail verificado |

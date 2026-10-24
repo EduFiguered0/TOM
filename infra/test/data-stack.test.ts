@@ -25,6 +25,15 @@ describe('DataStack', () => {
     });
   });
 
+  it('tabela de contas: chave genérica (conta, auditoria e trava do Player ID), sob demanda, com TTL', () => {
+    prod.resourceCountIs('AWS::DynamoDB::Table', 2);
+    prod.hasResourceProperties('AWS::DynamoDB::Table', {
+      AttributeDefinitions: [{ AttributeName: 'pk', AttributeType: 'S' }, { AttributeName: 'sk', AttributeType: 'S' }],
+      BillingMode: 'PAY_PER_REQUEST',
+      TimeToLiveSpecification: { AttributeName: 'expiresAt', Enabled: true },
+    });
+  });
+
   it('bucket privado, criptografado, só HTTPS', () => {
     prod.hasResourceProperties('AWS::S3::Bucket', {
       PublicAccessBlockConfiguration: {
@@ -72,7 +81,8 @@ describe('DataStack', () => {
     }
   });
 
-  it('passa nas regras de segurança do cdk-nag', () => {
+  // Sintetiza todas as stacks e empacota a Lambda: ~3 s, mais com a máquina carregada.
+  it('passa nas regras de segurança do cdk-nag', { timeout: 30_000 }, () => {
     expect(() => buildApp('123456789012', newApp()).app.synth()).not.toThrow();
   });
 });

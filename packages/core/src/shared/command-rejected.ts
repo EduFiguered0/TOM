@@ -11,7 +11,12 @@ export type RejectCode =
   | 'table_locked'
   | 'not_green'
   | 'key_already_launched'
-  | 'concurrency';
+  | 'concurrency'
+  | 'account_exists'
+  | 'account_not_found'
+  | 'session_conflict'
+  | 'session_inactive'
+  | 'player_id_taken';
 
 /** Comando recusado por regra de negócio; nada foi gravado. */
 export class CommandRejected extends Error {

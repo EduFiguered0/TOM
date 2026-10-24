@@ -1,0 +1,26 @@
+{
+  "name": "@tom/api",
+  "version": "0.0.0",
+  "private": true,
+  "description": "API: uma Lambda atrás de Function URL, com roteador interno.",
+  "type": "module",
+  "exports": {
+    ".": {
+      "source": "./src/index.ts",
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "dependencies": {
+    "@aws-sdk/client-cognito-identity-provider": "^3.1156.0",
+    "@aws-sdk/client-dynamodb": "^3.1156.0",
+    "@aws-sdk/lib-dynamodb": "^3.1156.0",
+    "@tom/aws-adapters": "0.0.0",
+    "@tom/contracts": "0.0.0",
+    "@tom/core": "0.0.0",
+    "aws-jwt-verify": "^5.2.1"
+  },
+  "devDependencies": {
+    "@types/aws-lambda": "^8.10.164"
+  }
+}

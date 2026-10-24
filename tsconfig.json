@@ -4,6 +4,8 @@
     { "path": "packages/core" },
     { "path": "packages/tom-reports" },
     { "path": "packages/aws-adapters" },
+    { "path": "packages/contracts" },
+    { "path": "apps/api" },
     { "path": "apps/uploader" }
   ]
 }

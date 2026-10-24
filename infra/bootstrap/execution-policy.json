@@ -4,7 +4,11 @@
     {
       "Sid": "DadosDoProjeto",
       "Effect": "Allow",
-      "Action": ["dynamodb:*", "s3:*", "lambda:*"],
+      "Action": [
+        "dynamodb:*",
+        "s3:*",
+        "lambda:*"
+      ],
       "Resource": [
         "arn:aws:dynamodb:us-east-2:*:table/Tom*",
         "arn:aws:s3:::tom*",
@@ -14,9 +18,19 @@
     {
       "Sid": "ServicosRegionais",
       "Effect": "Allow",
-      "Action": ["apigateway:*", "cognito-idp:*", "logs:*", "ssm:GetParameter", "ssm:GetParameters"],
+      "Action": [
+        "apigateway:*",
+        "cognito-idp:*",
+        "logs:*",
+        "ssm:GetParameter",
+        "ssm:GetParameters"
+      ],
       "Resource": "*",
-      "Condition": { "StringEquals": { "aws:RequestedRegion": "us-east-2" } }
+      "Condition": {
+        "StringEquals": {
+          "aws:RequestedRegion": "us-east-2"
+        }
+      }
     },
     {
       "Sid": "CloudFrontGlobal",
@@ -28,11 +42,32 @@
       "Sid": "RolesDeServicoDoProjeto",
       "Effect": "Allow",
       "Action": [
-        "iam:CreateRole", "iam:DeleteRole", "iam:GetRole", "iam:PassRole", "iam:TagRole", "iam:UntagRole",
-        "iam:UpdateAssumeRolePolicy", "iam:AttachRolePolicy", "iam:DetachRolePolicy",
-        "iam:PutRolePolicy", "iam:DeleteRolePolicy", "iam:GetRolePolicy"
+        "iam:CreateRole",
+        "iam:DeleteRole",
+        "iam:GetRole",
+        "iam:PassRole",
+        "iam:TagRole",
+        "iam:UntagRole",
+        "iam:UpdateAssumeRolePolicy",
+        "iam:AttachRolePolicy",
+        "iam:DetachRolePolicy",
+        "iam:PutRolePolicy",
+        "iam:DeleteRolePolicy",
+        "iam:GetRolePolicy"
       ],
       "Resource": "arn:aws:iam::*:role/Tom*"
+    },
+    {
+      "Sid": "LerOutputsDasStacks",
+      "Effect": "Allow",
+      "Action": "cloudformation:DescribeStacks",
+      "Resource": "arn:aws:cloudformation:us-east-2:*:stack/Tom*/*"
+    },
+    {
+      "Sid": "LerPacotesDoCdk",
+      "Effect": "Allow",
+      "Action": "s3:GetObject",
+      "Resource": "arn:aws:s3:::cdk-hnb659fds-assets-*-us-east-2/*"
     }
   ]
 }
