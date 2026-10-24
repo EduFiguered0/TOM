@@ -7,6 +7,7 @@ const account = (judge: boolean): Account => ({
 });
 const event = (judges: string[]): TournamentEvent => ({
   id: 'ev', label: 'Liga', tournament: 'FODASE', tokenHash: 'h', revoked: false, createdAt: new Date(), createdBy: 'adm', judges,
+  date: '2026-10-24', roundMinutes: 30, status: 'running', code: null, standings: null,
 });
 const player = (judge: boolean): Principal => ({ account: account(judge), actor: null });
 

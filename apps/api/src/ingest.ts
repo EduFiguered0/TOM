@@ -14,6 +14,7 @@ import {
   InconsistentReportsError,
   parseMatchSlips,
   parsePairings,
+  parseStandings,
   toRoundPairings,
   TomParseError,
 } from '@tom/tom-reports';
@@ -63,6 +64,23 @@ export const createIngest = ({ events, registry, snapshots, rounds, clock }: Ing
     return true;
   };
 
+  /** Standings da última rodada prevista: o TOM terminou o torneio e o ADM pode encerrar o evento. */
+  const finalResult = async (eventId: string, content: string): Promise<UploadResponse> => {
+    let report;
+    try {
+      report = parseStandings(content);
+    } catch (e) {
+      if (e instanceof TomParseError) return nothing(true, e.message);
+      throw e;
+    }
+    if (report.totalRounds === null || report.round < report.totalRounds) return nothing(true, null);
+    const event = await events.markFinal(eventId, report.standings.map((s) => ({
+      division: s.division, rank: s.rank, name: s.name, wins: s.record.wins, losses: s.record.losses, ties: s.record.ties,
+    })));
+    // Antes de o evento começar (ex.: torneio de teste no TOM), os standings só ficam guardados.
+    return nothing(true, event.status === 'final' ? 'Resultado final recebido' : null);
+  };
+
   return async (token: string, upload: UploadRequest): Promise<UploadResponse> => {
     const id = identifyReportFile(upload.fileName);
     if (id?.tournament !== upload.tournament || id.type !== upload.report) {
@@ -84,6 +102,7 @@ export const createIngest = ({ events, registry, snapshots, rounds, clock }: Ing
       throw e;
     }
     if (!stored) return nothing(false, 'Versão já recebida');
+    if (upload.report === 'standings') return finalResult(event.id, upload.content);
     if (!(ROUND_REPORTS as readonly string[]).includes(upload.report)) return nothing(true, null);
 
     const [slips, pairings] = await Promise.all([latest(upload.tournament, 'match_slips'), latest(upload.tournament, 'pairings')]);

@@ -1,4 +1,4 @@
-import type { BoardResponse } from '@tom/contracts';
+import type { RoundBoard } from '@tom/contracts';
 
 export type Clock =
   | { state: 'waiting' }
@@ -11,7 +11,7 @@ const WARNING_MS = 5 * 60_000;
  * Cronômetro da rodada. `skewMs` = relógio do servidor − relógio local, medido na última resposta:
  * a TV pode estar com a hora errada, o servidor não.
  */
-export const roundClock = (board: Pick<BoardResponse, 'endsAt'>, nowMs: number, skewMs: number): Clock => {
+export const roundClock = (board: Pick<RoundBoard, 'endsAt'>, nowMs: number, skewMs: number): Clock => {
   if (!board.endsAt) return { state: 'waiting' };
   const left = Date.parse(board.endsAt) - (nowMs + skewMs);
   if (left <= 0) return { state: 'over' };
@@ -26,3 +26,10 @@ export const pages = <T>(items: readonly T[], perPage: number): T[][] => {
   for (let i = 0; i < items.length; i += perPage) result.push(items.slice(i, i + perPage));
   return result.length ? result : [[]];
 };
+
+/** Caminho SVG do QR: um quadrado por módulo escuro. Montado no JSX, sem innerHTML. */
+export const qrPath = (data: readonly (readonly boolean[])[]): string =>
+  data.flatMap((row, y) => row.flatMap((dark, x) => (dark ? [`M${String(x)} ${String(y)}h1v1h-1z`] : []))).join('');
+
+/** Endereço que o QR abre: a inscrição no evento. */
+export const joinUrl = (origin: string, code: string): string => `${origin}/e/${code}`;

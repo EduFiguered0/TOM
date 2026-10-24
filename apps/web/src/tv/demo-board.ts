@@ -1,4 +1,4 @@
-import type { BoardResponse, TableColor } from '@tom/contracts';
+import type { RoundBoard, TableColor } from '@tom/contracts';
 
 /** Dados fictícios para aprovar o layout da TV; somem quando a ingestão do TOM (7.2) chegar. */
 const NAMES = [
@@ -13,7 +13,7 @@ const NAMES = [
 
 const COLORS: TableColor[] = ['green', 'green', 'orange', 'gray', 'green', 'red', 'orange', 'green', 'gray', 'green'];
 
-export const demoBoard = (now = Date.now()): BoardResponse => {
+export const demoBoard = (now = Date.now()): RoundBoard => {
   const startedAt = now - 18 * 60_000;
   return {
     tournament: 'Liga Local de Outubro',

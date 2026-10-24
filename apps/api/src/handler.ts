@@ -2,8 +2,8 @@ import { CognitoIdentityProviderClient } from '@aws-sdk/client-cognito-identity-
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
 import { S3Client } from '@aws-sdk/client-s3';
 import { DynamoDBDocumentClient } from '@aws-sdk/lib-dynamodb';
-import { DynamoAccountRepository, DynamoEventRegistry, DynamoEventStore, S3SnapshotStore } from '@tom/aws-adapters';
-import { AccountService, EventService, RoundService } from '@tom/core';
+import { DynamoAccountRepository, DynamoEventRegistry, DynamoEventStore, DynamoRegistrationRepository, S3SnapshotStore } from '@tom/aws-adapters';
+import { AccountService, EventService, RegistrationService, RoundService } from '@tom/core';
 import type { APIGatewayProxyEventV2, APIGatewayProxyStructuredResultV2 } from 'aws-lambda';
 import { randomUUID } from 'node:crypto';
 import { createApi } from './api.js';
@@ -27,7 +27,8 @@ const ids = { next: () => randomUUID() };
 const registry = new DynamoEventRegistry(dynamo, { tableName: env('TOURNAMENTS_TABLE'), ...retention });
 const rounds = new RoundService({ store: new DynamoEventStore(dynamo, { tableName: env('EVENTS_TABLE'), ...retention }), clock, ids });
 const accountRepository = new DynamoAccountRepository(dynamo, { tableName: env('ACCOUNTS_TABLE'), ...retention });
-const events = new EventService({ events: registry, accounts: accountRepository, clock, ids });
+const registrations = new DynamoRegistrationRepository(dynamo, { tableName: env('TOURNAMENTS_TABLE'), ...retention });
+const events = new EventService({ events: registry, accounts: accountRepository, registrations, clock, ids });
 const reader = createRoundReader(rounds);
 
 const api = createApi({
@@ -36,9 +37,10 @@ const api = createApi({
   accounts: new AccountService({ accounts: accountRepository, clock, ids }),
   events,
   ingest: createIngest({ events, registry, rounds, clock, snapshots: new S3SnapshotStore(new S3Client({}), env('SNAPSHOTS_BUCKET')) }),
-  board: createBoard({ registry, rounds: reader, clock }),
+  board: createBoard({ registry, rounds: reader, registrations, clock }),
   rounds,
   reader,
+  registrations: new RegistrationService({ registry, registrations, accounts: accountRepository, clock }),
   registry,
   clock,
   logError: (error) => { console.error(error); },

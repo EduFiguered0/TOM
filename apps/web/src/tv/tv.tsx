@@ -1,4 +1,4 @@
-import type { BoardResponse, TableColor } from '@tom/contracts';
+import type { RoundBoard, TableColor } from '@tom/contracts';
 import { useEffect, useState } from 'preact/hooks';
 import { pages, roundClock } from './board.js';
 import './tv.css';
@@ -15,7 +15,7 @@ const LABEL: Record<TableColor, string> = {
 };
 
 /** TV do salão: todos os pareamentos e o cronômetro, legíveis de longe. Pública e sem login. */
-export const Tv = ({ board }: { board: BoardResponse }) => {
+export const Tv = ({ board }: { board: RoundBoard }) => {
   const [now, setNow] = useState(Date.now());
   const [page, setPage] = useState(0);
   const skew = Date.parse(board.serverTime) - Date.now();

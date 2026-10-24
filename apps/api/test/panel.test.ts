@@ -23,12 +23,18 @@ describe('painel do ADM e do juiz', () => {
     expect((await panel(JUIZ)).round?.tournament).toBe('FODASE');
   });
 
-  it('juiz escalado em outro evento não usa o painel', async () => {
-    const { call, judgeId, eventId } = await withPanel();
-    const other = await call('POST', '/events', ADM, { label: 'Outro evento', judges: [judgeId] });
-    expect(other.status).toBe(201);
-    await call('PUT', `/events/${eventId}/judges`, ADM, { judges: [] });
+  it('juiz escalado num evento antigo não usa o painel do evento ativo', async () => {
+    const { call, eventId } = await withPanel();
+    await call('POST', `/events/${eventId}/cancel`, ADM);
+    expect((await call('POST', '/events', ADM, { label: 'Outro evento' })).status).toBe(201);
     expect((await call('GET', '/panel', JUIZ)).status).toBe(403);
+  });
+
+  it('juiz escalado já usa o painel antes de o TOM publicar a primeira rodada', async () => {
+    const { call, judgeId } = await withPanel();
+    expect((await call('GET', '/panel', JUIZ)).status).toBe(200);
+    expect((await call('GET', '/me', JUIZ)).body).toMatchObject({ judging: true });
+    expect(judgeId).toBeTruthy();
   });
 
   it('juiz escalado que está nas guias da rodada não usa o painel (nem na própria mesa)', async () => {

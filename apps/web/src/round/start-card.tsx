@@ -6,7 +6,8 @@ import type { Api } from '../api.js';
 export const StartRoundCard = ({ api }: { api: Api }) => {
   const [data, setData] = useState<MyRoundResponse | null>(null);
   const [bestOf, setBestOf] = useState<1 | 3>(3);
-  const [minutes, setMinutes] = useState('30');
+  // Vazio = o tempo de rodada do evento.
+  const [minutes, setMinutes] = useState('');
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<{ ok: boolean; text: string } | null>(null);
 
@@ -49,7 +50,7 @@ export const StartRoundCard = ({ api }: { api: Api }) => {
                 <option value="3">Melhor de 3</option>
                 <option value="1">Melhor de 1</option>
               </select>
-              <label for="minutes">Tempo da rodada (minutos)</label>
+              <label for="minutes">Tempo da rodada (minutos; vazio = o do evento)</label>
               <input id="minutes" inputmode="numeric" value={minutes} onInput={(e) => { setMinutes(e.currentTarget.value); }} />
               <button type="submit" disabled={busy}>{busy ? 'Iniciando…' : 'Iniciar rodada'}</button>
             </form>

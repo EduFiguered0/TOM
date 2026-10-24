@@ -55,6 +55,13 @@ const createUser = async (user: string) => {
 
 const profile = { name: 'Teste Automático', birthYear: 1990, phone: null, guardianConsent: false };
 
+/** Um evento ativo por vez, e a tabela de teste guarda os de execuções anteriores: cancela o que sobrou. */
+const cancelActive = async (adm: string) => {
+  const active = await call('GET', '/events/active', adm);
+  const event = active.body['event'] as { id: string } | null;
+  if (event) expect((await call('POST', `/events/${event.id}/cancel`, adm)).status).toBe(200);
+};
+
 beforeAll(async () => {
   await Promise.all([createUser(email), createUser(adminEmail), createUser(otherEmail)]);
   await cognito.send(new AdminAddUserToGroupCommand({ UserPoolId: userPoolId, Username: adminEmail, GroupName: 'admin' }));
@@ -137,7 +144,10 @@ describe('API real (TomApiTest)', () => {
 
     expect(await call('POST', '/staff/search', adm, { query: playerId })).toMatchObject({ status: 200, body: [{ id, playerId, judge: false }] });
     expect(await call('POST', `/staff/accounts/${id}/judge`, adm, { judge: true })).toMatchObject({ status: 200, body: { judge: true } });
-    expect((await call('POST', '/events', adm, { label: 'Teste da equipe', judges: [id] })).status).toBe(201);
+    await cancelActive(adm);
+    const created = await call('POST', '/events', adm, { label: 'Teste da equipe', judges: [id] });
+    expect(created.status).toBe(201);
+    await call('POST', `/events/${String(created.body['id'])}/cancel`, adm);
     expect((await call('GET', '/staff/judges', adm)).body).toEqual(expect.arrayContaining([expect.objectContaining({ id })]));
     expect((await call('POST', '/staff/search', player, { query: playerId })).status).toBe(403);
     expect(await call('POST', `/staff/accounts/${id}/judge`, adm, { judge: false })).toMatchObject({ status: 200, body: { judge: false } });
@@ -146,6 +156,7 @@ describe('API real (TomApiTest)', () => {
   it('ingestão: ADM cria o evento, o enviador manda os HTMLs reais do TOM e a TV mostra a rodada', async () => {
     const adm = await login(adminEmail);
     await call('POST', '/session', adm, { replace: true });
+    await cancelActive(adm);
     const created = await call('POST', '/events', adm, { label: 'Teste automático' });
     expect(created.status).toBe(201);
     const token = String(created.body['token']);
@@ -168,11 +179,33 @@ describe('API real (TomApiTest)', () => {
     expect((await send('pairings')).status).toBe(200);
     const slips = await send('match_slips');
     expect(slips.status).toBe(200);
-    expect(await call('GET', '/board', null)).toMatchObject({ status: 200, body: { tournament: 'FODASE' } });
+    // Inscrições abertas: a TV mostra o QR (a rodada aparece quando o ADM inicia).
+    expect(await call('GET', '/board', null)).toMatchObject({ status: 200, body: { state: 'open', code: (created.body['event'] as { code: string }).code } });
     // Versão nova do mesmo pareamento: guardada, mas a rodada não muda.
     expect(await send('pairings')).toMatchObject({ status: 200, body: { stored: true, published: [] } });
 
     await call('POST', `/events/${String(created.body['id'])}/revoke`, adm);
     expect((await send('standings')).status).toBe(401);
+    await call('POST', `/events/${String(created.body['id'])}/cancel`, adm);
+  });
+
+  it('ciclo do evento de ponta a ponta: QR, confirmação fecha o QR, presença e contadores', async () => {
+    const [player, adm, other] = await Promise.all([login(), login(adminEmail), login(otherEmail)]);
+    await Promise.all([player, adm, other].map((t) => call('POST', '/session', t, { replace: true })));
+    await cancelActive(adm);
+    const created = await call('POST', '/events', adm, { label: 'Ciclo automático', roundMinutes: 40 });
+    expect(created).toMatchObject({ status: 201, body: { event: { status: 'open', roundMinutes: 40 } } });
+    const { id, code } = created.body['event'] as { id: string; code: string };
+
+    expect(await call('POST', `/join/${code}`, player)).toMatchObject({ status: 200, body: { registration: { confirmed: false } } });
+    expect((await call('POST', `/join/${code}`, player)).status).toBe(200);
+    expect(await call('POST', `/events/${id}/confirmation`, adm)).toMatchObject({ status: 200, body: { status: 'confirming' } });
+    // A guarda de status de verdade no DynamoDB: depois de pedir a confirmação, o QR não grava.
+    expect(await call('POST', `/join/${code}`, other)).toMatchObject({ status: 409, body: { message: 'Inscrições encerradas' } });
+    expect((await call('POST', '/me/event/confirm', player)).status).toBe(200);
+    expect(await call('GET', `/events/${id}/registrations`, adm)).toMatchObject({ status: 200, body: { total: 1, confirmed: 1, launched: 0 } });
+    expect(await call('GET', '/board', null)).toMatchObject({ body: { state: 'confirming', registered: 1, confirmed: 1 } });
+    expect(await call('POST', `/events/${id}/cancel`, adm)).toMatchObject({ status: 200, body: { status: 'cancelled' } });
+    expect(await call('GET', '/board', null)).toMatchObject({ body: { state: 'idle' } });
   });
 });

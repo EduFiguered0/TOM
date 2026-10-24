@@ -10,7 +10,7 @@ Detalhes do produto em [`docs/spec-tom.md`](docs/spec-tom.md); arquitetura em [`
 apps/
   api/           API: uma Lambda atrás de Function URL (rotas abaixo)
   web/           site em Preact: home pública da loja (/), privacidade (/privacidade), conta do jogador (/conta),
-                 TV do salão (/tv), painel do ADM e do juiz (/painel)
+                 QR do evento (/e/<código>, inscreve sozinho), TV do salão (/tv), painel do ADM e do juiz (/painel)
   uploader/      enviador: observa a pasta do TOM (somente leitura)
 packages/
   core/          domínio e casos de uso, sem dependências
@@ -96,11 +96,22 @@ Rotas da API (as de conta e ADM exigem `Authorization: Bearer <token de acesso d
 | `POST /panel/tables/{n}/extend` | juiz, ADM | Acréscimo de tempo na mesa |
 | `POST /panel/tables/{n}/key-launched` | ADM | Marca a key como lançada no TOM (só mesa verde) |
 | `POST /panel/tables/{n}/report` | ADM | Reporte em nome de jogador sem celular |
-| `POST /events` | ADM | Cria o evento do dia (com `judges`, os juízes escalados); devolve o token do enviador uma única vez |
+| `POST /events` | ADM | Cria o evento do dia (nome, `date`, `roundMinutes` = 30, `judges`); um ativo por vez; devolve o token do enviador uma única vez |
+| `GET /events/active` | ADM | Evento ativo, com o código do QR |
+| `PATCH /events/{id}` | ADM | Muda o tempo de rodada e os juízes enquanto o evento não acabou |
+| `POST /events/{id}/confirmation` | ADM | "Pedir confirmação": o QR fecha na hora |
+| `POST /events/{id}/close` | ADM | Encerra (só depois do resultado final do TOM) |
+| `POST /events/{id}/cancel` | ADM | Cancela antes de encerrar; não entra no histórico |
+| `GET /events/{id}/registrations` | ADM | Inscritos (Player ID, nome, ano) com os contadores de confirmados e lançados no TOM |
+| `POST /events/{id}/registrations` | ADM | Inscreve à mão (`{"accountId"}`); depois da confirmação, já entra confirmado |
+| `POST /events/{id}/registrations/{conta}/confirm`, `/remove`, `/launched` | ADM | Confirmar por ele, remover, marcar lançado no TOM |
+| `POST /join/{código}` | qualquer conta | Fim do caminho do QR: inscreve (de novo, só devolve a inscrição) |
+| `GET /me/event` | qualquer conta | Evento ativo e a própria inscrição |
+| `POST /me/event/confirm` | qualquer conta | Confirma a própria presença quando o ADM pede |
 | `PUT /events/{id}/judges` | ADM | Troca os juízes escalados no evento (só juízes da equipe) |
 | `POST /events/{id}/revoke` | ADM | Revoga o token do enviador |
 | `POST /uploads` | enviador (`x-upload-token`) | Recebe um HTML do TOM; com pareamento e guias da rodada, publica a rodada |
-| `GET /board` | público | Rodada atual para a TV (só nomes), guardada 5 s no CloudFront |
+| `GET /board` | público | TV por fase do evento (espera, QR com inscritos, confirmação, rodada, classificação final), só nomes, guardada 5 s no CloudFront |
 
 O ADM vem do grupo `admin` do Cognito; o juiz é marcado pelo ADM no cartão "Equipe" do site e só age no evento em que for escalado (até o plano 4, o evento atual é o da rodada publicada pelo TOM). Para dar o papel de ADM a uma conta já criada; vale no próximo token, em até 15 min:
 

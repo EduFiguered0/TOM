@@ -111,7 +111,8 @@ export const parseSessionRequest = (body: unknown): SessionRequest => ({
 export type TableColor = 'gray' | 'orange' | 'green' | 'red';
 
 /** Rodada para a TV do salão: pública, só nomes (sem Player ID nem e-mail). */
-export interface BoardResponse {
+/** Rodada na TV: pareamentos e cronômetro. */
+export interface RoundBoard {
   tournament: string;
   division: string;
   round: number;
@@ -124,6 +125,28 @@ export interface BoardResponse {
   /** Momento em que o servidor montou a resposta; a TV corrige o relógio local por ele. */
   serverTime: string;
 }
+
+export interface FinalStandingDto {
+  division: string;
+  rank: number;
+  name: string;
+  wins: number;
+  losses: number;
+  ties: number;
+}
+
+interface BoardEvent {
+  label: string;
+  date: string;
+}
+
+/** Quadro público da TV por fase do evento; `serverTime` em todas (a TV acerta o relógio). */
+export type BoardResponse =
+  | { state: 'idle'; serverTime: string }
+  | { state: 'open'; event: BoardEvent; code: string; registered: number; serverTime: string }
+  | { state: 'confirming'; event: BoardEvent; registered: number; confirmed: number; serverTime: string }
+  | ({ state: 'running' } & RoundBoard)
+  | { state: 'final'; event: BoardEvent; standings: FinalStandingDto[]; serverTime: string };
 
 /** Uma versão completa de um HTML do TOM, enviada pelo enviador com o token do evento (cabeçalho `x-upload-token`). */
 export interface UploadRequest {
@@ -165,10 +188,33 @@ export const parseUploadRequest = (body: unknown): UploadRequest => {
   return request;
 };
 
+export type EventStatusDto = 'open' | 'confirming' | 'running' | 'final' | 'closed' | 'cancelled';
+
+export interface EventDto {
+  id: string;
+  label: string;
+  /** `YYYY-MM-DD`. */
+  date: string;
+  roundMinutes: number;
+  status: EventStatusDto;
+  judges: string[];
+  /** Código do QR: só nas respostas do ADM (a TV mostra no QR). */
+  code?: string;
+}
+
 export interface CreateEventRequest {
   label: string;
+  /** `YYYY-MM-DD`; ausente = hoje. */
+  date?: string;
+  /** Ausente = 30 minutos. */
+  roundMinutes?: number;
   /** Juízes escalados (ids de conta); ausente = nenhum. */
   judges: string[];
+}
+
+export interface UpdateEventRequest {
+  roundMinutes?: number;
+  judges?: string[];
 }
 
 /** O token do enviador só aparece nesta resposta; o servidor guarda apenas o hash. */
@@ -176,6 +222,54 @@ export interface CreateEventResponse {
   id: string;
   label: string;
   token: string;
+  event: EventDto;
+}
+
+/** Evento ativo para o painel do ADM; null sem evento ativo. */
+export interface ActiveEventResponse {
+  event: EventDto | null;
+}
+
+export interface RegistrationDto {
+  accountId: string;
+  playerId: string;
+  name: string;
+  birthYear: number;
+  /** ISO 8601. */
+  at: string;
+  by: 'self' | 'admin';
+  confirmed: boolean;
+  launched: boolean;
+  removed: boolean;
+  /** Está nas guias da rodada atual deste evento; null antes de o TOM publicar uma rodada. */
+  inRound: boolean | null;
+}
+
+/** Painel de inscritos; os contadores não contam os removidos. */
+export interface RegistrationsResponse {
+  registrations: RegistrationDto[];
+  total: number;
+  confirmed: number;
+  launched: number;
+}
+
+/** Evento ativo e a inscrição da própria conta; os dois null sem evento ativo. */
+export interface MyEventResponse {
+  event: EventDto | null;
+  registration: RegistrationDto | null;
+}
+
+export interface JoinResponse {
+  event: EventDto;
+  registration: RegistrationDto;
+}
+
+export interface AddRegistrationRequest {
+  accountId: string;
+}
+
+export interface SetLaunchedRequest {
+  launched: boolean;
 }
 
 const MAX_JUDGES = 20;
@@ -188,10 +282,29 @@ const judgeList = (obj: Json): string[] => {
   return value as string[];
 };
 
+const optionalNumber = (obj: Json, key: string): number | undefined => (obj[key] === undefined ? undefined : field(obj, key, 'number'));
+
 export const parseCreateEventRequest = (body: unknown): CreateEventRequest => {
   const root = object(body, 'Corpo');
-  return { label: field(root, 'label', 'string'), judges: root['judges'] === undefined ? [] : judgeList(root) };
+  const date = root['date'] === undefined ? undefined : field(root, 'date', 'string');
+  const roundMinutes = optionalNumber(root, 'roundMinutes');
+  return {
+    label: field(root, 'label', 'string'),
+    ...(date === undefined ? {} : { date }),
+    ...(roundMinutes === undefined ? {} : { roundMinutes }),
+    judges: root['judges'] === undefined ? [] : judgeList(root),
+  };
 };
+
+export const parseUpdateEventRequest = (body: unknown): UpdateEventRequest => {
+  const root = object(body, 'Corpo');
+  const roundMinutes = optionalNumber(root, 'roundMinutes');
+  return { ...(roundMinutes === undefined ? {} : { roundMinutes }), ...(root['judges'] === undefined ? {} : { judges: judgeList(root) }) };
+};
+
+export const parseAddRegistrationRequest = (body: unknown): AddRegistrationRequest => ({ accountId: field(object(body, 'Corpo'), 'accountId', 'string') });
+
+export const parseSetLaunchedRequest = (body: unknown): SetLaunchedRequest => ({ launched: field(object(body, 'Corpo'), 'launched', 'boolean') });
 
 export const parseJudgesRequest = (body: unknown): JudgesRequest => ({ judges: judgeList(object(body, 'Corpo')) });
 

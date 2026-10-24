@@ -5,6 +5,7 @@ import type { CurrentRound, EventRegistry, TournamentEvent } from './tournament-
 export class InMemoryEventRegistry implements EventRegistry {
   private readonly events = new Map<string, { event: TournamentEvent; version: number }>();
   private pointer: CurrentRound | null = null;
+  private latestId: string | null = null;
 
   get(id: string) {
     const found = this.events.get(id);
@@ -23,6 +24,21 @@ export class InMemoryEventRegistry implements EventRegistry {
     }
     this.events.set(event.id, { event: structuredClone(event), version: current + 1 });
     return Promise.resolve(current + 1);
+  }
+
+  async create(event: TournamentEvent, previousLatest: string | null): Promise<void> {
+    if (this.latestId !== previousLatest) throw new ConcurrencyError('Outro evento foi criado ao mesmo tempo');
+    await this.save(event, 0);
+    this.latestId = event.id;
+  }
+
+  latest() {
+    return this.latestId ? this.get(this.latestId) : Promise.resolve(null);
+  }
+
+  findByCode(code: string) {
+    const found = [...this.events.values()].find((r) => r.event.code === code);
+    return Promise.resolve(found ? structuredClone(found) : null);
   }
 
   setCurrent(current: CurrentRound): Promise<void> {

@@ -1,11 +1,12 @@
 import type { BoardResponse } from '@tom/contracts';
 import { useEffect, useState } from 'preact/hooks';
 import { Tv } from './tv.js';
+import { WaitingTv } from './waiting.js';
 
 /** Mesmo tempo do cache do CloudFront: consultar mais rápido não traz dado mais novo. */
 const POLL_MS = 5000;
 
-type State = { kind: 'loading' } | { kind: 'empty' } | { kind: 'board'; board: BoardResponse };
+type State = { kind: 'loading' } | { kind: 'board'; board: BoardResponse };
 
 /** Referência estável: uma função nova a cada render reiniciaria o efeito e viraria um laço de consultas. */
 const browserFetch: typeof fetch = (...args) => fetch(...args);
@@ -22,8 +23,7 @@ export const LiveTv = ({ fetchFn = browserFetch }: { fetchFn?: typeof fetch }) =
         const response = await fetchFn('/api/board');
         if (stopped) return;
         setOffline(false);
-        if (response.status === 404) setState({ kind: 'empty' });
-        else if (response.ok) setState({ kind: 'board', board: (await response.json()) as BoardResponse });
+        if (response.ok) setState({ kind: 'board', board: (await response.json()) as BoardResponse });
         else setOffline(true);
       } catch {
         if (!stopped) setOffline(true);
@@ -36,11 +36,8 @@ export const LiveTv = ({ fetchFn = browserFetch }: { fetchFn?: typeof fetch }) =
 
   return (
     <>
-      {state.kind === 'board' ? <Tv board={state.board} /> : (
-        <div class="tv tv-empty">
-          <p>{state.kind === 'loading' ? 'Carregando…' : 'Aguardando o TOM publicar a rodada'}</p>
-        </div>
-      )}
+      {state.kind === 'loading' && <div class="tv tv-empty"><p>Carregando…</p></div>}
+      {state.kind === 'board' && (state.board.state === 'running' ? <Tv board={state.board} /> : <WaitingTv board={state.board} />)}
       {offline && <div class="tv-offline" role="status">Sem conexão · mostrando a última rodada recebida</div>}
     </>
   );

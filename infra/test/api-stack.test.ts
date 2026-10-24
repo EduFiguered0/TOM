@@ -41,7 +41,7 @@ describe('ApiStack', () => {
       ['logs:CreateLogStream', 'logs:PutLogEvents'],
       ['dynamodb:DeleteItem', 'dynamodb:GetItem', 'dynamodb:PutItem', 'dynamodb:Scan'],
       ['dynamodb:ConditionCheckItem', 'dynamodb:GetItem', 'dynamodb:PutItem', 'dynamodb:Query'],
-      ['dynamodb:GetItem', 'dynamodb:PutItem'],
+      ['dynamodb:ConditionCheckItem', 'dynamodb:GetItem', 'dynamodb:PutItem', 'dynamodb:Query'],
       ['s3:GetObject', 's3:PutObject'],
       ['s3:ListBucket'],
     ]);

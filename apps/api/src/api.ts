@@ -1,6 +1,9 @@
 import {
   InvalidRequestError,
+  parseAddRegistrationRequest,
   parseCreateEventRequest,
+  parseSetLaunchedRequest,
+  parseUpdateEventRequest,
   parseJudgesRequest,
   parseSearchRequest,
   parseSetJudgeRequest,
@@ -14,6 +17,12 @@ import {
   parseSessionRequest,
   parseUploadRequest,
   type AccountResponse,
+  type ActiveEventResponse,
+  type EventDto,
+  type JoinResponse,
+  type MyEventResponse,
+  type RegistrationDto,
+  type RegistrationsResponse,
   type BoardResponse,
   type CreateEventResponse,
   type ErrorResponse,
@@ -27,8 +36,11 @@ import {
   type EventService,
   type Identity,
   type Principal,
+  type Registration,
+  type RegistrationService,
   type RejectCode,
   type RoundService,
+  type TournamentEvent,
   staffActor,
 } from '@tom/core';
 import type { Ingest } from './ingest.js';
@@ -66,10 +78,11 @@ export interface ApiDeps {
   accounts: AccountService;
   events: EventService;
   ingest: Ingest;
-  board: () => Promise<BoardResponse | null>;
+  board: () => Promise<BoardResponse>;
   rounds: RoundService;
   reader: RoundReader;
   registry: EventRegistry;
+  registrations: RegistrationService;
   clock: { now(): Date };
   logError: (error: unknown) => void;
 }
@@ -97,6 +110,8 @@ const STATUS: Record<RejectCode, number> = {
   invalid_token: 401,
   tournament_mismatch: 409,
   event_not_found: 404,
+  event_active: 409,
+  event_state: 409,
 };
 
 class Unauthorized extends Error {}
@@ -121,6 +136,30 @@ const toMe = ({ account, actor }: Principal, judging: boolean): MeResponse => ({
   canAct: actor !== null,
   judge: account.judge === true,
   judging,
+});
+
+/** `withCode`: só o ADM recebe o código do QR (a TV mostra no QR; o resto não precisa). */
+const toEvent = (event: TournamentEvent, withCode = false): EventDto => ({
+  id: event.id,
+  label: event.label,
+  date: event.date,
+  roundMinutes: event.roundMinutes,
+  status: event.status,
+  judges: event.judges,
+  ...(withCode && event.code ? { code: event.code } : {}),
+});
+
+const toRegistration = (r: Registration, inRound: boolean | null): RegistrationDto => ({
+  accountId: r.accountId,
+  playerId: r.playerId,
+  name: r.name,
+  birthYear: r.birthYear,
+  at: r.at.toISOString(),
+  by: r.by,
+  confirmed: r.confirmed,
+  launched: r.launched,
+  removed: r.removed,
+  inRound,
 });
 
 const jsonBody = (request: HttpRequest): unknown => {
@@ -162,11 +201,13 @@ interface OpenRoute {
 const EVENT_ID = '([0-9a-f-]{36})';
 /** Identificador de conta no caminho (UUID). */
 const ACCOUNT_ID = EVENT_ID;
+/** Código do QR no caminho: 8 letras maiúsculas e dígitos. */
+const EVENT_CODE = '([A-Z0-9]{8})';
 /** Player ID no caminho: só dígitos. */
 const PLAYER_ID = '([0-9]{1,20})';
 
 /** Roteador da API: uma Lambda atende todas as rotas. Todas exigem token de acesso válido. */
-export const createApi = ({ tokens, emails, accounts, events, ingest, board, rounds, reader, registry, clock, logError }: ApiDeps) => {
+export const createApi = ({ tokens, emails, accounts, events, ingest, board, rounds, reader, registry, registrations, clock, logError }: ApiDeps) => {
   /**
    * Primeiro acesso por um login novo (ex.: Google de quem já tinha conta pelo código por e-mail):
    * liga o login à conta do mesmo e-mail verificado e repete. Sem conta com esse e-mail, segue o 404.
@@ -181,10 +222,29 @@ export const createApi = ({ tokens, emails, accounts, events, ingest, board, rou
     }
   };
 
-  /** Evento atual: o da rodada publicada pelo TOM (até existir o evento ativo, no plano 4). */
-  const currentEvent = async () => {
+  /** Evento atual (painel, juiz, reporte): o evento ativo. */
+  const currentEvent = () => events.active();
+
+  const requireAdmin = async (identity: Identity) => {
+    const { actor } = await accounts.authenticate(identity);
+    if (actor?.role !== 'admin') throw new CommandRejected('forbidden', 'Só o ADM pode executar esta ação');
+    return actor;
+  };
+
+  /** Player IDs nas guias da rodada atual do evento; null antes de o TOM publicar uma rodada dele. */
+  const roundPlayers = async (event: TournamentEvent): Promise<Set<string> | null> => {
     const current = await registry.current();
-    return current ? ((await registry.get(current.eventId))?.event ?? null) : null;
+    if (current?.eventId !== event.id) return null;
+    return new Set((await reader.state(current.ref)).tables.flatMap((t) => [t.player1.playerId, t.player2.playerId]));
+  };
+  const registrationOf = async (r: Registration, event: TournamentEvent) => {
+    const players = await roundPlayers(event);
+    return toRegistration(r, players ? players.has(r.playerId) : null);
+  };
+  const eventById = async (id: string) => {
+    const record = await registry.get(id);
+    if (!record) throw new CommandRejected('event_not_found', 'Evento não encontrado');
+    return record.event;
   };
   const isJudging = async (principal: Principal) => staffActor(principal, await currentEvent())?.role === 'judge';
   const me = async (principal: Principal) => toMe(principal, await isJudging(principal));
@@ -214,6 +274,34 @@ export const createApi = ({ tokens, emails, accounts, events, ingest, board, rou
       },
     },
     {
+      method: 'POST', path: new RegExp(`^/join/${EVENT_CODE}$`),
+      handle: async ({ identity, params: [code = ''] }) => {
+        const principal = await accounts.authenticate(identity);
+        const { event, registration } = await registrations.join(principal, code);
+        return { status: 200, body: { event: toEvent(event), registration: await registrationOf(registration, event) } satisfies JoinResponse };
+      },
+    },
+    {
+      method: 'GET', path: /^\/me\/event$/,
+      handle: async ({ identity }) => {
+        const mine = await registrations.mine(await accounts.authenticate(identity));
+        const body: MyEventResponse = {
+          event: mine ? toEvent(mine.event) : null,
+          registration: mine?.registration ? await registrationOf(mine.registration, mine.event) : null,
+        };
+        return { status: 200, body };
+      },
+    },
+    {
+      method: 'POST', path: /^\/me\/event\/confirm$/,
+      handle: async ({ identity }) => {
+        const principal = await accounts.authenticate(identity);
+        const active = await events.active();
+        if (!active) throw new CommandRejected('event_not_found', 'Evento não encontrado');
+        return { status: 200, body: await registrationOf(await registrations.confirm(principal, active.id), active) };
+      },
+    },
+    {
       method: 'POST', path: /^\/me\/player-id$/,
       handle: async ({ request, identity }) => {
         const { playerId } = parsePlayerIdRequest(jsonBody(request));
@@ -236,16 +324,86 @@ export const createApi = ({ tokens, emails, accounts, events, ingest, board, rou
       method: 'POST', path: new RegExp(`^/player-ids/${PLAYER_ID}/unlink$`),
       handle: async ({ identity, params: [pid = ''] }) => {
         const { actor } = await accounts.authenticate(identity);
-        return { status: 200, body: toAccount(await accounts.unlinkPlayerId(actor, pid)) };
+        const account = await accounts.unlinkPlayerId(actor, pid);
+        // A conta errada sai também do evento ativo.
+        const active = await events.active();
+        if (active) await registrations.dropAccount(active.id, account.id);
+        return { status: 200, body: toAccount(account) };
       },
     },
     {
       method: 'POST', path: /^\/events$/,
       handle: async ({ request, identity }) => {
-        const { label, judges } = parseCreateEventRequest(jsonBody(request));
+        const input = parseCreateEventRequest(jsonBody(request));
         const { actor } = await accounts.authenticate(identity);
-        const { event, token } = await events.createEvent(actor, label, judges);
-        return { status: 201, body: { id: event.id, label: event.label, token } satisfies CreateEventResponse };
+        const { event, token } = await events.createEvent(actor, input);
+        return { status: 201, body: { id: event.id, label: event.label, token, event: toEvent(event, true) } satisfies CreateEventResponse };
+      },
+    },
+    {
+      method: 'GET', path: /^\/events\/active$/,
+      handle: async ({ identity }) => {
+        await requireAdmin(identity);
+        const event = await events.active();
+        return { status: 200, body: { event: event ? toEvent(event, true) : null } satisfies ActiveEventResponse };
+      },
+    },
+    {
+      method: 'PATCH', path: new RegExp(`^/events/${EVENT_ID}$`),
+      handle: async ({ request, identity, params: [id = ''] }) => {
+        const change = parseUpdateEventRequest(jsonBody(request));
+        const { actor } = await accounts.authenticate(identity);
+        return { status: 200, body: toEvent(await events.update(actor, id, change), true) };
+      },
+    },
+    ...([
+      ['confirmation', (actor, id) => events.requestConfirmation(actor, id)],
+      ['close', (actor, id) => events.close(actor, id)],
+      ['cancel', (actor, id) => events.cancel(actor, id)],
+    ] as const satisfies readonly (readonly [string, (actor: Principal['actor'], id: string) => Promise<TournamentEvent>])[]).map(([action, run]): Route => ({
+      method: 'POST', path: new RegExp(`^/events/${EVENT_ID}/${action}$`),
+      handle: async ({ identity, params: [id = ''] }) => {
+        const { actor } = await accounts.authenticate(identity);
+        return { status: 200, body: toEvent(await run(actor, id), true) };
+      },
+    })),
+    {
+      method: 'GET', path: new RegExp(`^/events/${EVENT_ID}/registrations$`),
+      handle: async ({ identity, params: [id = ''] }) => {
+        const actor = await requireAdmin(identity);
+        const event = await eventById(id);
+        const players = await roundPlayers(event);
+        const list = await registrations.list(actor, id);
+        const kept = list.filter((r) => !r.removed);
+        const body: RegistrationsResponse = {
+          // Removidos no fim: a lista que interessa é a de quem vai jogar.
+          registrations: [...kept, ...list.filter((r) => r.removed)].map((r) => toRegistration(r, players ? players.has(r.playerId) : null)),
+          total: kept.length,
+          confirmed: kept.filter((r) => r.confirmed).length,
+          launched: kept.filter((r) => r.launched).length,
+        };
+        return { status: 200, body };
+      },
+    },
+    {
+      method: 'POST', path: new RegExp(`^/events/${EVENT_ID}/registrations$`),
+      handle: async ({ request, identity, params: [id = ''] }) => {
+        const { accountId } = parseAddRegistrationRequest(jsonBody(request));
+        const { actor } = await accounts.authenticate(identity);
+        const registration = await registrations.add(actor, id, accountId);
+        return { status: 200, body: await registrationOf(registration, await eventById(id)) };
+      },
+    },
+    {
+      method: 'POST', path: new RegExp(`^/events/${EVENT_ID}/registrations/${ACCOUNT_ID}/(confirm|remove|launched)$`),
+      handle: async ({ request, identity, params: [id = '', accountId = '', action = ''] }) => {
+        const { actor } = await accounts.authenticate(identity);
+        const registration = action === 'confirm'
+          ? await registrations.confirmFor(actor, id, accountId)
+          : action === 'remove'
+            ? await registrations.remove(actor, id, accountId)
+            : await registrations.setLaunched(actor, id, accountId, parseSetLaunchedRequest(jsonBody(request)).launched);
+        return { status: 200, body: await registrationOf(registration, await eventById(id)) };
       },
     },
     {
@@ -291,8 +449,14 @@ export const createApi = ({ tokens, emails, accounts, events, ingest, board, rou
   ];
   routes.push(...adminRoutes);
 
+  /** Rodada que vale agora: a última publicada, se for do evento ativo. Evento encerrado ou cancelado não muda. */
+  const activeRound = async () => {
+    const [current, active] = await Promise.all([registry.current(), events.active()]);
+    return current && current.eventId === active?.id ? current : null;
+  };
+
   const currentRef = async () => {
-    const current = await registry.current();
+    const current = await activeRound();
     if (!current) throw new CommandRejected('round_not_paired', 'Nenhuma rodada publicada pelo TOM ainda');
     return current.ref;
   };
@@ -302,7 +466,7 @@ export const createApi = ({ tokens, emails, accounts, events, ingest, board, rou
       method: 'GET', path: /^\/round\/me$/,
       handle: async ({ identity }) => {
         const { actor } = await accounts.authenticate(identity);
-        const current = await registry.current();
+        const current = await activeRound();
         const state = current ? await reader.state(current.ref) : null;
         return { status: 200, body: myRound(state, actor, clock.now()) };
       },
@@ -330,7 +494,19 @@ export const createApi = ({ tokens, emails, accounts, events, ingest, board, rou
         const { bestOf, roundMinutes } = parseStartRoundRequest(jsonBody(request));
         const { actor } = await accounts.authenticate(identity);
         if (actor?.role !== 'admin') throw new CommandRejected('forbidden', 'Só o ADM inicia a rodada');
-        reader.remember(await rounds.startRound(actor, await currentRef(), { bestOf, ...(roundMinutes === null ? {} : { roundMinutes }) }));
+        const active = await events.active();
+        const current = await registry.current();
+        if (!active || current?.eventId !== active.id) {
+          throw new CommandRejected('event_state', 'Nenhuma rodada do evento ativo publicada pelo TOM');
+        }
+        // Rodada 1: só depois de pedir a confirmação e com ninguém pendente.
+        if (active.status === 'open') throw new CommandRejected('event_state', 'Peça a confirmação de presença antes de iniciar a rodada 1');
+        if (active.status === 'confirming') {
+          const pending = await registrations.pending(active.id);
+          if (pending > 0) throw new CommandRejected('event_state', `Ainda há ${String(pending)} inscrito(s) sem confirmar presença`);
+        }
+        reader.remember(await rounds.startRound(actor, current.ref, { bestOf, roundMinutes: roundMinutes ?? active.roundMinutes }));
+        if (active.status === 'confirming') await events.markRunning(active.id);
         return { status: 200, body: await board() };
       },
     },
@@ -359,7 +535,7 @@ export const createApi = ({ tokens, emails, accounts, events, ingest, board, rou
       method: 'GET', path: /^\/panel$/,
       handle: async ({ identity }) => {
         await staff(identity);
-        const current = await registry.current();
+        const current = await activeRound();
         return { status: 200, body: panel(current ? await reader.state(current.ref) : null, clock.now()) };
       },
     },
@@ -409,11 +585,8 @@ export const createApi = ({ tokens, emails, accounts, events, ingest, board, rou
     {
       method: 'GET', path: /^\/board$/,
       handle: async () => {
-        const current = await board();
         // Muitas TVs e celulares olhando custam o mesmo que um: o CloudFront guarda por 5 s.
-        return current
-          ? { status: 200, body: current, cacheControl: 'public, max-age=5' }
-          : { ...error(404, 'no_round', 'Nenhuma rodada publicada ainda'), cacheControl: 'public, max-age=5' };
+        return { status: 200, body: await board(), cacheControl: 'public, max-age=5' };
       },
     },
   ];

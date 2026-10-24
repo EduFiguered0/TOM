@@ -16,6 +16,11 @@ footer { margin-top: 18px; }
 .list { list-style: none; padding: 0; margin: 10px 0; }
 .list li { padding: 8px 0; border-bottom: 1px solid var(--line); }
 .list button.link { width: auto; margin: 0 0 0 8px; padding: 0; }
+.list li.removed { text-decoration: line-through; color: var(--muted); }
+.row-actions { display: flex; flex-wrap: wrap; gap: 4px 10px; align-items: center; font-size: 14px; margin-top: 4px; }
+.row-actions .check { margin: 0; }
+.row-actions button.link { margin: 0; }
+a.link { display: block; margin: 6px 0 2px; }
 fieldset.judges { border: 0; padding: 0; margin: 10px 0 0; }
 fieldset.judges legend { font-size: 14px; color: var(--muted); }
 article h2 { margin-top: 16px; }
