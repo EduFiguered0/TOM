@@ -19,8 +19,11 @@ export interface DynamoAccountRepositoryOptions {
   retentionDays?: number;
 }
 
-/** Contas de antes do plano 2 guardam o Player ID como `{ value, confirmed }`. */
-type StoredAccount = Omit<Account, 'createdAt' | 'playerId'> & { createdAt: string; playerId: PlayerId | { value: PlayerId } | null };
+/** Contas de antes do plano 2 guardam o Player ID como `{ value, confirmed }`; só o confirmado tem trava. */
+type StoredAccount = Omit<Account, 'createdAt' | 'playerId'> & {
+  createdAt: string;
+  playerId: PlayerId | { value: PlayerId; confirmed: boolean } | null;
+};
 
 /** Travas de unicidade: cada login, o e-mail e o Player ID apontam para uma única conta. */
 type LockKind = 'login' | 'email' | 'playerId';
@@ -92,7 +95,15 @@ export class DynamoAccountRepository implements AccountRepository {
         ExpressionAttributeValues: { ':me': account.id },
       },
     }));
-    const lockDeletes = removed.map((lock) => ({ Delete: { TableName: this.tableName, Key: lockKey(lock) } }));
+    // Só apaga a trava que é desta conta.
+    const lockDeletes = removed.map((lock) => ({
+      Delete: {
+        TableName: this.tableName,
+        Key: lockKey(lock),
+        ConditionExpression: 'attribute_not_exists(pk) OR accountId = :me',
+        ExpressionAttributeValues: { ':me': account.id },
+      },
+    }));
     const eventPuts = events.map((event) => ({
       Put: {
         TableName: this.tableName,
@@ -138,7 +149,8 @@ export const fromStored = (stored: StoredAccount): Account => {
   const { playerId } = stored;
   return {
     ...stored,
-    playerId: playerId !== null && typeof playerId === 'object' ? playerId.value : playerId,
+    // Pendente antigo não tem trava (pode haver outro com o mesmo valor): volta a não ter Player ID e informa de novo.
+    playerId: playerId !== null && typeof playerId === 'object' ? (playerId.confirmed ? playerId.value : null) : playerId,
     createdAt: new Date(stored.createdAt),
   };
 };

@@ -18,6 +18,8 @@ describe('rodada no celular do jogador', () => {
     });
     await register(call, 'p9:c9');
     expect(seat(await me('p9:c9'))).toEqual({ kind: 'not_checked_in' });
+    expect((await call('POST', '/round/report', 'p9:c9', { report: { kind: 'intentional_draw' } })).body)
+      .toMatchObject({ error: 'forbidden', message: 'Informe seu Player ID para reportar pela própria mesa' });
   });
 
   it('só reporta depois que o ADM inicia; só o ADM inicia', async () => {

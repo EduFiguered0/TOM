@@ -263,7 +263,7 @@ export const createApi = ({ tokens, emails, accounts, events, ingest, board, rou
       handle: async ({ request, identity }) => {
         const { report } = parseReportRequest(jsonBody(request));
         const { actor } = await accounts.authenticate(identity);
-        if (actor?.role !== 'player') throw new CommandRejected('forbidden', 'Só jogador com check-in feito reporta pela própria mesa');
+        if (actor?.role !== 'player') throw new CommandRejected('forbidden', 'Informe seu Player ID para reportar pela própria mesa');
         const ref = await currentRef();
         // A mesa do jogador não muda depois do pareamento: dá para usar o cache; o reporte em si relê o estado.
         const table = (await reader.state(ref)).tables.find((t) => t.player1.playerId === actor.playerId || t.player2.playerId === actor.playerId);

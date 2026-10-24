@@ -7,8 +7,9 @@ const stored = {
 };
 
 describe('conta lida do DynamoDB', () => {
-  it('formato antigo ({ value, confirmed }) vira o Player ID; o novo e o vazio ficam como estão', () => {
-    expect(fromStored({ ...stored, playerId: { value: '1122334', confirmed: false } } as never).playerId).toBe('1122334');
+  it('formato antigo: confirmado (tinha trava) vira o Player ID; pendente (sem trava) volta a não ter; o novo e o vazio ficam', () => {
+    expect(fromStored({ ...stored, playerId: { value: '1122334', confirmed: true } } as never).playerId).toBe('1122334');
+    expect(fromStored({ ...stored, playerId: { value: '1122334', confirmed: false } } as never).playerId).toBeNull();
     expect(fromStored({ ...stored, playerId: '1122334' } as never).playerId).toBe('1122334');
     expect(fromStored({ ...stored, playerId: null }).playerId).toBeNull();
     expect(fromStored({ ...stored, playerId: null }).createdAt).toEqual(new Date('2026-10-23T14:00:00Z'));
