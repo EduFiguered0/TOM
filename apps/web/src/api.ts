@@ -1,5 +1,10 @@
 import type {
   AccountResponse,
+  ActiveEventResponse,
+  CreateEventRequest,
+  EventDto,
+  RegistrationsResponse,
+  UpdateEventRequest,
   BoardResponse,
   CreateEventResponse,
   ErrorResponse,
@@ -55,9 +60,18 @@ export const createApi = (session: Session, base = '/api', fetchFn: typeof fetch
     claimPlayerId: (playerId: string) => call<MeResponse>('POST', '/me/player-id', { playerId }),
     accountByPlayerId: (playerId: string) => call<AccountResponse>('GET', `/player-ids/${encodeURIComponent(playerId)}`),
     unlinkPlayerId: (playerId: string) => call<AccountResponse>('POST', `/player-ids/${encodeURIComponent(playerId)}/unlink`),
-    createEvent: (label: string, judges: string[]) => call<CreateEventResponse>('POST', '/events', { label, judges }),
-    setEventJudges: (eventId: string, judges: string[]) =>
-      call<{ id: string; label: string; judges: string[] }>('PUT', `/events/${encodeURIComponent(eventId)}/judges`, { judges }),
+    createEvent: (request: CreateEventRequest) => call<CreateEventResponse>('POST', '/events', request),
+    activeEvent: () => call<ActiveEventResponse>('GET', '/events/active'),
+    updateEvent: (eventId: string, change: UpdateEventRequest) => call<EventDto>('PATCH', `/events/${encodeURIComponent(eventId)}`, change),
+    eventAction: (eventId: string, action: 'confirmation' | 'close' | 'cancel') =>
+      call<EventDto>('POST', `/events/${encodeURIComponent(eventId)}/${action}`),
+    registrations: (eventId: string) => call<RegistrationsResponse>('GET', `/events/${encodeURIComponent(eventId)}/registrations`),
+    addRegistration: (eventId: string, accountId: string) =>
+      call<RegistrationDto>('POST', `/events/${encodeURIComponent(eventId)}/registrations`, { accountId }),
+    registrationAction: (eventId: string, accountId: string, action: 'confirm' | 'remove') =>
+      call<RegistrationDto>('POST', `/events/${encodeURIComponent(eventId)}/registrations/${encodeURIComponent(accountId)}/${action}`),
+    setLaunched: (eventId: string, accountId: string, launched: boolean) =>
+      call<RegistrationDto>('POST', `/events/${encodeURIComponent(eventId)}/registrations/${encodeURIComponent(accountId)}/launched`, { launched }),
     searchAccounts: (query: string) => call<AccountResponse[]>('POST', '/staff/search', { query }),
     judges: () => call<AccountResponse[]>('GET', '/staff/judges'),
     setJudge: (accountId: string, judge: boolean) =>

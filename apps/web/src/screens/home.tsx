@@ -1,6 +1,6 @@
 import type { MeResponse } from '@tom/contracts';
 import type { Api } from '../api.js';
-import { EventCard } from './event.js';
+import { EventPanel } from './event-panel.js';
 import { MyEventCard } from './my-event.js';
 import { PlayerIdCard } from './player-id.js';
 import { TeamCard } from './team.js';
@@ -46,7 +46,7 @@ export const Home = ({ me, api, onSignOut, onChanged, joinError, eventRefresh }:
     </section>
   )}
   {me.role === 'admin' && <StartRoundCard api={api} />}
-  {me.role === 'admin' && <EventCard api={api} />}
+  {me.role === 'admin' && <EventPanel api={api} />}
   {me.role === 'admin' && <TeamCard api={api} />}
   {me.role === 'admin' && <UnlinkCard api={api} />}
   </>
