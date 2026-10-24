@@ -69,6 +69,15 @@ describe('entrar com o Google', () => {
     expect(store.value).toBeNull();
   });
 
+  it('outro erro do Cognito: mostra o motivo para dar para diagnosticar', async () => {
+    const { calls, google } = setup();
+    await google.authorizeUrl();
+    expect(await google.finish('?error_description=Invalid+ProviderName%2FUsername+combination.+&state=x&error=invalid_request'))
+      .toEqual({ error: 'Não foi possível entrar pelo Google. Tente de novo. (Invalid ProviderName/Username combination.)' });
+    expect(await google.finish('?error=server_error')).toEqual({ error: 'Não foi possível entrar pelo Google. Tente de novo. (server_error)' });
+    expect(calls).toHaveLength(0);
+  });
+
   it('state diferente do salvo ou nada salvo: recusa sem trocar o código', async () => {
     const { calls, store, google } = setup();
     await google.authorizeUrl();
