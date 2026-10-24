@@ -268,8 +268,8 @@ Uma fase por vez; cada fase tem os próprios testes e só começa a próxima dep
 | 4 | Enviador: observar a pasta do TOM e detectar escrita completa | Não |
 | 5 | Infraestrutura AWS como código, IAM mínimo, adaptadores DynamoDB e S3 | Sim |
 | 6 | Login, papéis, sessão única, troca de dispositivo, confirmação de Player ID | Sim |
-| 7–9 | Telas: celular, TV e painel do ADM / juiz | Sim |
-| 10 | Upload do enviador para a API com token por evento | Sim |
+| 7 | **[R3]** Celular do jogador: 7.1 site e login; 7.2 envio do enviador para a API com token do evento (antes fase 10); 7.3 rodada atual, reporte e atualização automática; 7.4 histórico | Sim |
+| 8–9 | Telas: TV e painel do ADM / juiz | Sim |
 
 ## Decisões em aberto e fora de escopo
 
@@ -318,3 +318,5 @@ Fora de escopo:
 | 3 | Custo não era critério explícito | Menor custo (ideal zero) é o critério principal; cada escolha traz diferença de custo e projeção |
 | 4 | API Gateway + Lambda | Lambda com Function URL (sem API Gateway); token validado no código |
 | 5 | Conta = usuário do Cognito | Conta com id próprio e vários logins (Google, código por e-mail) unificados pelo e-mail verificado |
+| 6 | Envio do enviador para a API na fase 10 | Na fase 7: as telas usam desde o início o fluxo real TOM → enviador → API, sem carga manual |
+| 7 | Telas em aberto | Preact + Vite; site estático no S3 com CloudFront, API em `/api` no mesmo endereço |

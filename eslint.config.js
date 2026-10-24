@@ -6,7 +6,7 @@ const restrictImports = (patterns) => ({
 });
 
 export default tseslint.config(
-  { ignores: ['**/dist/**', '**/node_modules/**', '**/test/fixtures/**', 'tools/**', 'infra/cdk.out/**'] },
+  { ignores: ['**/dist/**', '**/node_modules/**', '**/test/fixtures/**', 'tools/**', 'infra/cdk.out/**', 'apps/web/dist/**'] },
   eslint.configs.recommended,
   ...tseslint.configs.strictTypeChecked,
   {
@@ -44,6 +44,16 @@ export default tseslint.config(
     rules: restrictImports([
       { group: ['@tom/*', '!@tom/core', '!@tom/tom-reports'], message: 'uploader só depende de core e tom-reports.' },
     ]),
+  },
+  {
+    files: ['apps/web/**/*.{ts,tsx}'],
+    languageOptions: {
+      parserOptions: { project: './apps/web/tsconfig.json', tsconfigRootDir: import.meta.dirname },
+    },
+  },
+  {
+    files: ['apps/web/src/**'],
+    rules: restrictImports([{ group: ['@tom/*', '!@tom/contracts'], message: 'web só depende de contracts (fala com a API por HTTP).' }]),
   },
   {
     files: ['*.js'],

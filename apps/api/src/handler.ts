@@ -35,7 +35,8 @@ export const handler = async (event: APIGatewayProxyEventV2): Promise<APIGateway
   const body = event.body && event.isBase64Encoded ? Buffer.from(event.body, 'base64').toString('utf-8') : event.body ?? null;
   const response = await api({
     method: event.requestContext.http.method,
-    path: event.rawPath,
+    // Pelo CloudFront a API chega em /api/...; direto pela Function URL, sem o prefixo.
+    path: event.rawPath.replace(/^\/api(?=\/)/, ''),
     headers: event.headers,
     body,
   });

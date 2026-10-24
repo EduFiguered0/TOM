@@ -1,0 +1,31 @@
+:root {
+  --bg: #f5f6f8; --card: #ffffff; --text: #18202e; --muted: #5b6577; --line: #dfe3ea;
+  --accent: #1d4ed8; --accent-text: #ffffff; --ok: #15803d; --error: #b91c1c; --warn: #b45309;
+  color-scheme: light dark;
+}
+@media (prefers-color-scheme: dark) {
+  :root { --bg: #11151c; --card: #1b212b; --text: #e8ecf2; --muted: #9aa4b5; --line: #2c3442; --accent: #7ea2ff; --accent-text: #0b1220; --ok: #4ade80; --error: #f87171; --warn: #fbbf24; }
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--text); font: 16px/1.5 system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif; }
+main { max-width: 480px; margin: 0 auto; padding: 12px 16px calc(32px + env(safe-area-inset-bottom)); }
+header { padding: 8px 0 12px; }
+.brand { font-weight: 700; letter-spacing: .2px; }
+h1 { font-size: 22px; margin: 0 0 8px; }
+.card { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 18px 16px; }
+.card.warn { border-color: var(--warn); }
+form { display: grid; gap: 4px; }
+label { font-size: 14px; color: var(--muted); margin-top: 10px; }
+input { width: 100%; font: inherit; padding: 12px; border: 1px solid var(--line); border-radius: 10px; background: var(--bg); color: var(--text); }
+input:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
+button { width: 100%; margin-top: 16px; padding: 14px; font: inherit; font-weight: 600; border: 0; border-radius: 10px; background: var(--accent); color: var(--accent-text); cursor: pointer; }
+button:disabled { opacity: .6; cursor: default; }
+button.link { background: none; color: var(--accent); font-weight: 500; margin-top: 8px; }
+.check { display: flex; gap: 10px; align-items: flex-start; color: var(--text); }
+.check input { width: auto; margin-top: 4px; }
+.muted { color: var(--muted); font-size: 14px; }
+.center { text-align: center; }
+.error { color: var(--error); font-weight: 500; }
+.ok { color: var(--ok); font-weight: 500; }
+.notice { border: 1px dashed var(--warn); border-radius: 10px; padding: 4px 12px; margin: 12px 0; }
+.code { font-family: ui-monospace, Consolas, monospace; font-size: 13px; word-break: break-all; background: var(--bg); padding: 8px; border-radius: 8px; }
