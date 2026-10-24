@@ -9,7 +9,7 @@ Detalhes do produto em [`docs/spec-tom.md`](docs/spec-tom.md); arquitetura em [`
 ```
 apps/
   api/           API: uma Lambda atrás de Function URL (rotas abaixo)
-  web/           telas em Preact: celular (/), TV do salão (/tv), cartões do ADM
+  web/           telas em Preact: celular (/), TV do salão (/tv), painel do ADM e do juiz (/painel)
   uploader/      enviador: observa a pasta do TOM (somente leitura)
 packages/
   core/          domínio e casos de uso, sem dependências
@@ -86,6 +86,11 @@ Rotas da API (as de conta e ADM exigem `Authorization: Bearer <token de acesso d
 | `GET /round/me` | qualquer conta | Rodada atual do ponto de vista do jogador: mesa, oponente, prazo, cor e o próprio reporte (sem o placar do oponente) |
 | `POST /round/report` | jogador com check-in | Reporta placar ou ID na própria mesa |
 | `POST /round/start` | ADM | Inicia a rodada publicada pelo TOM (melhor de 1 ou 3, tempo) |
+| `GET /panel` | juiz, ADM | Painel: todas as mesas com Player IDs, os dois reportes, cor e motivo, override, acréscimo e a key do TOM |
+| `POST /panel/tables/{n}/override` | juiz, ADM | Override (placar, ID, DGL, vitória por ausência) com motivo; avisa se a key já foi lançada |
+| `POST /panel/tables/{n}/extend` | juiz, ADM | Acréscimo de tempo na mesa |
+| `POST /panel/tables/{n}/key-launched` | ADM | Marca a key como lançada no TOM (só mesa verde) |
+| `POST /panel/tables/{n}/report` | ADM | Reporte em nome de jogador sem celular |
 | `POST /events` | ADM | Cria o evento do dia; devolve o token do enviador uma única vez |
 | `POST /events/{id}/revoke` | ADM | Revoga o token do enviador |
 | `POST /uploads` | enviador (`x-upload-token`) | Recebe um HTML do TOM; com pareamento e guias da rodada, publica a rodada |
@@ -118,5 +123,5 @@ Para mudar a policy: edite o JSON e rode `aws iam create-policy-version --profil
 | 5 | Infraestrutura AWS, EventStore no DynamoDB, fotografias no S3 | ✅ |
 | 6 | Login por código no e-mail, sessão única, papéis, check-in do ADM (Google e SES pendentes, ver spec) | ✅ |
 | 7 | Celular: site e login, ingestão do TOM e TV ao vivo, rodada e reporte (histórico do jogador fica para outra spec) | ✅ |
-| 8–9 | TV ✅ (estética pendente); painel do ADM/juiz | |
+| 8–9 | TV do salão e painel do ADM/juiz (estética pendente) | ✅ |
 | 10 | Upload do enviador para a API | |
