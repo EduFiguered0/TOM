@@ -52,6 +52,8 @@ export class ApiStack extends Stack {
         ACCOUNTS_TABLE: accounts.tableName,
         USER_POOL_ID: userPool.userPoolId,
         USER_POOL_CLIENT_ID: client.userPoolClientId,
+        // Testes não guardam contas por 24 meses.
+        ...(ephemeral ? { RETENTION_DAYS: '1' } : {}),
       },
       bundling: {
         minify: true,

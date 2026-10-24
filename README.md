@@ -8,29 +8,32 @@ Detalhes do produto em [`docs/spec-tom.md`](docs/spec-tom.md); arquitetura em [`
 
 ```
 apps/
+  api/           API: uma Lambda atrás de Function URL (GET/POST /me, POST /session)
   uploader/      enviador: observa a pasta do TOM (somente leitura)
 packages/
   core/          domínio e casos de uso, sem dependências
+  contracts/     formato e validação das requisições da API, sem dependências
   tom-reports/   leitura dos HTMLs do TOM (camada anticorrupção)
   aws-adapters/  DynamoDB e S3 implementando as portas do core
-infra/           AWS CDK: eventos (DynamoDB), fotografias (S3) e login (Cognito)
+infra/           AWS CDK: dados, login e API
 docs/            spec, ADRs e PDFs de referência
 tools/           material local fora do git (instalador do TOM)
 ```
 
-Regra de dependência: `apps → adaptadores → core`. O `core` não importa nada; o ESLint bloqueia violações.
+Regra de dependência: `apps → adaptadores / contracts → core`. O `core` não importa nada; o ESLint bloqueia violações.
 
 ## Requisitos
 
 - Node.js 22 ou mais novo (via nvm-windows: `nvm install 22` e `nvm use 22`)
+- Para a AWS: AWS CLI com o perfil `tom` (`aws login --profile tom`)
 
 ## Comandos
 
 ```bash
 npm install
-npm run check     # typecheck + lint + testes
+npm run check     # typecheck + lint + testes (offline, sem AWS)
 npm test          # só testes (offline)
-npm run test:aws  # contrato dos adaptadores contra a stack TomTest (precisa de `aws login --profile tom`)
+npm run test:aws  # testes reais contra as stacks de teste (TomTest, TomAuthTest, TomApiTest)
 npm run build     # compila os pacotes para dist/
 ```
 
@@ -40,11 +43,23 @@ Enviador (até a fase 10 só detecta e registra no console; nada sai da máquina
 npm run uploader -- --folder "C:\Users\<você>\TOM_DATA\data\reports"
 ```
 
-Infraestrutura (região us-east-2, perfil `tom`; `TomData`/`TomAuth` são produção, `TomTest`/`TomAuthTest` são descartáveis e usadas nos testes reais):
+Opções: `--state` (registro de envios, padrão `~/.tom-uploader/sent.json`, nunca dentro da pasta do TOM), `--interval` e `--quiet` em ms.
+
+## AWS
+
+Região us-east-2, perfil `tom`. Cada stack de produção tem um gêmeo descartável usado só nos testes reais:
+
+| Stack | Gêmeo de teste | Recursos |
+| --- | --- | --- |
+| `TomData` | `TomTest` | DynamoDB `Events` e `Accounts` (sob demanda, TTL 24 meses), S3 `Snapshots` (privado, expira em 24 meses) |
+| `TomAuth` | `TomAuthTest` | Cognito user pool (Essentials, código por e-mail), grupos `admin` e `judge` |
+| `TomApi` | `TomApiTest` | Lambda Node 22 Arm 256 MB + Function URL (sem API Gateway), logs por 14 dias |
+
+Custo projetado: **menos de US$ 0,20/mês** com 100 jogadores e 1 evento por mês. Preços, franquias e escolhas feitas por custo estão em [Recursos AWS e custos](docs/spec-tom.md#recursos-aws-e-custos-r3).
 
 ```bash
 npm run cdk -- diff --profile tom
-npm run cdk -- deploy TomData TomTest TomAuth TomAuthTest --profile tom
+npm run cdk -- deploy --all --profile tom   # num terminal interativo: mudanças de IAM pedem confirmação
 ```
 
 O bootstrap usa a policy restrita `TomCdkExecution` (`infra/bootstrap/execution-policy.json`) em vez de `AdministratorAccess`:
@@ -54,7 +69,7 @@ aws iam create-policy --profile tom --policy-name TomCdkExecution --policy-docum
 npm run cdk -- bootstrap aws://<conta>/us-east-2 --profile tom --cloudformation-execution-policies arn:aws:iam::<conta>:policy/TomCdkExecution
 ```
 
-Opções do enviador: `--state` (registro de envios, padrão `~/.tom-uploader/sent.json`, nunca dentro da pasta do TOM), `--interval` e `--quiet` em ms.
+Para mudar a policy: edite o JSON e rode `aws iam create-policy-version --profile tom --policy-arn <arn> --policy-document file://infra/bootstrap/execution-policy.json --set-as-default`.
 
 ## Status
 
@@ -66,6 +81,6 @@ Opções do enviador: `--state` (registro de envios, padrão `~/.tom-uploader/se
 | 3 | Modelo de eventos e recálculo do estado | ✅ |
 | 4 | Enviador (observa a pasta do TOM) | ✅ |
 | 5 | Infraestrutura AWS, EventStore no DynamoDB, fotografias no S3 | ✅ |
-| 6 | Login, papéis e sessão (6.1 domínio + Cognito ✅, 6.2 API, 6.3 Player ID e Google) | ⏳ |
+| 6 | Login, papéis e sessão (6.1 domínio + Cognito ✅, 6.2 API ✅, 6.3 Player ID e Google) | ⏳ |
 | 7–9 | Telas: celular, TV e painel | |
 | 10 | Upload do enviador para a API | |

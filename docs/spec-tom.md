@@ -30,7 +30,7 @@ flowchart TB
     ADM -->|ADM lança as keys manualmente| TOM
   end
   subgraph AWS["Online (AWS)"]
-    API["API<br/>API Gateway + Lambda"]
+    API["API<br/>Lambda Function URL"]
     AUTH["Login<br/>Cognito"]
     DB["Banco<br/>DynamoDB"]
     S3["HTMLs brutos<br/>S3"]
@@ -57,9 +57,9 @@ Tudo roda online, com HTTPS de ponta a ponta. A única peça local é o **enviad
 
 - Domínio puro (parser do TOM, termômetro, regras de resultado) em TypeScript sem nenhuma dependência de AWS. A AWS fica atrás de interfaces (inversão de dependência), então o núcleo roda e é testado sem nuvem.
 - Arquitetura do repositório (camadas, pacotes e regra de dependência): ver `docs/adr/0001-arquitetura-do-repositorio.md`.
-- AWS: Cognito (login com Google e códigos por e-mail) **[R3]**, API Gateway + Lambda, DynamoDB, S3 (HTMLs brutos), CloudFront (site).
+- AWS: Cognito (login com Google e códigos por e-mail) **[R3]**, Lambda com Function URL, sem API Gateway **[R3]**, DynamoDB, S3 (HTMLs brutos), CloudFront (site). Recursos, preços e projeções em "Recursos AWS e custos".
 - **Custo é o critério principal [R3]:** entre opções que atendem a spec, vence a que consome menos recursos da AWS (o ideal é custo zero). Cada escolha de serviço vem com a diferença de custo e uma projeção por evento/mês.
-- Escala: até 100 jogadores (50 mesas) por evento. Os serviços "sempre gratuitos" cobrem isso com folga; as condições do Free Tier para contas novas mudaram em 2025 e devem ser conferidas na criação da conta.
+- Escala: até 100 jogadores (50 mesas) por evento.
 
 ## Fontes de dados do TOM
 
@@ -203,6 +203,37 @@ O consentimento dado à Pokémon na criação do Player ID não cobre a base pr�
 
 **Retenção.** Todos os dados têm prazo de validade (TTL) de **24 meses**: a conta expira após 24 meses sem participar de evento, e os resultados expiram 24 meses após o torneio. O ranking futuro fica limitado a essa janela. Pedido de exclusão apaga antes do prazo.
 
+## Recursos AWS e custos **[R3]**
+
+Tudo em us-east-2 (região única do projeto AWS). Cada recurso de produção tem um gêmeo descartável usado só nos testes reais (`npm run test:aws`), com retenção de 1 dia. Preços oficiais conferidos em Oct 23, 2026 (região da AWS nos EUA); projeção para 100 jogadores e 1 evento por mês.
+
+| Recurso | Stack (produção / testes) | Para quê | Preço | Projeção/mês |
+| --- | --- | --- | --- | --- |
+| DynamoDB `Events` (sob demanda, TTL 24 meses, PITR em produção) | TomData / TomTest | Eventos das rodadas | US$ 0,625 por milhão de escritas, US$ 0,125 por milhão de leituras; 25 GB grátis; PITR US$ 0,20/GB-mês | < US$ 0,10 |
+| DynamoDB `Accounts` (idem) | TomData / TomTest | Contas, auditoria de identidade e trava do Player ID | idem | < US$ 0,01 |
+| S3 `Snapshots` (privado, SSE-S3, só HTTPS, expira em 24 meses) | TomData / TomTest | Fotografias dos HTMLs do TOM | US$ 0,023/GB-mês; US$ 0,005 por mil gravações | < US$ 0,01 |
+| Cognito user pool, plano Essentials | TomAuth / TomAuthTest | Login (código por e-mail; Google na 6.3), grupos admin e judge | 10 mil usuários ativos/mês grátis; depois US$ 0,015 cada | US$ 0 |
+| E-mail do Cognito (padrão, sem SES) | TomAuth | Códigos de verificação e login | Grátis; limite de ~50 e-mails/dia | US$ 0 |
+| Lambda `Handler` (Node 22, Arm, 256 MB) | TomApi / TomApiTest | API inteira (roteador único) | US$ 0,20 por milhão + US$ 0,0000133/GB-s; 1 milhão de execuções e 400 mil GB-s grátis por mês | US$ 0 |
+| Lambda Function URL | TomApi / TomApiTest | Endereço HTTPS da API, sem API Gateway | Sem cobrança própria | US$ 0 |
+| CloudWatch Logs (14 dias) | TomApi / TomApiTest | Logs da Lambda | 5 GB/mês grátis; depois ~US$ 0,50/GB | US$ 0 |
+| Bootstrap do CDK (`CDKToolkit`) | — | Bucket de assets e roles de deploy | S3 e ECR mínimos | ~US$ 0 |
+
+**Total projetado: menos de US$ 0,20/mês**, coberto pelos créditos do Free plan (US$ 100, até abril de 2027).
+
+Escolhas feitas por custo:
+
+- **Function URL em vez de API Gateway:** o HTTP API custaria US$ 1,00 por milhão de chamadas (franquia só nos primeiros 12 meses); a Function URL só cobra a Lambda, que tem franquia mensal permanente. O token é validado no código (`aws-jwt-verify`); a cota de 10 execuções simultâneas da conta limita o gasto em caso de abuso.
+- **Cognito Essentials:** necessário para o código por e-mail; custo zero até 10 mil usuários ativos/mês. O plano Plus (proteção contra ameaças) custaria US$ 0,02 por usuário, sem franquia.
+- **Lambda em Arm com 256 MB:** ~20% mais barata que x86; pacote de 27 KB (o SDK da AWS vem no runtime).
+- **Logs por 14 dias** e **TTL** em tabelas e bucket: nada acumula custo de armazenamento.
+
+Pontos de atenção:
+
+- **DynamoDB sob demanda não tem requisições grátis**; a franquia permanente (25 unidades de leitura e 25 de escrita) só vale no modo provisionado. O polling da fase 7 (~290 mil chamadas por evento) é o maior consumidor previsto; a fase 7 avalia cache e o modo provisionado para chegar a custo zero.
+- **SES:** remetente e acesso de produção definidos antes do primeiro evento (US$ 0,10 por mil e-mails; ~US$ 0,02/mês).
+- O Free plan termina em abril de 2027; depois disso a conta precisa passar para o plano pago para continuar.
+
 ## Resiliência **[R2]**
 
 - Cada reporte é gravado no banco antes de o celular receber o "ok"; nada fica só em memória.
@@ -282,3 +313,4 @@ Fora de escopo:
 | 1 | Conta com e-mail verificado | Login com conta Google; alternativa sem senha com código por e-mail para quem não usa Google |
 | 2 | Dispositivo novo exige código por e-mail | Dispositivo novo pede confirmação na tela e revoga o anterior na hora; o código por e-mail fica só no login de quem não usa Google |
 | 3 | Custo não era critério explícito | Menor custo (ideal zero) é o critério principal; cada escolha traz diferença de custo e projeção |
+| 4 | API Gateway + Lambda | Lambda com Function URL (sem API Gateway); token validado no código |

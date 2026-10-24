@@ -20,7 +20,10 @@ const api = createApi({
   tokens: new CognitoTokenVerifier(env('USER_POOL_ID'), env('USER_POOL_CLIENT_ID')),
   emails: new CognitoEmailLookup(new CognitoIdentityProviderClient({})),
   accounts: new AccountService({
-    accounts: new DynamoAccountRepository(dynamo, { tableName: env('ACCOUNTS_TABLE') }),
+    accounts: new DynamoAccountRepository(dynamo, {
+      tableName: env('ACCOUNTS_TABLE'),
+      ...(process.env['RETENTION_DAYS'] ? { retentionDays: Number(process.env['RETENTION_DAYS']) } : {}),
+    }),
     clock: { now: () => new Date() },
     ids: { next: () => randomUUID() },
   }),
