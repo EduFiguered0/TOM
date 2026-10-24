@@ -71,7 +71,7 @@ export class DynamoEventStore implements EventStore {
     try {
       await this.client.send(new TransactWriteCommand({ TransactItems: [...previous, ...puts] }));
     } catch (error) {
-      if (isConditionFailure(error)) throw new ConcurrencyError(`Versão esperada ${String(expectedVersion)} desatualizada`);
+      if (isConcurrencyFailure(error)) throw new ConcurrencyError(`Versão esperada ${String(expectedVersion)} desatualizada`);
       throw error;
     }
     return expectedVersion + events.length;
@@ -90,6 +90,7 @@ const toStored = (event: RoundEvent): StoredEvent => ({ ...event, at: event.at.t
 
 const fromStored = (stored: StoredEvent): RoundEvent => ({ ...stored, at: new Date(stored.at) }) as RoundEvent;
 
-const isConditionFailure = (error: unknown): boolean =>
+/** Versão mudou, ou outra transação no mesmo item passou na frente (reportes simultâneos): quem chamou relê e repete. */
+export const isConcurrencyFailure = (error: unknown): boolean =>
   error instanceof TransactionCanceledException &&
-  (error.CancellationReasons ?? []).some((r) => r.Code === 'ConditionalCheckFailed');
+  (error.CancellationReasons ?? []).some((r) => r.Code === 'ConditionalCheckFailed' || r.Code === 'TransactionConflict');
