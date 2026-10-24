@@ -81,7 +81,8 @@ describe('DataStack', () => {
     }
   });
 
-  it('passa nas regras de segurança do cdk-nag', () => {
+  // Sintetiza todas as stacks e empacota a Lambda: ~3 s, mais com a máquina carregada.
+  it('passa nas regras de segurança do cdk-nag', { timeout: 30_000 }, () => {
     expect(() => buildApp('123456789012', newApp()).app.synth()).not.toThrow();
   });
 });
