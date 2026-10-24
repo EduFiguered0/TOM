@@ -1,7 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import {
   InvalidRequestError,
+  parseAddRegistrationRequest,
   parseCreateEventRequest,
+  parseSetLaunchedRequest,
+  parseUpdateEventRequest,
   parseJudgesRequest,
   parsePlayerIdRequest,
   parseRegisterRequest,
@@ -49,5 +52,19 @@ describe('equipe e escala', () => {
     expect(() => parseJudgesRequest({ judges: Array.from({ length: 21 }, (_, i) => String(i)) })).toThrow(InvalidRequestError);
     expect(parseCreateEventRequest({ label: 'Liga' })).toEqual({ label: 'Liga', judges: [] });
     expect(parseCreateEventRequest({ label: 'Liga', judges: ['a'] })).toEqual({ label: 'Liga', judges: ['a'] });
+  });
+});
+
+describe('evento e inscrições', () => {
+  it('criação e edição do evento; inscrição à mão e lançado no TOM', () => {
+    expect(parseCreateEventRequest({ label: 'Liga', date: '2026-11-07', roundMinutes: 40 })).toEqual({ label: 'Liga', date: '2026-11-07', roundMinutes: 40, judges: [] });
+    expect(() => parseCreateEventRequest({ label: 'Liga', roundMinutes: '40' })).toThrow(InvalidRequestError);
+    expect(parseUpdateEventRequest({ roundMinutes: 45 })).toEqual({ roundMinutes: 45 });
+    expect(parseUpdateEventRequest({ judges: ['a'] })).toEqual({ judges: ['a'] });
+    expect(parseUpdateEventRequest({})).toEqual({});
+    expect(parseAddRegistrationRequest({ accountId: 'x' })).toEqual({ accountId: 'x' });
+    expect(() => parseAddRegistrationRequest({})).toThrow(InvalidRequestError);
+    expect(parseSetLaunchedRequest({ launched: false })).toEqual({ launched: false });
+    expect(() => parseSetLaunchedRequest({ launched: 1 })).toThrow(InvalidRequestError);
   });
 });

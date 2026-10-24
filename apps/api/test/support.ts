@@ -7,6 +7,7 @@ import {
   InMemoryEventStore,
   InMemoryRegistrationRepository,
   InMemorySnapshotStore,
+  RegistrationService,
   RoundService,
   type Identity,
 } from '@tom/core';
@@ -51,6 +52,7 @@ export const setup = () => {
     rounds,
     reader,
     registry,
+    registrations: new RegistrationService({ registry, registrations, accounts: accountRepository, clock }),
     clock,
     logError: (e) => errors.push(e),
   });
@@ -112,6 +114,10 @@ export const setupRound = async () => {
   await register(ctx.call, 'p2:c2', '100002');
   const me = async (token: string) => (await ctx.call('GET', '/round/me', token)).body as MyRoundResponse;
   const report = (token: string, report: unknown) => ctx.call('POST', '/round/report', token, { report });
-  const start = () => ctx.call('POST', '/round/start', 'adm:a1:admin', { bestOf: 3, roundMinutes: null });
+  // Sem inscritos, ninguém fica pendente: pedir a confirmação libera a rodada 1.
+  const start = async () => {
+    await ctx.call('POST', `/events/${ctx.eventId}/confirmation`, 'adm:a1:admin');
+    return ctx.call('POST', '/round/start', 'adm:a1:admin', { bestOf: 3, roundMinutes: null });
+  };
   return { ...ctx, me, report, start };
 };

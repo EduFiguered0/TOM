@@ -74,7 +74,8 @@ export class ApiStack extends Stack {
     accounts.grant(fn, 'dynamodb:GetItem', 'dynamodb:PutItem', 'dynamodb:DeleteItem', 'dynamodb:Scan');
     // DynamoEventStore: lê o stream (Query) e grava em transação (Put + ConditionCheck).
     events.grant(fn, 'dynamodb:GetItem', 'dynamodb:PutItem', 'dynamodb:Query', 'dynamodb:ConditionCheckItem');
-    tournaments.grant(fn, 'dynamodb:GetItem', 'dynamodb:PutItem');
+    // Registro de eventos e inscrições: Query lista as inscrições; ConditionCheck é a guarda do QR (evento ainda aberto).
+    tournaments.grant(fn, 'dynamodb:GetItem', 'dynamodb:PutItem', 'dynamodb:Query', 'dynamodb:ConditionCheckItem');
     // S3SnapshotStore: grava, lê e lista versões; nunca apaga. Explícito: os grant* do CDK liberam curingas (s3:GetObject*, s3:List*).
     const bucketArn = `arn:aws:s3:::${snapshotsBucket}`;
     role.addToPolicy(new PolicyStatement({ actions: ['s3:PutObject', 's3:GetObject'], resources: [`${bucketArn}/*`] }));

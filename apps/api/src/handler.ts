@@ -3,7 +3,7 @@ import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
 import { S3Client } from '@aws-sdk/client-s3';
 import { DynamoDBDocumentClient } from '@aws-sdk/lib-dynamodb';
 import { DynamoAccountRepository, DynamoEventRegistry, DynamoEventStore, DynamoRegistrationRepository, S3SnapshotStore } from '@tom/aws-adapters';
-import { AccountService, EventService, RoundService } from '@tom/core';
+import { AccountService, EventService, RegistrationService, RoundService } from '@tom/core';
 import type { APIGatewayProxyEventV2, APIGatewayProxyStructuredResultV2 } from 'aws-lambda';
 import { randomUUID } from 'node:crypto';
 import { createApi } from './api.js';
@@ -40,6 +40,7 @@ const api = createApi({
   board: createBoard({ registry, rounds: reader, clock }),
   rounds,
   reader,
+  registrations: new RegistrationService({ registry, registrations, accounts: accountRepository, clock }),
   registry,
   clock,
   logError: (error) => { console.error(error); },
