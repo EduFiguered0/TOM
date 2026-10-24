@@ -26,6 +26,8 @@ import type { Construct } from 'constructs';
 export interface WebStackProps extends StackProps {
   api: FunctionUrl;
   region: string;
+  /** Domínio de login do Cognito: o site troca nele o código do Google pelo token. */
+  loginDomain: string;
 }
 
 /**
@@ -33,7 +35,7 @@ export interface WebStackProps extends StackProps {
  * CloudFront: 1 TB e 10 milhões de requisições/mês grátis, permanentemente.
  */
 export class WebStack extends Stack {
-  constructor(scope: Construct, id: string, { api, region, ...props }: WebStackProps) {
+  constructor(scope: Construct, id: string, { api, region, loginDomain, ...props }: WebStackProps) {
     super(scope, id, props);
 
     const site = new Bucket(this, 'Site', {
@@ -54,7 +56,7 @@ export class WebStack extends Stack {
             "script-src 'self'",
             "style-src 'self'",
             "img-src 'self' data:",
-            `connect-src 'self' https://cognito-idp.${region}.amazonaws.com`,
+            `connect-src 'self' https://cognito-idp.${region}.amazonaws.com ${loginDomain}`,
             "object-src 'none'",
             "base-uri 'self'",
             "form-action 'self'",

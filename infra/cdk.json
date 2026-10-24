@@ -2,6 +2,7 @@
   "app": "npx tsx src/app.ts",
   "output": "cdk.out",
   "context": {
+    "google": false,
     "@aws-cdk/aws-signer:signingProfileNamePassedToCfn": true,
     "@aws-cdk/core:newStyleStackSynthesis": true,
     "@aws-cdk/core:stackRelativeExports": true,

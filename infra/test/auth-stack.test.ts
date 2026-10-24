@@ -3,36 +3,71 @@ import { Match, Template } from 'aws-cdk-lib/assertions';
 import { mkdtempSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { runInNewContext } from 'node:vm';
 import { describe, expect, it } from 'vitest';
+import { PRE_SIGN_UP_CODE } from '../src/auth-stack.js';
 import { buildApp, REGION } from '../src/build-app.js';
 
 const { auth, authTest } = buildApp('123456789012', new App({ outdir: mkdtempSync(join(tmpdir(), 'cdk-')) }));
 const prod = Template.fromStack(auth);
 const temp = Template.fromStack(authTest);
+const withGoogle = buildApp('123456789012', new App({ outdir: mkdtempSync(join(tmpdir(), 'cdk-')), context: { google: true } }));
+const googleProd = Template.fromStack(withGoogle.auth);
+const googleTest = Template.fromStack(withGoogle.authTest);
+
+type PreSignUp = { triggerSource: string; response: Record<string, boolean> };
+/** Roda o código inline do gatilho como a Lambda rodaria (CommonJS). */
+const preSignUp = (triggerSource: string): Promise<PreSignUp> => {
+  const sandbox = { exports: {} as { handler?: (e: PreSignUp) => Promise<PreSignUp> } };
+  runInNewContext(PRE_SIGN_UP_CODE, sandbox);
+  return sandbox.exports.handler?.({ triggerSource, response: { autoConfirmUser: false, autoVerifyEmail: false } }) ?? Promise.reject(new Error('sem handler'));
+};
 
 describe('AuthStack', () => {
   it('fica na região do projeto', () => {
     expect([auth.region, authTest.region]).toEqual([REGION, REGION]);
   });
 
-  it('login por código no e-mail, plano Essentials, e-mail como identificador', () => {
+  it('login por e-mail e senha (8 caracteres, letras e números), plano Essentials', () => {
     prod.hasResourceProperties('AWS::Cognito::UserPool', {
       UserPoolTier: 'ESSENTIALS',
       UsernameAttributes: ['email'],
-      AutoVerifiedAttributes: ['email'],
       MfaConfiguration: 'OFF',
-      Policies: Match.objectLike({ SignInPolicy: { AllowedFirstAuthFactors: Match.arrayWith(['EMAIL_OTP']) } }),
+      Policies: Match.objectLike({
+        SignInPolicy: { AllowedFirstAuthFactors: ['PASSWORD'] },
+        PasswordPolicy: Match.objectLike({ MinimumLength: 8, RequireLowercase: true, RequireNumbers: true, RequireUppercase: false, RequireSymbols: false }),
+      }),
     });
   });
 
-  it('e-mail de verificação em português, com o código', () => {
+  it('cadastro sem código: gatilho de pré-cadastro confirma e verifica o e-mail', async () => {
+    prod.hasResourceProperties('AWS::Cognito::UserPool', { LambdaConfig: { PreSignUp: Match.anyValue() } });
+    prod.hasResourceProperties('AWS::Lambda::Function', { Runtime: 'nodejs22.x', Architectures: ['arm64'], MemorySize: 128 });
+    expect((await preSignUp('PreSignUp_SignUp')).response).toEqual({ autoConfirmUser: true, autoVerifyEmail: true });
+    expect((await preSignUp('PreSignUp_ExternalProvider')).response).toEqual({ autoConfirmUser: false, autoVerifyEmail: false });
+  });
+
+  it('e-mail de "Esqueci minha senha" em português, com o código', () => {
     prod.hasResourceProperties('AWS::Cognito::UserPool', {
       VerificationMessageTemplate: Match.objectLike({
         DefaultEmailOption: 'CONFIRM_WITH_CODE',
-        EmailSubject: 'Seu código de acesso - Torneios TOM',
+        EmailSubject: 'Código para criar sua senha - Torneios TOM',
         EmailMessage: Match.stringLikeRegexp('\\{####\\}'),
       }),
     });
+  });
+
+  it('Google só na produção e só com a flag; escopo de admin para o GET /me ler o e-mail', () => {
+    prod.hasResourceProperties('AWS::Cognito::UserPoolClient', { SupportedIdentityProviders: ['COGNITO'] });
+    googleProd.hasResourceProperties('AWS::Cognito::UserPoolClient', {
+      SupportedIdentityProviders: ['COGNITO', 'Google'],
+      AllowedOAuthFlows: ['code'],
+      AllowedOAuthScopes: Match.arrayWith(['openid', 'email', 'aws.cognito.signin.user.admin']),
+      CallbackURLs: ['https://dvaep2eni3fqm.cloudfront.net/', 'http://localhost:5173/'],
+    });
+    googleTest.hasResourceProperties('AWS::Cognito::UserPoolClient', { AllowedOAuthFlows: Match.absent() });
+    googleProd.hasOutput('GoogleEnabled', { Value: 'true' });
+    prod.hasOutput('GoogleEnabled', { Value: 'false' });
   });
 
   it('domínio de login próprio de cada pool', () => {
@@ -49,7 +84,7 @@ describe('AuthStack', () => {
       GenerateSecret: false,
       AccessTokenValidity: 15,
       IdTokenValidity: 15,
-      RefreshTokenValidity: 43200,
+      RefreshTokenValidity: 525600,
       EnableTokenRevocation: true,
       PreventUserExistenceErrors: 'ENABLED',
       ExplicitAuthFlows: Match.arrayEquals(['ALLOW_USER_AUTH', 'ALLOW_REFRESH_TOKEN_AUTH']),
