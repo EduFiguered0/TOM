@@ -11,6 +11,10 @@ import { fileURLToPath } from 'node:url';
 export interface ApiStackProps extends StackProps {
   ephemeral: boolean;
   accounts: Table;
+  events: Table;
+  tournaments: Table;
+  /** Nome do bucket de fotografias (fixo; ver DataStack). */
+  snapshotsBucket: string;
   userPool: UserPool;
   client: UserPoolClient;
 }
@@ -24,7 +28,7 @@ const HANDLER = fileURLToPath(new URL('../../apps/api/src/handler.ts', import.me
 export class ApiStack extends Stack {
   readonly functionUrl: FunctionUrl;
 
-  constructor(scope: Construct, id: string, { ephemeral, accounts, userPool, client, ...props }: ApiStackProps) {
+  constructor(scope: Construct, id: string, { ephemeral, accounts, events, tournaments, snapshotsBucket, userPool, client, ...props }: ApiStackProps) {
     super(scope, id, props);
 
     const logGroup = new LogGroup(this, 'Logs', {
@@ -50,6 +54,9 @@ export class ApiStack extends Stack {
       logGroup,
       environment: {
         ACCOUNTS_TABLE: accounts.tableName,
+        EVENTS_TABLE: events.tableName,
+        TOURNAMENTS_TABLE: tournaments.tableName,
+        SNAPSHOTS_BUCKET: snapshotsBucket,
         USER_POOL_ID: userPool.userPoolId,
         USER_POOL_CLIENT_ID: client.userPoolClientId,
         // Testes não guardam contas por 24 meses.
@@ -64,6 +71,13 @@ export class ApiStack extends Stack {
     });
     // Só o que o DynamoAccountRepository usa (a transação exige a permissão de cada item: Put e Delete).
     accounts.grant(fn, 'dynamodb:GetItem', 'dynamodb:PutItem', 'dynamodb:DeleteItem');
+    // DynamoEventStore: lê o stream (Query) e grava em transação (Put + ConditionCheck).
+    events.grant(fn, 'dynamodb:GetItem', 'dynamodb:PutItem', 'dynamodb:Query', 'dynamodb:ConditionCheckItem');
+    tournaments.grant(fn, 'dynamodb:GetItem', 'dynamodb:PutItem');
+    // S3SnapshotStore: grava, lê e lista versões; nunca apaga. Explícito: os grant* do CDK liberam curingas (s3:GetObject*, s3:List*).
+    const bucketArn = `arn:aws:s3:::${snapshotsBucket}`;
+    role.addToPolicy(new PolicyStatement({ actions: ['s3:PutObject', 's3:GetObject'], resources: [`${bucketArn}/*`] }));
+    role.addToPolicy(new PolicyStatement({ actions: ['s3:ListBucket'], resources: [bucketArn] }));
 
     const fnUrl = fn.addFunctionUrl({
       authType: FunctionUrlAuthType.NONE,
@@ -72,6 +86,10 @@ export class ApiStack extends Stack {
     });
     this.functionUrl = fnUrl;
 
+    Validations.of(role).acknowledge({
+      id: `AwsSolutions-IAM5[Resource::${bucketArn}/*]`,
+      reason: 'Objetos do bucket de fotografias: a chave de cada HTML é criada no envio; só PutObject e GetObject.',
+    });
     Validations.of(fn).acknowledge({
       id: 'AwsSolutions-L1',
       reason: 'Node 22 acompanha a versão usada no desenvolvimento e nos testes; a migração para Node 24 é feita junto.',

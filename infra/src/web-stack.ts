@@ -75,6 +75,20 @@ export class WebStack extends Stack {
       cookieBehavior: CacheCookieBehavior.none(),
     });
 
+    // Quadro da TV: público e igual para todos. Guardado pelo tempo que a API mandar (5 s):
+    // muitas TVs e celulares olhando viram uma chamada à Lambda a cada 5 s por borda.
+    const boardCache = new CachePolicy(this, 'BoardCache', {
+      minTtl: Duration.seconds(0),
+      defaultTtl: Duration.seconds(0),
+      maxTtl: Duration.seconds(10),
+      headerBehavior: CacheHeaderBehavior.none(),
+      queryStringBehavior: CacheQueryStringBehavior.none(),
+      cookieBehavior: CacheCookieBehavior.none(),
+      enableAcceptEncodingGzip: true,
+      enableAcceptEncodingBrotli: true,
+    });
+    const apiOrigin = new FunctionUrlOrigin(api);
+
     const distribution = new Distribution(this, 'Cdn', {
       defaultRootObject: 'index.html',
       httpVersion: HttpVersion.HTTP2_AND_3,
@@ -88,8 +102,17 @@ export class WebStack extends Stack {
         compress: true,
       },
       additionalBehaviors: {
+        // A ordem importa: o caminho mais específico vem antes de /api/*.
+        '/api/board': {
+          origin: apiOrigin,
+          viewerProtocolPolicy: ViewerProtocolPolicy.HTTPS_ONLY,
+          allowedMethods: AllowedMethods.ALLOW_GET_HEAD,
+          cachePolicy: boardCache,
+          responseHeadersPolicy: headers,
+          compress: true,
+        },
         '/api/*': {
-          origin: new FunctionUrlOrigin(api),
+          origin: apiOrigin,
           viewerProtocolPolicy: ViewerProtocolPolicy.HTTPS_ONLY,
           allowedMethods: AllowedMethods.ALLOW_ALL,
           cachePolicy: apiCache,
