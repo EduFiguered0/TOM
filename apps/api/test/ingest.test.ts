@@ -1,33 +1,6 @@
-import type { BoardResponse, CreateEventResponse, UploadResponse } from '@tom/contracts';
-import { createHash } from 'node:crypto';
-import { readFileSync } from 'node:fs';
+import type { BoardResponse } from '@tom/contracts';
 import { describe, expect, it } from 'vitest';
-import { register, setup } from './support.js';
-
-/** HTMLs reais gerados pelo TOM 1.86 no torneio de teste "FODASE". */
-const FIXTURES = new URL('../../../packages/tom-reports/test/fixtures/fodase/', import.meta.url);
-
-const upload = (report: string, content = readFileSync(new URL(`FODASE${report}.html`, FIXTURES), 'utf8'), modifiedAt = '2026-10-24T14:00:00Z') => ({
-  tournament: 'FODASE',
-  report,
-  fileName: `FODASE${report}.html`,
-  content,
-  sha256: createHash('sha256').update(content).digest('hex'),
-  modifiedAt,
-});
-
-/** ADM cadastrado que cria um evento e devolve o token do enviador. */
-const withEvent = async () => {
-  const ctx = setup();
-  await register(ctx.call, 'adm:a1');
-  const created = await ctx.call('POST', '/events', 'adm:a1:admin', { label: 'Liga de Outubro' });
-  const { token } = created.body as CreateEventResponse;
-  const send = async (body: ReturnType<typeof upload>, uploadToken = token) => {
-    const response = await ctx.call('POST', '/uploads', null, body, { 'x-upload-token': uploadToken });
-    return { status: response.status, body: response.body as UploadResponse & { error?: string } };
-  };
-  return { ...ctx, token, eventId: (created.body as CreateEventResponse).id, send };
-};
+import { register, setup, upload, withEvent } from './support.js';
 
 describe('ingestão: TOM → enviador → API', () => {
   it('só o ADM cria evento; o token só aparece na criação', async () => {

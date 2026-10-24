@@ -9,9 +9,12 @@ import {
   RoundService,
   type Identity,
 } from '@tom/core';
-import { randomUUID } from 'node:crypto';
+import type { CreateEventResponse, UploadResponse } from '@tom/contracts';
+import { createHash, randomUUID } from 'node:crypto';
+import { readFileSync } from 'node:fs';
 import { createBoard } from '../src/board.js';
 import { createIngest } from '../src/ingest.js';
+import { createRoundReader } from '../src/rounds.js';
 import { createApi, type HttpRequest } from '../src/index.js';
 
 /** Token falso "login:sessão:grupo1,grupo2"; "expirado" é recusado. */
@@ -34,13 +37,18 @@ export const setup = () => {
   const rounds = new RoundService({ store: new InMemoryEventStore(), clock, ids });
   const events = new EventService({ events: registry, clock, ids });
   const accounts = new AccountService({ accounts: new InMemoryAccountRepository(), clock, ids });
+  const reader = createRoundReader(rounds);
   const api = createApi({
     tokens,
-    emails: { verifiedEmail: (token) => Promise.resolve(EMAILS[token.split(':')[0] ?? ''] ?? 'sem-conta@example.com') },
+    emails: { verifiedEmail: (token) => Promise.resolve(EMAILS[token.split(':')[0] ?? ''] ?? `${token.split(':')[0] ?? ''}@example.com`) },
     accounts,
     events,
     ingest: createIngest({ events, registry, rounds, clock, snapshots: new InMemorySnapshotStore() }),
-    board: createBoard({ registry, rounds, clock }),
+    board: createBoard({ registry, rounds: reader, clock }),
+    rounds,
+    reader,
+    registry,
+    clock,
     logError: (e) => errors.push(e),
   });
   const call = (method: string, path: string, token: string | null, body?: unknown, headers: Record<string, string> = {}) =>
@@ -58,3 +66,28 @@ export const profile = { name: 'Ana Souza', birthYear: 1990, phone: null, guardi
 /** Cadastra e devolve o id da conta. */
 export const register = async (call: ReturnType<typeof setup>['call'], token: string, playerId: string | null = null) =>
   ((await call('POST', '/me', token, { profile, playerId })).body as { id: string }).id;
+
+/** HTMLs reais gerados pelo TOM 1.86 no torneio de teste "FODASE". */
+const FIXTURES = new URL('../../../packages/tom-reports/test/fixtures/fodase/', import.meta.url);
+
+export const upload = (report: string, content = readFileSync(new URL(`FODASE${report}.html`, FIXTURES), 'utf8'), modifiedAt = '2026-10-24T14:00:00Z') => ({
+  tournament: 'FODASE',
+  report,
+  fileName: `FODASE${report}.html`,
+  content,
+  sha256: createHash('sha256').update(content).digest('hex'),
+  modifiedAt,
+});
+
+/** ADM cadastrado que cria um evento e devolve o token do enviador. */
+export const withEvent = async () => {
+  const ctx = setup();
+  await register(ctx.call, 'adm:a1');
+  const created = await ctx.call('POST', '/events', 'adm:a1:admin', { label: 'Liga de Outubro' });
+  const { token } = created.body as CreateEventResponse;
+  const send = async (body: ReturnType<typeof upload>, uploadToken = token) => {
+    const response = await ctx.call('POST', '/uploads', null, body, { 'x-upload-token': uploadToken });
+    return { status: response.status, body: response.body as UploadResponse & { error?: string } };
+  };
+  return { ...ctx, token, eventId: (created.body as CreateEventResponse).id, send };
+};

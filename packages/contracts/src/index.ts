@@ -158,3 +158,66 @@ export interface CreateEventResponse {
 export const parseCreateEventRequest = (body: unknown): CreateEventRequest => ({
   label: field(object(body, 'Corpo'), 'label', 'string'),
 });
+
+/** Reporte do jogador, do ponto de vista dele: placar de games ou intentional draw (ID). */
+export type ReportDto = { kind: 'score'; own: number; opponent: number } | { kind: 'intentional_draw' };
+
+export type RedReasonDto = 'outcome_conflict' | 'score_mismatch' | 'timeout';
+
+/** Onde o jogador está na rodada atual. */
+export type SeatDto =
+  | { kind: 'not_checked_in' }
+  /** Fora das mesas: bye (o TOM não traz Player ID no bye) ou não inscrito. */
+  | { kind: 'not_paired' }
+  | {
+      kind: 'table';
+      table: number;
+      opponent: string;
+      /** Prazo desta mesa (rodada + acréscimo); null antes de a rodada começar. */
+      deadline: string | null;
+      color: TableColor;
+      redReason: RedReasonDto | null;
+      myReport: ReportDto | null;
+      /** O placar do oponente não é mostrado: ninguém copia o reporte do outro. */
+      opponentReported: boolean;
+      /** Verde ou key lançada: o jogador não corrige mais (só juiz/ADM). */
+      locked: boolean;
+    };
+
+export interface MyRoundResponse {
+  round: {
+    tournament: string;
+    division: string;
+    round: number;
+    bestOf: 1 | 3 | null;
+    startedAt: string | null;
+    seat: SeatDto;
+  } | null;
+  serverTime: string;
+}
+
+export interface ReportRequest {
+  report: ReportDto;
+}
+
+export interface StartRoundRequest {
+  bestOf: 1 | 3;
+  /** null = 30 minutos (padrão da spec). */
+  roundMinutes: number | null;
+}
+
+export const parseReportRequest = (body: unknown): ReportRequest => {
+  const report = object(object(body, 'Corpo')['report'], 'report');
+  const kind = field(report, 'kind', 'string');
+  if (kind === 'intentional_draw') return { report: { kind } };
+  if (kind !== 'score') throw new InvalidRequestError('report.kind deve ser score ou intentional_draw');
+  return { report: { kind, own: field(report, 'own', 'number'), opponent: field(report, 'opponent', 'number') } };
+};
+
+export const parseStartRoundRequest = (body: unknown): StartRoundRequest => {
+  const root = object(body, 'Corpo');
+  const bestOf = field(root, 'bestOf', 'number');
+  if (bestOf !== 1 && bestOf !== 3) throw new InvalidRequestError('bestOf deve ser 1 ou 3');
+  const minutes = root['roundMinutes'] === null || root['roundMinutes'] === undefined ? null : field(root, 'roundMinutes', 'number');
+  return { bestOf, roundMinutes: minutes };
+};

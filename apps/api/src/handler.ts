@@ -10,6 +10,7 @@ import { createApi } from './api.js';
 import { createBoard } from './board.js';
 import { CognitoEmailLookup, CognitoTokenVerifier } from './cognito.js';
 import { createIngest } from './ingest.js';
+import { createRoundReader } from './rounds.js';
 
 const env = (name: string): string => {
   const value = process.env[name];
@@ -26,6 +27,7 @@ const ids = { next: () => randomUUID() };
 const registry = new DynamoEventRegistry(dynamo, { tableName: env('TOURNAMENTS_TABLE'), ...retention });
 const rounds = new RoundService({ store: new DynamoEventStore(dynamo, { tableName: env('EVENTS_TABLE'), ...retention }), clock, ids });
 const events = new EventService({ events: registry, clock, ids });
+const reader = createRoundReader(rounds);
 
 const api = createApi({
   tokens: new CognitoTokenVerifier(env('USER_POOL_ID'), env('USER_POOL_CLIENT_ID')),
@@ -33,7 +35,11 @@ const api = createApi({
   accounts: new AccountService({ accounts: new DynamoAccountRepository(dynamo, { tableName: env('ACCOUNTS_TABLE'), ...retention }), clock, ids }),
   events,
   ingest: createIngest({ events, registry, rounds, clock, snapshots: new S3SnapshotStore(new S3Client({}), env('SNAPSHOTS_BUCKET')) }),
-  board: createBoard({ registry, rounds, clock }),
+  board: createBoard({ registry, rounds: reader, clock }),
+  rounds,
+  reader,
+  registry,
+  clock,
   logError: (error) => { console.error(error); },
 });
 

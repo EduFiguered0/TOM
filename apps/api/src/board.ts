@@ -1,9 +1,9 @@
 import type { BoardResponse } from '@tom/contracts';
-import { DEFAULT_ROUND_MINUTES, type EventRegistry, type RoundService } from '@tom/core';
+import { DEFAULT_ROUND_MINUTES, type EventRegistry, type RoundRef, type RoundState } from '@tom/core';
 
 export interface BoardDeps {
   registry: EventRegistry;
-  rounds: RoundService;
+  rounds: { state(ref: RoundRef): Promise<RoundState> };
   clock: { now(): Date };
 }
 

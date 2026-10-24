@@ -3,6 +3,8 @@ import {
   parseConfirmPlayerIdRequest,
   parseCreateEventRequest,
   parseRegisterRequest,
+  parseReportRequest,
+  parseStartRoundRequest,
   parseSessionRequest,
   parseUploadRequest,
   type AccountResponse,
@@ -11,8 +13,19 @@ import {
   type ErrorResponse,
   type MeResponse,
 } from '@tom/contracts';
-import { CommandRejected, type Account, type AccountService, type EventService, type Identity, type Principal, type RejectCode } from '@tom/core';
+import {
+  CommandRejected,
+  type Account,
+  type AccountService,
+  type EventRegistry,
+  type EventService,
+  type Identity,
+  type Principal,
+  type RejectCode,
+  type RoundService,
+} from '@tom/core';
 import type { Ingest } from './ingest.js';
+import { myRound, type RoundReader } from './rounds.js';
 
 export interface HttpRequest {
   method: string;
@@ -46,6 +59,10 @@ export interface ApiDeps {
   events: EventService;
   ingest: Ingest;
   board: () => Promise<BoardResponse | null>;
+  rounds: RoundService;
+  reader: RoundReader;
+  registry: EventRegistry;
+  clock: { now(): Date };
   logError: (error: unknown) => void;
 }
 
@@ -134,7 +151,7 @@ const ACCOUNT_ID = '([0-9a-f-]{36})';
 const EVENT_ID = ACCOUNT_ID;
 
 /** Roteador da API: uma Lambda atende todas as rotas. Todas exigem token de acesso válido. */
-export const createApi = ({ tokens, emails, accounts, events, ingest, board, logError }: ApiDeps) => {
+export const createApi = ({ tokens, emails, accounts, events, ingest, board, rounds, reader, registry, clock, logError }: ApiDeps) => {
   /**
    * Primeiro acesso por um login novo (ex.: Google de quem já tinha conta pelo código por e-mail):
    * liga o login à conta do mesmo e-mail verificado e repete. Sem conta com esse e-mail, segue o 404.
@@ -210,6 +227,49 @@ export const createApi = ({ tokens, emails, accounts, events, ingest, board, log
     },
   ];
   routes.push(...adminRoutes);
+
+  const currentRef = async () => {
+    const current = await registry.current();
+    if (!current) throw new CommandRejected('round_not_paired', 'Nenhuma rodada publicada pelo TOM ainda');
+    return current.ref;
+  };
+
+  const roundRoutes: Route[] = [
+    {
+      method: 'GET', path: /^\/round\/me$/,
+      handle: async ({ identity }) => {
+        const { actor } = await accounts.authenticate(identity);
+        const current = await registry.current();
+        const state = current ? await reader.state(current.ref) : null;
+        return { status: 200, body: myRound(state, actor, clock.now()) };
+      },
+    },
+    {
+      method: 'POST', path: /^\/round\/report$/,
+      handle: async ({ request, identity }) => {
+        const { report } = parseReportRequest(jsonBody(request));
+        const { actor } = await accounts.authenticate(identity);
+        if (actor?.role !== 'player') throw new CommandRejected('forbidden', 'Só jogador com check-in feito reporta pela própria mesa');
+        const ref = await currentRef();
+        // A mesa do jogador não muda depois do pareamento: dá para usar o cache; o reporte em si relê o estado.
+        const table = (await reader.state(ref)).tables.find((t) => t.player1.playerId === actor.playerId || t.player2.playerId === actor.playerId);
+        if (!table) throw new CommandRejected('not_your_table', 'Você não está em nenhuma mesa desta rodada');
+        const state = reader.remember(await rounds.submitReport(actor, ref, { table: table.table, report }));
+        return { status: 200, body: myRound(state, actor, clock.now()) };
+      },
+    },
+    {
+      method: 'POST', path: /^\/round\/start$/,
+      handle: async ({ request, identity }) => {
+        const { bestOf, roundMinutes } = parseStartRoundRequest(jsonBody(request));
+        const { actor } = await accounts.authenticate(identity);
+        if (actor?.role !== 'admin') throw new CommandRejected('forbidden', 'Só o ADM inicia a rodada');
+        reader.remember(await rounds.startRound(actor, await currentRef(), { bestOf, ...(roundMinutes === null ? {} : { roundMinutes }) }));
+        return { status: 200, body: await board() };
+      },
+    },
+  ];
+  routes.push(...roundRoutes);
 
   const openRoutes: OpenRoute[] = [
     {
