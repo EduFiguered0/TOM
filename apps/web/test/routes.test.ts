@@ -10,6 +10,8 @@ describe('páginas do site', () => {
     ['/conta', 'account'],
     ['/painel', 'account'],
     ['/qualquer', 'home'],
+    ['/e/ABCD2345', 'join'],
+    ['/e/', 'home'],
   ] as const)('%s → %s', (path, page) => {
     expect(pageFor(path)).toBe(page);
   });

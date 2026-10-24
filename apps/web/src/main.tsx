@@ -6,6 +6,7 @@ import { createGoogle } from './auth/google.js';
 import { browserStorage, createSession } from './auth/session.js';
 import { HomePage } from './public/home-page.js';
 import { PrivacyPage } from './public/privacy-page.js';
+import { createPendingJoin, joinCodeOf } from './pending-join.js';
 import { pageFor } from './routes.js';
 import { demoBoard } from './tv/demo-board.js';
 import { LiveTv } from './tv/live.js';
@@ -40,6 +41,13 @@ const start = async () => {
     render(<PrivacyPage />, root);
     return;
   }
+  // QR do evento: guarda o código (sobrevive ao login e à ida ao Google) e segue para a conta.
+  const pendingJoin = createPendingJoin(sessionStorage);
+  const code = joinCodeOf(location.pathname);
+  if (code) {
+    pendingJoin.save(code);
+    history.replaceState(null, '', '/conta');
+  }
   const config = (await (await fetch('/config.json', { cache: 'no-store' })).json()) as Config;
   const cognito = createCognito({ region: config.region, clientId: config.userPoolClientId });
   const session = createSession(cognito, browserStorage);
@@ -60,7 +68,10 @@ const start = async () => {
     return;
   }
   render(
-    <App cognito={cognito} session={session} api={createApi(session)} google={config.google ? google : null} loginError={loginError} />,
+    <App
+      cognito={cognito} session={session} api={createApi(session)} google={config.google ? google : null}
+      loginError={loginError} pendingJoin={pendingJoin}
+    />,
     root,
   );
 };
