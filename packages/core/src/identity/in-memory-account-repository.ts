@@ -1,7 +1,7 @@
-import type { PlayerId } from '../shared/player-id.js';
 import { ConcurrencyError } from '../shared/concurrency-error.js';
+import type { PlayerId } from '../shared/player-id.js';
 import type { Account, IdentityEvent } from './account.js';
-import { PlayerIdTakenError, type AccountRecord, type AccountRepository } from './account-repository.js';
+import { AccountConflictError, PlayerIdTakenError, type AccountRecord, type AccountRepository } from './account-repository.js';
 
 const confirmedId = (account: Account) => (account.playerId?.confirmed ? account.playerId.value : null);
 
@@ -11,13 +11,19 @@ export class InMemoryAccountRepository implements AccountRepository {
   readonly events: IdentityEvent[] = [];
 
   get(id: string): Promise<AccountRecord | null> {
-    const record = this.accounts.get(id);
-    return Promise.resolve(record ? structuredClone(record) : null);
+    return this.find((a) => a.id === id);
   }
 
-  findByConfirmedPlayerId(playerId: PlayerId): Promise<Account | null> {
-    const found = [...this.accounts.values()].find(({ account }) => confirmedId(account) === playerId);
-    return Promise.resolve(found ? structuredClone(found.account) : null);
+  findByLogin(login: string): Promise<AccountRecord | null> {
+    return this.find((a) => a.logins.includes(login));
+  }
+
+  findByEmail(email: string): Promise<AccountRecord | null> {
+    return this.find((a) => a.email === email);
+  }
+
+  async findByConfirmedPlayerId(playerId: PlayerId): Promise<Account | null> {
+    return (await this.find((a) => confirmedId(a) === playerId))?.account ?? null;
   }
 
   save(account: Account, events: readonly IdentityEvent[], expectedVersion: number): Promise<number> {
@@ -25,12 +31,22 @@ export class InMemoryAccountRepository implements AccountRepository {
     if (current !== expectedVersion) {
       return Promise.reject(new ConcurrencyError(`Versão esperada ${String(expectedVersion)}, atual ${String(current)}`));
     }
+    const others = [...this.accounts.values()].map((r) => r.account).filter((a) => a.id !== account.id);
+    if (others.some((a) => a.email === account.email || a.logins.some((l) => account.logins.includes(l)))) {
+      return Promise.reject(new AccountConflictError('Login ou e-mail já pertence a outra conta'));
+    }
     const playerId = confirmedId(account);
-    const holder = [...this.accounts.values()].find((r) => r.account.id !== account.id && confirmedId(r.account) === playerId);
-    if (playerId && holder) return Promise.reject(new PlayerIdTakenError(`Player ID ${playerId} já confirmado em outra conta`));
+    if (playerId && others.some((a) => confirmedId(a) === playerId)) {
+      return Promise.reject(new PlayerIdTakenError(`Player ID ${playerId} já confirmado em outra conta`));
+    }
     const version = current + 1;
     this.accounts.set(account.id, { account: structuredClone(account), version });
     this.events.push(...events);
     return Promise.resolve(version);
+  }
+
+  private find(match: (account: Account) => boolean): Promise<AccountRecord | null> {
+    const found = [...this.accounts.values()].find((r) => match(r.account));
+    return Promise.resolve(found ? structuredClone(found) : null);
   }
 }

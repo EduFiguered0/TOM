@@ -15,7 +15,7 @@ export class CognitoTokenVerifier implements TokenVerifier {
     const payload = await this.verifier.verify(accessToken);
     const session = payload['origin_jti'];
     if (typeof session !== 'string') throw new Error('Token sem origin_jti (revogação desligada no cliente?)');
-    return { accountId: payload.sub, session, groups: payload['cognito:groups'] ?? [] };
+    return { login: payload.sub, session, groups: payload['cognito:groups'] ?? [] };
   }
 }
 

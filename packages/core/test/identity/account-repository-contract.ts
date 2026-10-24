@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { describe, expect, it } from 'vitest';
 import {
+  AccountConflictError,
   ConcurrencyError,
   PlayerIdTakenError,
   toPlayerId,
@@ -11,9 +12,11 @@ import {
 
 const at = new Date('2026-10-23T14:00:00Z');
 
+/** Ids, logins, e-mails e Player IDs únicos por execução, porque implementações reais guardam dados entre execuções. */
 const account = (playerId: Account['playerId'] = null): Account => ({
-  id: `teste-${randomUUID()}`,
-  email: 'jogador@example.com',
+  id: randomUUID(),
+  email: `teste-${randomUUID()}@example.com`,
+  logins: [randomUUID()],
   profile: { name: 'Ana Souza', birthYear: 2012, phone: null, guardianConsent: true },
   playerId,
   activeSession: 'sessao-1',
@@ -21,24 +24,29 @@ const account = (playerId: Account['playerId'] = null): Account => ({
 });
 
 const registered = (a: Account): IdentityEvent => ({
-  id: randomUUID(), accountId: a.id, at, actor: { role: 'system', source: `account:${a.id}` }, type: 'account_registered',
+  id: randomUUID(), accountId: a.id, at, actor: { role: 'system', source: 'teste' }, type: 'account_registered', login: a.logins[0] ?? '',
 });
 
-/** Player ID único por execução, porque implementações reais guardam dados entre execuções. */
 const uniquePlayerId = () => toPlayerId(String(Date.now()) + String(Math.floor(Math.random() * 1e6)));
 
 /** Contrato da porta: toda implementação (memória, DynamoDB) deve passar. */
 export const accountRepositoryContract = (name: string, create: () => AccountRepository) => {
   describe(`AccountRepository: ${name}`, () => {
-    it('conta inexistente volta null', async () => {
-      expect(await create().get(`teste-${randomUUID()}`)).toBeNull();
+    it('conta inexistente volta null por id, login e e-mail', async () => {
+      const repo = create();
+      expect(await repo.get(randomUUID())).toBeNull();
+      expect(await repo.findByLogin(randomUUID())).toBeNull();
+      expect(await repo.findByEmail(`teste-${randomUUID()}@example.com`)).toBeNull();
     });
 
-    it('grava conta nova e devolve exatamente o que foi gravado', async () => {
+    it('grava conta nova e acha por id, login e e-mail', async () => {
       const repo = create();
       const a = account({ value: uniquePlayerId(), confirmed: false });
       expect(await repo.save(a, [registered(a)], 0)).toBe(1);
-      expect(await repo.get(a.id)).toEqual({ account: a, version: 1 });
+      const expected = { account: a, version: 1 };
+      expect(await repo.get(a.id)).toEqual(expected);
+      expect(await repo.findByLogin(a.logins[0] ?? '')).toEqual(expected);
+      expect(await repo.findByEmail(a.email)).toEqual(expected);
     });
 
     it('recusa versão desatualizada (inclusive cadastro duplicado)', async () => {
@@ -48,6 +56,27 @@ export const accountRepositoryContract = (name: string, create: () => AccountRep
       await expect(repo.save(a, [], 0)).rejects.toThrow(ConcurrencyError);
       expect(await repo.save({ ...a, activeSession: 'sessao-2' }, [], 1)).toBe(2);
       expect((await repo.get(a.id))?.account.activeSession).toBe('sessao-2');
+    });
+
+    it('login novo ligado à conta passa a encontrá-la', async () => {
+      const repo = create();
+      const a = account();
+      await repo.save(a, [registered(a)], 0);
+      const google = randomUUID();
+      await repo.save({ ...a, logins: [...a.logins, google] }, [], 1);
+      expect((await repo.findByLogin(google))?.account.id).toBe(a.id);
+    });
+
+    it('e-mail e login nunca ficam em duas contas', async () => {
+      const repo = create();
+      const first = account();
+      await repo.save(first, [registered(first)], 0);
+      const sameEmail = { ...account(), email: first.email };
+      await expect(repo.save(sameEmail, [registered(sameEmail)], 0)).rejects.toThrow(AccountConflictError);
+      const sameLogin = { ...account(), logins: first.logins };
+      await expect(repo.save(sameLogin, [registered(sameLogin)], 0)).rejects.toThrow(AccountConflictError);
+      expect(await repo.get(sameEmail.id)).toBeNull();
+      expect(await repo.get(sameLogin.id)).toBeNull();
     });
 
     it('acha a conta pelo Player ID só depois de confirmado', async () => {

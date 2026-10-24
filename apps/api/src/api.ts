@@ -114,10 +114,27 @@ const ACCOUNT_ID = '([0-9a-f-]{36})';
 
 /** Roteador da API: uma Lambda atende todas as rotas. Todas exigem token de acesso válido. */
 export const createApi = ({ tokens, emails, accounts, logError }: ApiDeps) => {
+  /**
+   * Primeiro acesso por um login novo (ex.: Google de quem já tinha conta pelo código por e-mail):
+   * liga o login à conta do mesmo e-mail verificado e repete. Sem conta com esse e-mail, segue o 404.
+   */
+  const linkingNewLogin = async <T>(token: string, identity: Identity, run: () => Promise<T>): Promise<T> => {
+    try {
+      return await run();
+    } catch (e) {
+      if (!(e instanceof CommandRejected) || e.code !== 'account_not_found') throw e;
+      await accounts.linkLogin(identity, await emails.verifiedEmail(token));
+      return run();
+    }
+  };
+
   const routes: Route[] = [
     {
       method: 'GET', path: /^\/me$/,
-      handle: async ({ identity }) => ({ status: 200, body: toMe(await accounts.authenticate(identity)) }),
+      handle: async ({ token, identity }) => ({
+        status: 200,
+        body: toMe(await linkingNewLogin(token, identity, () => accounts.authenticate(identity))),
+      }),
     },
     {
       method: 'POST', path: /^\/me$/,
@@ -129,9 +146,9 @@ export const createApi = ({ tokens, emails, accounts, logError }: ApiDeps) => {
     },
     {
       method: 'POST', path: /^\/session$/,
-      handle: async ({ request, identity }) => {
+      handle: async ({ request, token, identity }) => {
         const { replace } = parseSessionRequest(jsonBody(request));
-        await accounts.activateSession(identity, replace);
+        await linkingNewLogin(token, identity, () => accounts.activateSession(identity, replace));
         return { status: 200, body: toMe(await accounts.authenticate(identity)) };
       },
     },

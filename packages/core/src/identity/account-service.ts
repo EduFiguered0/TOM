@@ -3,12 +3,13 @@ import { CommandRejected } from '../shared/command-rejected.js';
 import { ConcurrencyError } from '../shared/concurrency-error.js';
 import { InvalidPlayerIdError, toPlayerId } from '../shared/player-id.js';
 import type { Clock, IdGenerator } from '../shared/ports.js';
-import { InvalidProfileError, validProfile, type Account, type IdentityEventData, type Profile } from './account.js';
-import { PlayerIdTakenError, type AccountRepository } from './account-repository.js';
+import { InvalidProfileError, normalizeEmail, validProfile, type Account, type IdentityEventData, type Profile } from './account.js';
+import { AccountConflictError, PlayerIdTakenError, type AccountRecord, type AccountRepository } from './account-repository.js';
 
 /** O que o token validado (Cognito) diz sobre quem chama. */
 export interface Identity {
-  accountId: string;
+  /** `sub` do Cognito: um por forma de login (código por e-mail, Google). */
+  login: string;
   /** `origin_jti`: identifica o login neste dispositivo e sobrevive às renovações do token. */
   session: string;
   /** `cognito:groups`. */
@@ -40,7 +41,9 @@ function requireAdmin(actor: Actor | null): asserts actor is Actor {
 }
 
 /** Quem age em nome da própria conta antes de ter papel (cadastro, sessão). */
-const self = (id: Identity): Actor => ({ role: 'system', source: `account:${id.accountId}` });
+const self = (id: Identity): Actor => ({ role: 'system', source: `login:${id.login}` });
+
+const notFound = () => new CommandRejected('account_not_found', 'Conta não cadastrada');
 
 /** Erros de validação do domínio viram recusa do comando. */
 const validated = <T>(fn: () => T): T => {
@@ -61,54 +64,74 @@ export class AccountService {
    */
   async register(identity: Identity, email: string, input: { profile: Profile; playerId: string | null }): Promise<Account> {
     const now = this.deps.clock.now();
-    if (await this.deps.accounts.get(identity.accountId)) {
-      throw new CommandRejected('account_exists', 'Esta conta já está cadastrada');
+    const normalized = normalizeEmail(email);
+    if ((await this.deps.accounts.findByLogin(identity.login)) || (await this.deps.accounts.findByEmail(normalized))) {
+      throw accountExists();
     }
     const profile = validated(() => validProfile(input.profile, now));
     const playerId = input.playerId ? validated(() => toPlayerId(input.playerId ?? '')) : null;
     const account: Account = {
-      id: identity.accountId,
-      email,
+      id: this.deps.ids.next(),
+      email: normalized,
+      logins: [identity.login],
       profile,
       playerId: playerId ? { value: playerId, confirmed: false } : null,
       activeSession: identity.session,
       createdAt: now,
     };
     const events: IdentityEventData[] = [
-      { type: 'account_registered' },
+      { type: 'account_registered', login: identity.login },
       ...(playerId ? [{ type: 'player_id_claimed' as const, playerId }] : []),
       { type: 'session_activated', session: identity.session, replaced: null },
     ];
     try {
       await this.deps.accounts.save(account, events.map((e) => this.event(account.id, self(identity), e)), 0);
     } catch (e) {
-      if (e instanceof ConcurrencyError) throw new CommandRejected('account_exists', 'Esta conta já está cadastrada');
+      if (e instanceof AccountConflictError) throw accountExists();
       throw e;
     }
     return account;
   }
 
   /**
+   * Primeiro acesso por outra forma de login (ex.: Google depois do código por e-mail): liga o login
+   * à conta que já tem o mesmo e-mail verificado. Sem conta com esse e-mail, recusa como não cadastrada.
+   */
+  async linkLogin(identity: Identity, email: string): Promise<Account> {
+    const record = await this.deps.accounts.findByEmail(normalizeEmail(email));
+    if (!record) throw notFound();
+    return this.execute(record.account.id, (account) => {
+      if (account.logins.includes(identity.login)) return null;
+      return {
+        actor: self(identity),
+        account: { ...account, logins: [...account.logins, identity.login] },
+        data: { type: 'login_linked', login: identity.login },
+      };
+    });
+  }
+
+  /**
    * Torna este dispositivo o ativo. No primeiro acesso ativa direto; com outro dispositivo ativo,
    * só troca com `replace` (o jogador confirmou na tela) e o anterior fica revogado.
    */
-  activateSession(identity: Identity, replace: boolean): Promise<Account> {
-    return this.execute(identity.accountId, (account) => {
-      if (account.activeSession === identity.session) return null;
-      if (account.activeSession && !replace) {
+  async activateSession(identity: Identity, replace: boolean): Promise<Account> {
+    const { account } = await this.resolve(identity);
+    return this.execute(account.id, (current) => {
+      if (current.activeSession === identity.session) return null;
+      if (current.activeSession && !replace) {
         throw new CommandRejected('session_conflict', 'Outro dispositivo está ativo; confirme para desconectá-lo');
       }
       return {
         actor: self(identity),
-        account: { ...account, activeSession: identity.session },
-        data: { type: 'session_activated', session: identity.session, replaced: account.activeSession },
+        account: { ...current, activeSession: identity.session },
+        data: { type: 'session_activated', session: identity.session, replaced: current.activeSession },
       };
     });
   }
 
   /** Valida a sessão do token a cada chamada da API e resolve o papel. */
   async authenticate(identity: Identity): Promise<Principal> {
-    const account = await this.requireAccount(identity.accountId);
+    const { account } = await this.resolve(identity);
     if (account.activeSession !== identity.session) {
       throw new CommandRejected('session_inactive', 'Este dispositivo foi desconectado; entre de novo para usá-lo');
     }
@@ -139,8 +162,14 @@ export class AccountService {
 
   private async requireAccount(id: string): Promise<Account> {
     const record = await this.deps.accounts.get(id);
-    if (!record) throw new CommandRejected('account_not_found', 'Conta não cadastrada');
+    if (!record) throw notFound();
     return record.account;
+  }
+
+  private async resolve(identity: Identity): Promise<AccountRecord> {
+    const record = await this.deps.accounts.findByLogin(identity.login);
+    if (!record) throw notFound();
+    return record;
   }
 
   private event(accountId: string, actor: Actor, data: IdentityEventData) {
@@ -154,7 +183,7 @@ export class AccountService {
   ): Promise<Account> {
     for (let attempt = 1; ; attempt++) {
       const record = await this.deps.accounts.get(accountId);
-      if (!record) throw new CommandRejected('account_not_found', 'Conta não cadastrada');
+      if (!record) throw notFound();
       const change = await decide(record.account);
       if (!change) return record.account;
       try {
@@ -162,6 +191,7 @@ export class AccountService {
         return change.account;
       } catch (e) {
         if (e instanceof PlayerIdTakenError) throw takenRejection(change.account.playerId?.value ?? '');
+        if (e instanceof AccountConflictError) throw accountExists();
         if (!(e instanceof ConcurrencyError)) throw e;
         if (attempt >= MAX_ATTEMPTS) throw new CommandRejected('concurrency', 'Muitas alterações simultâneas; tente de novo');
       }
@@ -174,6 +204,8 @@ interface Change {
   account: Account;
   data: IdentityEventData;
 }
+
+const accountExists = () => new CommandRejected('account_exists', 'Já existe uma conta com este login ou e-mail');
 
 const takenRejection = (playerId: string) =>
   new CommandRejected('player_id_taken', `Player ID ${playerId} já está confirmado em outra conta`);

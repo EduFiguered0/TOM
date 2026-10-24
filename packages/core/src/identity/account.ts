@@ -11,9 +11,11 @@ export interface Profile {
 }
 
 export interface Account {
-  /** `sub` do Cognito. */
   id: string;
+  /** E-mail verificado, em minúsculas: uma conta por e-mail. */
   email: string;
+  /** Logins do Cognito (`sub`) ligados à conta: código por e-mail, Google. */
+  logins: string[];
   profile: Profile;
   /** Informado pelo jogador; só vale para reportar depois que o ADM confirma no check-in. */
   playerId: { value: PlayerId; confirmed: boolean } | null;
@@ -23,7 +25,8 @@ export interface Account {
 }
 
 export type IdentityEventData =
-  | { type: 'account_registered' }
+  | { type: 'account_registered'; login: string }
+  | { type: 'login_linked'; login: string }
   | { type: 'player_id_claimed'; playerId: PlayerId }
   | { type: 'player_id_confirmed'; playerId: PlayerId }
   | { type: 'session_activated'; session: string; replaced: string | null };
@@ -35,6 +38,9 @@ export type IdentityEvent = IdentityEventData & {
   at: Date;
   actor: Actor;
 };
+
+/** E-mail como chave da conta: sem espaços e em minúsculas. */
+export const normalizeEmail = (email: string): string => email.trim().toLowerCase();
 
 export class InvalidProfileError extends Error {
   override name = 'InvalidProfileError';

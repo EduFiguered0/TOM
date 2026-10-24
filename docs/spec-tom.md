@@ -180,6 +180,7 @@ O celular precisa deixar claro quando um reporte **não** foi enviado. Nunca mos
 
 - O jogador cria a conta online entrando com a **conta Google** ou, para quem não tem ou não pode usar Google (ex.: crianças), com um **código de uso único enviado ao e-mail**, sem senha. Os dois caminhos levam ao mesmo e-mail verificado. **[R3]**
 - Uma conta por e-mail; na v1 um responsável não gerencia mais de uma conta.
+- **[R3]** Quem entra pelo Google e também pelo código por e-mail continua com uma conta só: no primeiro acesso por uma forma nova, a conta é encontrada pelo e-mail verificado e o novo login é ligado a ela. O Google só é aceito com e-mail verificado.
 - O vínculo conta ↔ Player ID só fica ativo depois que o ADM confirma presencialmente, no primeiro check-in. Isso impede alguém de registrar o Player ID de outra pessoa antes dela. Depois da confirmação, não precisa repetir.
 
 **Sessão única e dispositivo.**
@@ -314,3 +315,4 @@ Fora de escopo:
 | 2 | Dispositivo novo exige código por e-mail | Dispositivo novo pede confirmação na tela e revoga o anterior na hora; o código por e-mail fica só no login de quem não usa Google |
 | 3 | Custo não era critério explícito | Menor custo (ideal zero) é o critério principal; cada escolha traz diferença de custo e projeção |
 | 4 | API Gateway + Lambda | Lambda com Function URL (sem API Gateway); token validado no código |
+| 5 | Conta = usuário do Cognito | Conta com id próprio e vários logins (Google, código por e-mail) unificados pelo e-mail verificado |
