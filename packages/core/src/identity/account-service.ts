@@ -20,7 +20,7 @@ export interface Identity {
 
 export interface Principal {
   account: Account;
-  /** null para jogador sem Player ID confirmado: entra, mas ainda não pode agir. */
+  /** null para jogador sem Player ID: entra, mas ainda não pode agir. */
   actor: Actor | null;
 }
 
@@ -61,7 +61,7 @@ export class AccountService {
   constructor(private readonly deps: AccountServiceDeps) {}
 
   /**
-   * Cadastro após o primeiro login; o Player ID informado fica pendente até o ADM confirmar.
+   * Cadastro após o primeiro login; o Player ID informado já vale (o primeiro a cadastrar fica com ele).
    * O e-mail vem do Cognito, nunca do corpo da requisição.
    */
   async register(identity: Identity, email: string, input: { profile: Profile; playerId: string | null }): Promise<Account> {
@@ -91,6 +91,7 @@ export class AccountService {
       await this.deps.accounts.save(account, events.map((e) => this.event(account.id, self(identity), e)), 0);
     } catch (e) {
       if (e instanceof AccountConflictError) throw accountExists();
+      if (e instanceof PlayerIdTakenError) throw takenRejection();
       throw e;
     }
     return account;
@@ -152,32 +153,43 @@ export class AccountService {
     return { account, actor: actorFor(account, identity.groups) };
   }
 
-  /** No check-in o ADM consulta a conta do jogador antes de confirmar o Player ID. */
-  async getAccount(actor: Actor | null, accountId: string): Promise<Account> {
-    requireAdmin(actor);
-    return this.requireAccount(accountId);
-  }
-
-  /** No check-in o ADM confere o Player ID presencialmente; pode corrigir o valor informado. */
-  async confirmPlayerId(actor: Actor | null, accountId: string, playerId: string): Promise<Account> {
-    requireAdmin(actor);
+  /** Conta sem Player ID informa depois. Para trocar um Player ID já cadastrado, só pelo ADM. */
+  async claimPlayerId(identity: Identity, playerId: string): Promise<Account> {
     const value = validated(() => toPlayerId(playerId));
-    return this.execute(accountId, async (account) => {
-      if (account.playerId?.confirmed && account.playerId.value === value) return null;
-      const holder = await this.deps.accounts.findByConfirmedPlayerId(value);
-      if (holder && holder.id !== account.id) throw takenRejection(value);
+    const { account } = await this.resolve(identity);
+    return this.execute(account.id, (current) => {
+      if (current.playerId) {
+        throw new CommandRejected('player_id_set', 'Seu Player ID já está cadastrado. Para trocar, procure o ADM.');
+      }
       return {
-        actor,
-        account: { ...account, playerId: { value, confirmed: true } },
-        data: { type: 'player_id_confirmed', playerId: value },
+        actor: self(identity),
+        account: { ...current, playerId: value },
+        data: { type: 'player_id_claimed', playerId: value },
       };
     });
   }
 
-  private async requireAccount(id: string): Promise<Account> {
-    const record = await this.deps.accounts.get(id);
-    if (!record) throw notFound();
-    return record.account;
+  /** O ADM procura quem cadastrou um Player ID antes de desfazer o vínculo. */
+  async findByPlayerId(actor: Actor | null, playerId: string): Promise<Account> {
+    requireAdmin(actor);
+    return (await this.holderOf(playerId)).account;
+  }
+
+  /** Vínculo errado: o ADM tira o Player ID da conta, e o dono verdadeiro pode cadastrá-lo. */
+  async unlinkPlayerId(actor: Actor | null, playerId: string): Promise<Account> {
+    requireAdmin(actor);
+    const value = validated(() => toPlayerId(playerId));
+    const { account } = await this.holderOf(value);
+    return this.execute(account.id, (current) => {
+      if (current.playerId !== value) return null;
+      return { actor, account: { ...current, playerId: null }, data: { type: 'player_id_unlinked', playerId: value } };
+    });
+  }
+
+  private async holderOf(playerId: string): Promise<AccountRecord> {
+    const record = await this.deps.accounts.findByPlayerId(validated(() => toPlayerId(playerId)));
+    if (!record) throw new CommandRejected('account_not_found', 'Nenhuma conta com esse Player ID');
+    return record;
   }
 
   private async resolve(identity: Identity): Promise<AccountRecord> {
@@ -204,7 +216,7 @@ export class AccountService {
         await this.deps.accounts.save(change.account, [this.event(accountId, change.actor, change.data)], record.version);
         return change.account;
       } catch (e) {
-        if (e instanceof PlayerIdTakenError) throw takenRejection(change.account.playerId?.value ?? '');
+        if (e instanceof PlayerIdTakenError) throw takenRejection();
         if (e instanceof AccountConflictError) throw accountExists();
         if (!(e instanceof ConcurrencyError)) throw e;
         if (attempt >= MAX_ATTEMPTS) throw new CommandRejected('concurrency', 'Muitas alterações simultâneas; tente de novo');
@@ -224,5 +236,4 @@ const accountExists = () => new CommandRejected('account_exists', 'Esse e-mail j
 /** Senha num e-mail de conta existente: os logins de senha usam o e-mail como nome, então a conta é do Google. */
 const googleAccountExists = () => new CommandRejected('account_exists', 'Esse e-mail já tem conta pelo Google. Entre com o Google.');
 
-const takenRejection = (playerId: string) =>
-  new CommandRejected('player_id_taken', `Player ID ${playerId} já está confirmado em outra conta`);
+const takenRejection = () => new CommandRejected('player_id_taken', 'Esse Player ID já está em uso, procure o ADM');

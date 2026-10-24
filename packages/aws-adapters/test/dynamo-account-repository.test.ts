@@ -10,7 +10,7 @@ describe('conta lida do DynamoDB', () => {
   it('formato antigo ({ value, confirmed }) vira o Player ID; o novo e o vazio ficam como estão', () => {
     expect(fromStored({ ...stored, playerId: { value: '1122334', confirmed: false } } as never).playerId).toBe('1122334');
     expect(fromStored({ ...stored, playerId: '1122334' } as never).playerId).toBe('1122334');
-    expect(fromStored({ ...stored, playerId: null } as never).playerId).toBeNull();
-    expect(fromStored({ ...stored, playerId: null } as never).createdAt).toEqual(new Date('2026-10-23T14:00:00Z'));
+    expect(fromStored({ ...stored, playerId: null }).playerId).toBeNull();
+    expect(fromStored({ ...stored, playerId: null }).createdAt).toEqual(new Date('2026-10-23T14:00:00Z'));
   });
 });
