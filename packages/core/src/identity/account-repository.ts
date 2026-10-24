@@ -18,14 +18,14 @@ export class AccountConflictError extends Error {
 
 /**
  * Porta de persistência das contas. `save` grava a conta e os eventos juntos e garante a unicidade
- * de logins, e-mail e Player ID confirmado. Falha com ConcurrencyError se a versão mudou,
+ * de logins, e-mail e Player ID. Falha com ConcurrencyError se a versão mudou,
  * AccountConflictError se login ou e-mail já é de outra conta e PlayerIdTakenError se o Player ID
- * confirmado já é de outra conta. Versão esperada 0 = conta nova.
+ * já é de outra conta. Versão esperada 0 = conta nova.
  */
 export interface AccountRepository {
   get(id: string): Promise<AccountRecord | null>;
   findByLogin(login: string): Promise<AccountRecord | null>;
   findByEmail(email: string): Promise<AccountRecord | null>;
-  findByConfirmedPlayerId(playerId: PlayerId): Promise<Account | null>;
+  findByPlayerId(playerId: PlayerId): Promise<AccountRecord | null>;
   save(account: Account, events: readonly IdentityEvent[], expectedVersion: number): Promise<number>;
 }

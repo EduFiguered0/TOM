@@ -41,7 +41,7 @@ export const accountRepositoryContract = (name: string, create: () => AccountRep
 
     it('grava conta nova e acha por id, login e e-mail', async () => {
       const repo = create();
-      const a = account({ value: uniquePlayerId(), confirmed: false });
+      const a = account(uniquePlayerId());
       expect(await repo.save(a, [registered(a)], 0)).toBe(1);
       const expected = { account: a, version: 1 };
       expect(await repo.get(a.id)).toEqual(expected);
@@ -79,35 +79,38 @@ export const accountRepositoryContract = (name: string, create: () => AccountRep
       expect(await repo.get(sameLogin.id)).toBeNull();
     });
 
-    it('acha a conta pelo Player ID só depois de confirmado', async () => {
+    it('acha a conta pelo Player ID assim que gravada', async () => {
       const repo = create();
       const playerId = uniquePlayerId();
-      const a = account({ value: playerId, confirmed: false });
+      const a = account(playerId);
       await repo.save(a, [registered(a)], 0);
-      expect(await repo.findByConfirmedPlayerId(playerId)).toBeNull();
-      await repo.save({ ...a, playerId: { value: playerId, confirmed: true } }, [], 1);
-      expect((await repo.findByConfirmedPlayerId(playerId))?.id).toBe(a.id);
+      expect((await repo.findByPlayerId(playerId))?.account.id).toBe(a.id);
+      expect(await repo.findByPlayerId(uniquePlayerId())).toBeNull();
     });
 
-    it('um Player ID confirmado nunca fica em duas contas', async () => {
+    it('um Player ID nunca fica em duas contas', async () => {
       const repo = create();
       const playerId = uniquePlayerId();
-      const first = account({ value: playerId, confirmed: true });
+      const first = account(playerId);
       await repo.save(first, [registered(first)], 0);
-      const second = account({ value: playerId, confirmed: true });
+      const second = account(playerId);
       await expect(repo.save(second, [registered(second)], 0)).rejects.toThrow(PlayerIdTakenError);
       expect(await repo.get(second.id)).toBeNull();
     });
 
-    it('trocar o Player ID confirmado libera o anterior', async () => {
+    it('tirar ou trocar o Player ID libera o anterior', async () => {
       const repo = create();
       const [old, next] = [uniquePlayerId(), uniquePlayerId()];
-      const a = account({ value: old, confirmed: true });
+      const a = account(old);
       await repo.save(a, [registered(a)], 0);
-      await repo.save({ ...a, playerId: { value: next, confirmed: true } }, [], 1);
-      expect(await repo.findByConfirmedPlayerId(old)).toBeNull();
-      const b = account({ value: old, confirmed: true });
+      await repo.save({ ...a, playerId: next }, [], 1);
+      expect(await repo.findByPlayerId(old)).toBeNull();
+      await repo.save({ ...a, playerId: null }, [], 2);
+      expect(await repo.findByPlayerId(next)).toBeNull();
+      const b = account(old);
       expect(await repo.save(b, [registered(b)], 0)).toBe(1);
+      const c = account(next);
+      expect(await repo.save(c, [registered(c)], 0)).toBe(1);
     });
   });
 };

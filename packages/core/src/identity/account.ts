@@ -22,8 +22,8 @@ export interface Account {
    */
   emailProven?: boolean;
   profile: Profile;
-  /** Informado pelo jogador; só vale para reportar depois que o ADM confirma no check-in. */
-  playerId: { value: PlayerId; confirmed: boolean } | null;
+  /** Informado pelo jogador; vale desde o cadastro. O primeiro a cadastrar fica com ele. */
+  playerId: PlayerId | null;
   /** Sessão do dispositivo ativo (`origin_jti` do token); tokens de outra sessão são recusados. */
   activeSession: string | null;
   createdAt: Date;

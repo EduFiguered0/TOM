@@ -35,7 +35,7 @@ const MAX_ATTEMPTS = 3;
 const actorFor = (account: Account, groups: readonly string[]): Actor | null => {
   if (groups.includes('admin')) return { role: 'admin', accountId: account.id };
   if (groups.includes('judge')) return { role: 'judge', accountId: account.id };
-  return account.playerId?.confirmed ? { role: 'player', accountId: account.id, playerId: account.playerId.value } : null;
+  return account.playerId ? { role: 'player', accountId: account.id, playerId: account.playerId } : null;
 };
 
 function requireAdmin(actor: Actor | null): asserts actor is Actor {
@@ -78,7 +78,7 @@ export class AccountService {
       logins: [identity.login],
       emailProven: identity.provider === 'google',
       profile,
-      playerId: playerId ? { value: playerId, confirmed: false } : null,
+      playerId,
       activeSession: identity.session,
       createdAt: now,
     };
