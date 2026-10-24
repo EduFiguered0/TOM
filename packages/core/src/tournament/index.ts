@@ -12,3 +12,4 @@ export * from './event-service.js';
 export * from './staff.js';
 export * from './registration.js';
 export * from './in-memory-registration-repository.js';
+export * from './registration-service.js';

@@ -2,7 +2,7 @@ import { CognitoIdentityProviderClient } from '@aws-sdk/client-cognito-identity-
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
 import { S3Client } from '@aws-sdk/client-s3';
 import { DynamoDBDocumentClient } from '@aws-sdk/lib-dynamodb';
-import { DynamoAccountRepository, DynamoEventRegistry, DynamoEventStore, S3SnapshotStore } from '@tom/aws-adapters';
+import { DynamoAccountRepository, DynamoEventRegistry, DynamoEventStore, DynamoRegistrationRepository, S3SnapshotStore } from '@tom/aws-adapters';
 import { AccountService, EventService, RoundService } from '@tom/core';
 import type { APIGatewayProxyEventV2, APIGatewayProxyStructuredResultV2 } from 'aws-lambda';
 import { randomUUID } from 'node:crypto';
@@ -27,7 +27,8 @@ const ids = { next: () => randomUUID() };
 const registry = new DynamoEventRegistry(dynamo, { tableName: env('TOURNAMENTS_TABLE'), ...retention });
 const rounds = new RoundService({ store: new DynamoEventStore(dynamo, { tableName: env('EVENTS_TABLE'), ...retention }), clock, ids });
 const accountRepository = new DynamoAccountRepository(dynamo, { tableName: env('ACCOUNTS_TABLE'), ...retention });
-const events = new EventService({ events: registry, accounts: accountRepository, clock, ids });
+const registrations = new DynamoRegistrationRepository(dynamo, { tableName: env('TOURNAMENTS_TABLE'), ...retention });
+const events = new EventService({ events: registry, accounts: accountRepository, registrations, clock, ids });
 const reader = createRoundReader(rounds);
 
 const api = createApi({

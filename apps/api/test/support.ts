@@ -5,6 +5,7 @@ import {
   InMemoryAccountRepository,
   InMemoryEventRegistry,
   InMemoryEventStore,
+  InMemoryRegistrationRepository,
   InMemorySnapshotStore,
   RoundService,
   type Identity,
@@ -36,7 +37,8 @@ export const setup = () => {
   const registry = new InMemoryEventRegistry();
   const rounds = new RoundService({ store: new InMemoryEventStore(), clock, ids });
   const accountRepository = new InMemoryAccountRepository();
-  const events = new EventService({ events: registry, accounts: accountRepository, clock, ids });
+  const registrations = new InMemoryRegistrationRepository(registry);
+  const events = new EventService({ events: registry, accounts: accountRepository, registrations, clock, ids });
   const accounts = new AccountService({ accounts: accountRepository, clock, ids });
   const reader = createRoundReader(rounds);
   const api = createApi({

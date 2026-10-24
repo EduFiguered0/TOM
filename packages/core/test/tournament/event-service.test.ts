@@ -5,6 +5,7 @@ import {
   hashToken,
   InMemoryAccountRepository,
   InMemoryEventRegistry,
+  InMemoryRegistrationRepository,
   type Account,
   type FinalStanding,
   type RejectCode,
@@ -18,7 +19,7 @@ const setup = () => {
   const events = new InMemoryEventRegistry();
   const accounts = new InMemoryAccountRepository();
   let n = 0;
-  return { events, accounts, service: new EventService({ events, accounts, clock: new TestClock(), ids: { next: () => `ev${String(++n)}` } }) };
+  return { events, accounts, service: new EventService({ events, accounts, registrations: new InMemoryRegistrationRepository(events), clock: new TestClock(), ids: { next: () => `ev${String(++n)}` } }) };
 };
 
 /** Conta gravada direto no repositório; `judge` = juiz da equipe. */

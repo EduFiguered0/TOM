@@ -4,6 +4,7 @@ import type { Actor } from '../shared/actor.js';
 import { CommandRejected } from '../shared/command-rejected.js';
 import { ConcurrencyError } from '../shared/concurrency-error.js';
 import type { Clock, IdGenerator } from '../shared/ports.js';
+import type { RegistrationRepository } from './registration.js';
 import {
   ACTIVE_STATUSES,
   hashToken,
@@ -19,6 +20,8 @@ export interface EventServiceDeps {
   events: EventRegistry;
   /** Para conferir que cada juiz escalado é da equipe. */
   accounts: AccountRepository;
+  /** Inscrito no evento não é escalado como juiz. */
+  registrations: RegistrationRepository;
   clock: Clock;
   ids: IdGenerator;
 }
@@ -122,6 +125,12 @@ export class EventService {
     requireAdmin(actor);
     const roundMinutes = change.roundMinutes === undefined ? undefined : validMinutes(change.roundMinutes);
     const judges = change.judges === undefined ? undefined : await this.teamJudges(change.judges);
+    if (judges) {
+      const enrolled = await Promise.all(judges.map((id) => this.deps.registrations.get(eventId, id)));
+      if (enrolled.some((r) => r && !r.removed)) {
+        throw new CommandRejected('invalid_input', 'Essa conta está inscrita no evento. Remova a inscrição antes de escalar.');
+      }
+    }
     return this.change(eventId, (event) => {
       if (!isActive(event)) throw ended();
       return { ...event, ...(roundMinutes === undefined ? {} : { roundMinutes }), ...(judges === undefined ? {} : { judges }) };
