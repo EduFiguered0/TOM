@@ -221,3 +221,73 @@ export const parseStartRoundRequest = (body: unknown): StartRoundRequest => {
   const minutes = root['roundMinutes'] === null || root['roundMinutes'] === undefined ? null : field(root, 'roundMinutes', 'number');
   return { bestOf, roundMinutes: minutes };
 };
+
+export type OverrideDto =
+  | { kind: 'score'; player1: number; player2: number }
+  | { kind: 'intentional_draw' }
+  | { kind: 'double_game_loss' }
+  | { kind: 'win_by_absence'; winner: 'player1' | 'player2' };
+
+export interface PanelTable {
+  table: number;
+  player1: { name: string; playerId: string };
+  player2: { name: string; playerId: string };
+  color: TableColor;
+  redReason: RedReasonDto | null;
+  reports: { player1: ReportDto | null; player2: ReportDto | null };
+  override: { override: OverrideDto; reason: string; by: string; at: string } | null;
+  extraMinutes: number;
+  deadline: string | null;
+  /** Key a lançar no TOM (mesa verde). null: sem resultado ainda, ou DGL (lançado à mão no TOM). */
+  tomKey: { label: string; code: string } | null;
+  keyLaunched: boolean;
+}
+
+/** Painel da organização: tudo da rodada atual, inclusive Player IDs, reportes e keys. */
+export interface PanelResponse {
+  round: {
+    tournament: string;
+    division: string;
+    round: number;
+    bestOf: 1 | 3 | null;
+    roundMinutes: number | null;
+    startedAt: string | null;
+    tables: PanelTable[];
+    byes: string[];
+    counts: Record<TableColor, number>;
+    allGreen: boolean;
+    /** Todas as keys lançadas: a próxima rodada pode começar. */
+    closed: boolean;
+  } | null;
+  serverTime: string;
+}
+
+export interface OverrideRequest { override: OverrideDto; reason: string }
+export interface ExtendRequest { minutes: number }
+export interface StaffReportRequest { side: 'player1' | 'player2'; report: ReportDto }
+
+const side = (value: string): 'player1' | 'player2' => {
+  if (value !== 'player1' && value !== 'player2') throw new InvalidRequestError('Lado deve ser player1 ou player2');
+  return value;
+};
+
+export const parseOverrideRequest = (body: unknown): OverrideRequest => {
+  const root = object(body, 'Corpo');
+  const o = object(root['override'], 'override');
+  const kind = field(o, 'kind', 'string');
+  const reason = field(root, 'reason', 'string');
+  switch (kind) {
+    case 'score': return { reason, override: { kind, player1: field(o, 'player1', 'number'), player2: field(o, 'player2', 'number') } };
+    case 'intentional_draw':
+    case 'double_game_loss': return { reason, override: { kind } };
+    case 'win_by_absence': return { reason, override: { kind, winner: side(field(o, 'winner', 'string')) } };
+    default: throw new InvalidRequestError('override.kind inválido');
+  }
+};
+
+export const parseExtendRequest = (body: unknown): ExtendRequest => ({ minutes: field(object(body, 'Corpo'), 'minutes', 'number') });
+
+export const parseStaffReportRequest = (body: unknown): StaffReportRequest => ({
+  side: side(field(object(body, 'Corpo'), 'side', 'string')),
+  report: parseReportRequest(body).report,
+});

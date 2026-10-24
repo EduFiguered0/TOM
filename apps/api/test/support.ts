@@ -9,7 +9,7 @@ import {
   RoundService,
   type Identity,
 } from '@tom/core';
-import type { CreateEventResponse, UploadResponse } from '@tom/contracts';
+import type { CreateEventResponse, MyRoundResponse, UploadResponse } from '@tom/contracts';
 import { createHash, randomUUID } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { createBoard } from '../src/board.js';
@@ -90,4 +90,20 @@ export const withEvent = async () => {
     return { status: response.status, body: response.body as UploadResponse & { error?: string } };
   };
   return { ...ctx, token, eventId: (created.body as CreateEventResponse).id, send };
+};
+
+/** Mesa 1 do FODASE, rodada 3: 100001 "teste2 2" x 100002 "teste5 5". */
+export const setupRound = async () => {
+  const ctx = await withEvent();
+  await ctx.send(upload('pairings'));
+  await ctx.send(upload('match_slips'));
+  const p1 = await register(ctx.call, 'p1:c1', '100001');
+  const p2 = await register(ctx.call, 'p2:c2', '100002');
+  for (const [id, pid] of [[p1, '100001'], [p2, '100002']] as const) {
+    await ctx.call('POST', `/accounts/${id}/player-id`, 'adm:a1:admin', { playerId: pid });
+  }
+  const me = async (token: string) => (await ctx.call('GET', '/round/me', token)).body as MyRoundResponse;
+  const report = (token: string, report: unknown) => ctx.call('POST', '/round/report', token, { report });
+  const start = () => ctx.call('POST', '/round/start', 'adm:a1:admin', { bestOf: 3, roundMinutes: null });
+  return { ...ctx, me, report, start };
 };
