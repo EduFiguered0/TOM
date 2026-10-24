@@ -212,12 +212,15 @@ Tudo em us-east-2 (região única do projeto AWS). Cada recurso de produção te
 | --- | --- | --- | --- | --- |
 | DynamoDB `Events` (sob demanda, TTL 24 meses, PITR em produção) | TomData / TomTest | Eventos das rodadas | US$ 0,625 por milhão de escritas, US$ 0,125 por milhão de leituras; 25 GB grátis; PITR US$ 0,20/GB-mês | < US$ 0,10 |
 | DynamoDB `Accounts` (idem) | TomData / TomTest | Contas, auditoria de identidade e trava do Player ID | idem | < US$ 0,01 |
-| S3 `Snapshots` (privado, SSE-S3, só HTTPS, expira em 24 meses) | TomData / TomTest | Fotografias dos HTMLs do TOM | US$ 0,023/GB-mês; US$ 0,005 por mil gravações | < US$ 0,01 |
-| Cognito user pool, plano Essentials | TomAuth / TomAuthTest | Login (código por e-mail; Google na 6.3), grupos admin e judge | 10 mil usuários ativos/mês grátis; depois US$ 0,015 cada | US$ 0 |
+| DynamoDB `Tournaments` (idem) | TomData / TomTest | Eventos do ADM, trava do token do enviador, rodada atual | idem | < US$ 0,01 |
+| S3 `Snapshots` (nome fixo, privado, SSE-S3, só HTTPS, expira em 24 meses) | TomData / TomTest | Fotografias dos HTMLs do TOM | US$ 0,023/GB-mês; US$ 0,005 por mil gravações | < US$ 0,01 |
+| Cognito user pool, plano Essentials | TomAuth / TomAuthTest | Login (código por e-mail; Google pendente), grupos admin e judge | 10 mil usuários ativos/mês grátis; depois US$ 0,015 cada | US$ 0 |
 | E-mail do Cognito (padrão, sem SES) | TomAuth | Códigos de verificação e login | Grátis; limite de ~50 e-mails/dia | US$ 0 |
 | Lambda `Handler` (Node 22, Arm, 256 MB) | TomApi / TomApiTest | API inteira (roteador único) | US$ 0,20 por milhão + US$ 0,0000133/GB-s; 1 milhão de execuções e 400 mil GB-s grátis por mês | US$ 0 |
 | Lambda Function URL | TomApi / TomApiTest | Endereço HTTPS da API, sem API Gateway | Sem cobrança própria | US$ 0 |
 | CloudWatch Logs (14 dias) | TomApi / TomApiTest | Logs da Lambda | 5 GB/mês grátis; depois ~US$ 0,50/GB | US$ 0 |
+| CloudFront + S3 `Site` | TomWeb | Site (celular, TV, ADM) e `/api` no mesmo endereço | 1 TB e 10 milhões de requisições/mês grátis, permanentemente | US$ 0 |
+| CloudFront Function `SpaRoutes` | TomWeb | Rotas do app (`/tv`) servem o `index.html` sem mexer nos erros da API | 2 milhões de execuções/mês grátis | US$ 0 |
 | Bootstrap do CDK (`CDKToolkit`) | — | Bucket de assets e roles de deploy | S3 e ECR mínimos | ~US$ 0 |
 
 **Total projetado: menos de US$ 0,20/mês**, coberto pelos créditos do Free plan (US$ 100, até abril de 2027).
@@ -228,6 +231,8 @@ Escolhas feitas por custo:
 - **Cognito Essentials:** necessário para o código por e-mail; custo zero até 10 mil usuários ativos/mês. O plano Plus (proteção contra ameaças) custaria US$ 0,02 por usuário, sem franquia.
 - **Lambda em Arm com 256 MB:** ~20% mais barata que x86; pacote de 27 KB (o SDK da AWS vem no runtime).
 - **Logs por 14 dias** e **TTL** em tabelas e bucket: nada acumula custo de armazenamento.
+- **Quadro da TV guardado 5 s no CloudFront** (`/api/board`): dezenas de TVs e celulares olhando viram uma chamada à Lambda a cada 5 s por borda, em vez de uma por tela.
+- **Site publicado por script** (`npm run web:deploy`), sem a Lambda e a layer extras do `BucketDeployment` do CDK.
 
 Pontos de atenção:
 
