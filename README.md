@@ -83,6 +83,9 @@ Rotas da API (as de conta e ADM exigem `Authorization: Bearer <token de acesso d
 | `POST /session` | qualquer conta | Ativa este dispositivo; com outro ativo, exige `{"replace": true}` e revoga o anterior |
 | `GET /accounts/{id}` | ADM | Consulta a conta do jogador no check-in |
 | `POST /accounts/{id}/player-id` | ADM | Confirma (ou corrige) o Player ID no check-in |
+| `GET /round/me` | qualquer conta | Rodada atual do ponto de vista do jogador: mesa, oponente, prazo, cor e o próprio reporte (sem o placar do oponente) |
+| `POST /round/report` | jogador com check-in | Reporta placar ou ID na própria mesa |
+| `POST /round/start` | ADM | Inicia a rodada publicada pelo TOM (melhor de 1 ou 3, tempo) |
 | `POST /events` | ADM | Cria o evento do dia; devolve o token do enviador uma única vez |
 | `POST /events/{id}/revoke` | ADM | Revoga o token do enviador |
 | `POST /uploads` | enviador (`x-upload-token`) | Recebe um HTML do TOM; com pareamento e guias da rodada, publica a rodada |
@@ -114,5 +117,6 @@ Para mudar a policy: edite o JSON e rode `aws iam create-policy-version --profil
 | 4 | Enviador (observa a pasta do TOM) | ✅ |
 | 5 | Infraestrutura AWS, EventStore no DynamoDB, fotografias no S3 | ✅ |
 | 6 | Login por código no e-mail, sessão única, papéis, check-in do ADM (Google e SES pendentes, ver spec) | ✅ |
-| 7–9 | Telas: celular, TV e painel | |
+| 7 | Celular: site e login ✅, ingestão do TOM e TV ao vivo ✅, rodada e reporte ✅, histórico | ⏳ |
+| 8–9 | TV ✅ (estética pendente); painel do ADM/juiz | |
 | 10 | Upload do enviador para a API | |

@@ -15,6 +15,8 @@ const ROLE: Record<MeResponse['role'], string> = { player: 'Jogador', judge: 'Ju
 
 export const Home = ({ me, api, onSignOut }: Props) => (
   <>
+  {/* No salão o que importa é a mesa: a rodada vem primeiro. */}
+  {me.role === 'player' && me.canAct && <RoundCard api={api} />}
   <section class="card">
     <h1>Olá, {me.profile.name.split(' ')[0]}</h1>
     <p class="muted">{ROLE[me.role]} · {me.email}</p>
@@ -29,7 +31,6 @@ export const Home = ({ me, api, onSignOut }: Props) => (
     {me.role !== 'player' && <p class="muted">Painel completo da organização (termômetro, override, keys) chega na fase 9.</p>}
     <button type="button" class="link" onClick={onSignOut}>Sair deste dispositivo</button>
   </section>
-  {me.role === 'player' && me.canAct && <RoundCard api={api} />}
   {me.role === 'admin' && <StartRoundCard api={api} />}
   {me.role === 'admin' && <EventCard api={api} />}
   {me.role === 'admin' && <Checkin api={api} />}
