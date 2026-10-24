@@ -1,6 +1,7 @@
 import type { MeResponse } from '@tom/contracts';
 import type { Api } from '../api.js';
 import { Checkin } from './checkin.js';
+import { EventCard } from './event.js';
 
 interface Props {
   me: MeResponse;
@@ -28,6 +29,7 @@ export const Home = ({ me, api, onSignOut }: Props) => (
     </p>
     <button type="button" class="link" onClick={onSignOut}>Sair deste dispositivo</button>
   </section>
+  {me.role === 'admin' && <EventCard api={api} />}
   {me.role === 'admin' && <Checkin api={api} />}
   </>
 );

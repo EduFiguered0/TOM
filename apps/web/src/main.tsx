@@ -4,6 +4,7 @@ import { App } from './app.js';
 import { createCognito } from './auth/cognito.js';
 import { browserStorage, createSession } from './auth/session.js';
 import { demoBoard } from './tv/demo-board.js';
+import { LiveTv } from './tv/live.js';
 import { Tv } from './tv/tv.js';
 import './styles.css';
 
@@ -16,9 +17,9 @@ interface Config {
 const start = async () => {
   const root = document.getElementById('app');
   if (!root) return;
-  // TV do salão: pública, sem login. Até a ingestão do TOM (7.2), dados fictícios.
+  // TV do salão: pública, sem login. /tv?demo mostra dados fictícios para conferir o layout.
   if (location.pathname.startsWith('/tv')) {
-    render(<Tv board={demoBoard()} />, root);
+    render(new URLSearchParams(location.search).has('demo') ? <Tv board={demoBoard()} /> : <LiveTv />, root);
     return;
   }
   const config = (await (await fetch('/config.json', { cache: 'no-store' })).json()) as Config;

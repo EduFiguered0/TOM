@@ -1,4 +1,4 @@
-import type { AccountResponse, ErrorResponse, MeResponse, RegisterRequest } from '@tom/contracts';
+import type { AccountResponse, CreateEventResponse, ErrorResponse, MeResponse, RegisterRequest } from '@tom/contracts';
 import type { Session } from './auth/session.js';
 
 export type ApiResult<T> = { ok: true; status: number; body: T } | { ok: false; status: number; error: ErrorResponse };
@@ -38,6 +38,8 @@ export const createApi = (session: Session, base = '/api', fetchFn: typeof fetch
     account: (id: string) => call<AccountResponse>('GET', `/accounts/${encodeURIComponent(id)}`),
     confirmPlayerId: (id: string, playerId: string) =>
       call<AccountResponse>('POST', `/accounts/${encodeURIComponent(id)}/player-id`, { playerId }),
+    createEvent: (label: string) => call<CreateEventResponse>('POST', '/events', { label }),
+    revokeEvent: (id: string) => call<{ id: string; revoked: boolean }>('POST', `/events/${encodeURIComponent(id)}/revoke`),
   };
 };
 

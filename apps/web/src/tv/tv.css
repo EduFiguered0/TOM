@@ -38,3 +38,8 @@
 .tv-legend { display: flex; gap: 1.6vw; }
 .tv-legend span { display: inline-flex; align-items: center; gap: .5vw; }
 .tv-legend .tv-dot { width: .9vw; height: .9vw; }
+.tv-empty { align-items: center; justify-content: center; font-size: 2.4vw; color: var(--tv-muted); }
+.tv-offline {
+  position: fixed; right: 2vw; bottom: 1.5vh; padding: .4vh 1vw; border-radius: .6vw;
+  background: #7c2d12; color: #fff7ed; font: 600 1.1vw system-ui, sans-serif;
+}
