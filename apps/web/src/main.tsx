@@ -11,7 +11,7 @@ import { pageFor } from './routes.js';
 import { demoBoard } from './tv/demo-board.js';
 import { LiveTv } from './tv/live.js';
 import { Tv } from './tv/tv.js';
-import './styles.css';
+import './theme.css';
 
 interface Config {
   region: string;
