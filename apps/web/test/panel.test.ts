@@ -1,6 +1,6 @@
 import type { PanelTable } from '@tom/contracts';
 import { describe, expect, it } from 'vitest';
-import { describeOverride, describePlayerReport, nextAction, sortForAction } from '../src/panel/panel.js';
+import { describeOverride, describePlayerReport, nextAction, pickTable, sortForAction } from '../src/panel/panel.js';
 
 const table = (n: number, over: Partial<PanelTable> = {}): PanelTable => ({
   table: n,
@@ -34,5 +34,13 @@ describe('painel', () => {
     expect(nextAction(table(1, { color: 'green', tomKey: { label: 'Empate', code: '1' } }), true)).toBe('Lançar a key no TOM');
     expect(nextAction(table(1, { color: 'green' }), true)).toMatch(/DGL/);
     expect(nextAction(table(1, { color: 'green', keyLaunched: true }), true)).toBe('Key lançada');
+  });
+
+  it('mesa aberta: mantém a escolhida; senão a primeira que pede ação', () => {
+    const tables = [table(1, { color: 'gray' }), table(2, { color: 'red' })];
+    expect(pickTable(tables, 1)).toBe(1);
+    expect(pickTable(tables, 9)).toBe(2);
+    expect(pickTable(tables, null)).toBe(2);
+    expect(pickTable([], 1)).toBeNull();
   });
 });
