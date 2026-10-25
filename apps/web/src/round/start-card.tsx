@@ -1,6 +1,8 @@
 import type { MyRoundResponse } from '@tom/contracts';
-import { useEffect, useState } from 'preact/hooks';
+import { useCallback, useEffect, useState } from 'preact/hooks';
 import type { Api } from '../api.js';
+
+const POLL_MS = 10_000;
 
 /** ADM inicia a rodada publicada pelo TOM; o painel completo (termômetro, keys, override) vem na fase 9. */
 export const StartRoundCard = ({ api }: { api: Api }) => {
@@ -11,12 +13,20 @@ export const StartRoundCard = ({ api }: { api: Api }) => {
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<{ ok: boolean; text: string } | null>(null);
 
-  const load = async () => {
+  const load = useCallback(async () => {
+    // Sem conexão: mantém o último estado; a próxima consulta tenta de novo.
     const result = await api.myRound().catch(() => null);
     if (result?.ok) setData(result.body);
-  };
+  }, [api]);
 
-  useEffect(() => { void load(); }, [api]);
+  // A rodada chega do TOM com o painel aberto: o botão aparece sem recarregar a página.
+  useEffect(() => {
+    void load();
+    const timer = setInterval(() => { void load(); }, POLL_MS);
+    const onVisible = () => { if (document.visibilityState === 'visible') void load(); };
+    document.addEventListener('visibilitychange', onVisible);
+    return () => { clearInterval(timer); document.removeEventListener('visibilitychange', onVisible); };
+  }, [load]);
 
   const start = async (e: Event) => {
     e.preventDefault();
