@@ -1,7 +1,8 @@
 import type { AccountResponse, EventDto, EventStatusDto } from '@tom/contracts';
 import { useCallback, useEffect, useState } from 'preact/hooks';
 import type { Api } from '../api.js';
-import { FolderCard } from '../tom-folder/folder-card.js';
+import { FolderBox } from '../admin/folder-box.js';
+import { useTomFolder } from '../tom-folder/use-tom-folder.js';
 import { RegistrationsCard } from './registrations.js';
 
 const STATUS: Record<EventStatusDto, string> = {
@@ -46,6 +47,7 @@ export const EventPanel = ({ api }: { api: Api }) => {
   const [chosen, setChosen] = useState<string[]>([]);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<{ ok: boolean; text: string } | null>(null);
+  const folder = useTomFolder(api, active ?? null);
 
   const load = useCallback(async () => {
     const [event, judges] = await Promise.all([api.activeEvent(), api.judges()]);
@@ -157,7 +159,7 @@ export const EventPanel = ({ api }: { api: Api }) => {
             </button>
           </div>
         )}
-        {active && <FolderCard api={api} event={active} />}
+        {active && <div class="folder"><h3>Pasta do TOM</h3><FolderBox folder={folder} /></div>}
         {message && <p class={message.ok ? 'ok' : 'error'} role={message.ok ? 'status' : 'alert'}>{message.text}</p>}
       </section>
       {active && <RegistrationsCard api={api} event={active} />}
