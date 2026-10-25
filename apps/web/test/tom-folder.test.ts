@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { browserFolder, type DirectoryLike } from '../src/tom-folder/browser-folder.js';
-import { afterPermission, folderStatus } from '../src/tom-folder/status.js';
+import { afterPermission, folderStatus, isRetryable } from '../src/tom-folder/status.js';
 import { idbSentLog } from '../src/tom-folder/stores.js';
 
 /** Pasta falsa no formato da File System Access API. */
@@ -64,5 +64,21 @@ describe('estado da pasta no cartão', () => {
     expect(afterPermission(connected, 'prompt')).toEqual({ kind: 'needs-permission', name: 'TOM_DATA' });
     expect(afterPermission(connected, 'denied')).toEqual({ kind: 'needs-permission', name: 'TOM_DATA' });
     expect(afterPermission({ kind: 'needs-permission', name: 'TOM_DATA' }, 'granted')).toEqual({ kind: 'connected', name: 'TOM_DATA', last: null });
+  });
+});
+
+describe('falhas no envio e na leitura', () => {
+  it('erro do servidor ou excesso de pedidos tenta de novo; recusa de regra para', () => {
+    expect([500, 502, 503, 504, 429].map(isRetryable)).toEqual([true, true, true, true, true]);
+    expect([400, 401, 403, 404, 409].map(isRetryable)).toEqual([false, false, false, false, false]);
+  });
+
+  it('sem ler a pasta ou sem conexão: avisa em vez de dizer conectado', () => {
+    expect(folderStatus({ kind: 'trouble', name: 'TOM_DATA', reason: 'folder' })).toEqual({
+      text: 'Não consegui ler a pasta TOM_DATA. Confira se ela ainda existe; tentando de novo…', tone: 'warn',
+    });
+    expect(folderStatus({ kind: 'trouble', name: 'TOM_DATA', reason: 'network' })).toEqual({
+      text: 'Sem conexão com o site. Tentando de novo…', tone: 'warn',
+    });
   });
 });

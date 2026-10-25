@@ -4,6 +4,8 @@ export type FolderState =
   | { kind: 'disconnected' }
   | { kind: 'needs-permission'; name: string }
   | { kind: 'connected'; name: string; last: { at: Date; type: string } | null }
+  /** Continua tentando, mas não está enviando: pasta sumiu ou sem conexão com o site. */
+  | { kind: 'trouble'; name: string; reason: 'folder' | 'network' }
   | { kind: 'error'; message: string };
 
 const REPORT: Record<string, string> = { pairings: 'pareamento', match_slips: 'guias', standings: 'classificação' };
@@ -24,6 +26,10 @@ export const folderStatus = (state: FolderState): { text: string; tone: 'ok' | '
       const time = state.last.at.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
       return { text: `Conectado à pasta ${state.name} · último envio às ${time} (${REPORT[state.last.type] ?? state.last.type})`, tone: 'ok' };
     }
+    case 'trouble':
+      return state.reason === 'folder'
+        ? { text: `Não consegui ler a pasta ${state.name}. Confira se ela ainda existe; tentando de novo…`, tone: 'warn' }
+        : { text: 'Sem conexão com o site. Tentando de novo…', tone: 'warn' };
     case 'error':
       return { text: state.message, tone: 'error' };
   }
@@ -37,3 +43,6 @@ export const afterPermission = (
   if (permission !== 'granted') return { kind: 'needs-permission', name: state.name };
   return state.kind === 'connected' ? state : { kind: 'connected', name: state.name, last: null };
 };
+
+/** Erro do servidor ou excesso de pedidos passa sozinho: tenta de novo. Recusa de regra (4xx) para e mostra. */
+export const isRetryable = (status: number): boolean => status >= 500 || status === 429;
