@@ -133,6 +133,10 @@ export interface FinalStandingDto {
   wins: number;
   losses: number;
   ties: number;
+  /** Pontos e desempates do TOM (% de vitória dos oponentes e dos oponentes dos oponentes); null em eventos antigos. */
+  points: number | null;
+  opponentWinPct: number | null;
+  opponentsOpponentWinPct: number | null;
 }
 
 interface BoardEvent {
@@ -257,6 +261,8 @@ export interface RegistrationsResponse {
 export interface MyEventResponse {
   event: EventDto | null;
   registration: RegistrationDto | null;
+  /** Colocação final do jogador (quando o TOM mandou os standings da última rodada); null antes ou se não jogou. */
+  placement: { rank: number; total: number; wins: number; losses: number; ties: number; points: number | null } | null;
 }
 
 export interface JoinResponse {

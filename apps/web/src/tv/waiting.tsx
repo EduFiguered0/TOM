@@ -2,7 +2,8 @@ import type { BoardResponse } from '@tom/contracts';
 import { encode } from 'uqr';
 import { STORE } from '../public/store.js';
 import { confirmCall, joinUrl, qrPath } from './board.js';
-import { centered, eventTitle, screen, tile } from './styles.js';
+import { FinalTv } from './final.js';
+import { centered } from './styles.js';
 
 type Waiting = Exclude<BoardResponse, { state: 'running' }>;
 
@@ -45,18 +46,5 @@ export const WaitingTv = ({ board }: { board: Waiting }) => {
       </div>
     );
   }
-  return (
-    <div class={screen}>
-      <header><div class={eventTitle}>{board.event.label} · Classificação final</div></header>
-      <ol class="m-0 grid flex-1 list-none auto-rows-[minmax(0,6vh)] grid-cols-2 gap-x-[1.5vw] gap-y-[1vh] p-0">
-        {board.standings.map((s) => (
-          <li key={`${s.division}-${String(s.rank)}`} class={`${tile} text-[1.8vw]`}>
-            <span class="w-[3.6vw] text-right font-extrabold tabular-nums">{s.rank}</span>
-            <span class="min-w-0 flex-1 truncate">{s.name}</span>
-            <span class="tabular-nums text-muted">{s.wins}-{s.losses}-{s.ties}</span>
-          </li>
-        ))}
-      </ol>
-    </div>
-  );
+  return <FinalTv label={board.event.label} standings={board.standings} />;
 };

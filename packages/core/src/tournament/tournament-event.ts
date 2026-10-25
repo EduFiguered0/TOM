@@ -17,6 +17,10 @@ export interface FinalStanding {
   wins: number;
   losses: number;
   ties: number;
+  /** Pontos e desempates do TOM (% de vitória dos oponentes e dos oponentes dos oponentes); null em eventos antigos. */
+  points: number | null;
+  opponentWinPct: number | null;
+  opponentsOpponentWinPct: number | null;
 }
 
 /** Evento organizado (um dia de torneio). O enviador do notebook do TOM só envia com o token dele. */
