@@ -3,6 +3,9 @@ import type { TomFolder } from '../tom-folder/use-tom-folder.js';
 
 const TONE = { ok: 'text-ok', warn: 'text-warn', error: 'text-error' } as const;
 const DOT = { ok: 'bg-green', warn: 'bg-orange', error: 'bg-red' } as const;
+const SHORT: Record<Exclude<FolderState['kind'], 'connected' | 'no-event'>, string> = {
+  unsupported: 'use o Chrome ou o Edge', disconnected: 'não conectada', 'needs-permission': 'sem permissão', trouble: 'tentando de novo', error: 'erro',
+};
 
 const button = 'rounded-md border border-line bg-panel px-3 py-1.5 text-sm font-semibold text-text hover:border-accent';
 
@@ -34,7 +37,7 @@ export const FolderDot = ({ state }: { state: FolderState }) => {
   const status = folderStatus(state);
   const text = state.kind === 'connected'
     ? `Pasta do TOM: ${state.last ? `último envio ${state.last.at.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}` : 'nada enviado ainda'}`
-    : `Pasta do TOM: ${status.tone === 'error' ? 'erro' : 'atenção'}`;
+    : `Pasta do TOM: ${SHORT[state.kind]}`;
   return (
     <span class={`flex items-center gap-2 text-sm ${TONE[status.tone]}`} title={status.text}>
       <span class={`size-2 rounded-full ${DOT[status.tone]}`} />{text}

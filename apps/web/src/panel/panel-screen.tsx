@@ -11,7 +11,7 @@ import './panel.css';
 const POLL_MS = 5000;
 
 /** Painel do ADM e do juiz: termômetro de todas as mesas, override, acréscimo, keys e reporte por jogador. */
-export const PanelScreen = ({ api, me }: { api: Api; me: MeResponse }) => {
+export const PanelScreen = ({ api, me, embedded = false }: { api: Api; me: MeResponse; embedded?: boolean }) => {
   const [data, setData] = useState<PanelResponse | null>(null);
   const [skew, setSkew] = useState(0);
   const [now, setNow] = useState(Date.now());
@@ -53,8 +53,8 @@ export const PanelScreen = ({ api, me }: { api: Api; me: MeResponse }) => {
   return (
     <div class="panel">
       <header class="panel-head">
-        <a href="/conta" class="link">← Início</a>
-        <h1>Painel {admin ? 'do ADM' : 'do juiz'}</h1>
+        {!embedded && <a href="/conta" class="link">← Início</a>}
+        {!embedded && <h1>Painel {admin ? 'do ADM' : 'do juiz'}</h1>}
         {offline && <span class="error">Sem conexão · dados podem estar desatualizados</span>}
       </header>
 
