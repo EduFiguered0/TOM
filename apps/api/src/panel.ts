@@ -26,8 +26,10 @@ const toPanelTable = (t: TableState): PanelTable => {
 };
 
 /** Painel da organização: a rodada inteira, com Player IDs, reportes, overrides e as keys do TOM. */
-export const panel = (state: RoundState | null, serverTime: Date): PanelResponse => {
-  if (!state?.pairing) return { round: null, serverTime: serverTime.toISOString() };
+export const panel = (
+  state: RoundState | null, serverTime: Date, latestRound: number | null, pendingKeys: PanelResponse['pendingKeys'] = [],
+): PanelResponse => {
+  if (!state?.pairing) return { round: null, latestRound, pendingKeys, serverTime: serverTime.toISOString() };
   const tables = state.tables.map(toPanelTable);
   const counts: Record<TableColor, number> = { gray: 0, orange: 0, green: 0, red: 0 };
   for (const t of tables) counts[t.color]++;
@@ -45,6 +47,8 @@ export const panel = (state: RoundState | null, serverTime: Date): PanelResponse
       allGreen: state.allGreen,
       closed: state.closed,
     },
+    latestRound,
+    pendingKeys,
     serverTime: serverTime.toISOString(),
   };
 };

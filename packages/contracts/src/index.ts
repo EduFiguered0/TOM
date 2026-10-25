@@ -412,6 +412,10 @@ export interface PanelResponse {
     /** Todas as keys lançadas: a próxima rodada pode começar. */
     closed: boolean;
   } | null;
+  /** Rodada mais recente publicada pelo TOM (as abas vão de 1 até ela). */
+  latestRound: number | null;
+  /** Rodadas anteriores iniciadas no site com mesas sem key lançada: aviso, não trava a próxima. */
+  pendingKeys: { round: number; tables: number[] }[];
   serverTime: string;
 }
 

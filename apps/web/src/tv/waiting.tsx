@@ -1,7 +1,7 @@
 import type { BoardResponse } from '@tom/contracts';
 import { encode } from 'uqr';
 import { STORE } from '../public/store.js';
-import { joinUrl, qrPath } from './board.js';
+import { confirmCall, joinUrl, qrPath } from './board.js';
 import './tv.css';
 
 type Waiting = Exclude<BoardResponse, { state: 'running' }>;
@@ -37,7 +37,7 @@ export const WaitingTv = ({ board }: { board: Waiting }) => {
     return (
       <div class="tv tv-wait">
         <div class="tv-event">{board.event.label}</div>
-        <p class="tv-call">Confirme sua presença no celular</p>
+        <p class="tv-call">{confirmCall(board)}</p>
         <p class="tv-count">{board.confirmed} de {board.registered} confirmados</p>
       </div>
     );

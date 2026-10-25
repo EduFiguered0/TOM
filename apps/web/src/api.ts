@@ -33,6 +33,10 @@ export class OfflineError extends Error {
   }
 }
 
+/** Painel da rodada atual ou de uma anterior (`/panel/rounds/N`). */
+const panelPath = (round?: number) => (round === undefined ? '/panel' : `/panel/rounds/${String(round)}`);
+const tablePath = (round: number | undefined, table: number, action: string) => `${panelPath(round)}/tables/${String(table)}/${action}`;
+
 /** API no mesmo endereço do site (`/api`), com o token de acesso do dispositivo. */
 export const createApi = (session: Session, base = '/api', fetchFn: typeof fetch = (...args) => fetch(...args)) => {
   const call = async <T>(method: string, path: string, body?: unknown): Promise<ApiResult<T>> => {
@@ -82,13 +86,13 @@ export const createApi = (session: Session, base = '/api', fetchFn: typeof fetch
     myRound: () => call<MyRoundResponse>('GET', '/round/me'),
     report: (report: ReportDto) => call<MyRoundResponse>('POST', '/round/report', { report }),
     startRound: (bestOf: 1 | 3, roundMinutes: number | null) => call<BoardResponse>('POST', '/round/start', { bestOf, roundMinutes }),
-    panel: () => call<PanelResponse>('GET', '/panel'),
-    override: (table: number, override: OverrideDto, reason: string) =>
-      call<PanelResponse & { requiresTomFix: boolean }>('POST', `/panel/tables/${String(table)}/override`, { override, reason }),
-    extend: (table: number, minutes: number) => call<PanelResponse>('POST', `/panel/tables/${String(table)}/extend`, { minutes }),
-    keyLaunched: (table: number) => call<PanelResponse>('POST', `/panel/tables/${String(table)}/key-launched`),
-    staffReport: (table: number, side: 'player1' | 'player2', report: ReportDto) =>
-      call<PanelResponse>('POST', `/panel/tables/${String(table)}/report`, { side, report }),
+    panel: (round?: number) => call<PanelResponse>('GET', panelPath(round)),
+    override: (table: number, override: OverrideDto, reason: string, round?: number) =>
+      call<PanelResponse & { requiresTomFix: boolean }>('POST', tablePath(round, table, 'override'), { override, reason }),
+    extend: (table: number, minutes: number, round?: number) => call<PanelResponse>('POST', tablePath(round, table, 'extend'), { minutes }),
+    keyLaunched: (table: number, round?: number) => call<PanelResponse>('POST', tablePath(round, table, 'key-launched')),
+    staffReport: (table: number, side: 'player1' | 'player2', report: ReportDto, round?: number) =>
+      call<PanelResponse>('POST', tablePath(round, table, 'report'), { side, report }),
     revokeEvent: (id: string) => call<{ id: string; revoked: boolean }>('POST', `/events/${encodeURIComponent(id)}/revoke`),
   };
 };
