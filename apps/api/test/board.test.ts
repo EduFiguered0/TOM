@@ -1,4 +1,4 @@
-import type { ActiveEventResponse, BoardResponse } from '@tom/contracts';
+import type { ActiveEventResponse, BoardResponse, MyEventResponse } from '@tom/contracts';
 import { describe, expect, it } from 'vitest';
 import { register, setup, setupRound, upload } from './support.js';
 
@@ -47,12 +47,29 @@ describe('quadro da TV por fase do evento', () => {
     await ctx.send(upload('standings'));
     const final = (await board(ctx.call)) as Extract<BoardResponse, { state: 'final' }>;
     expect(final.state).toBe('final');
-    expect(final.standings[0]).toEqual({ division: 'Divisão Mestre', rank: 1, name: 'teste5 5', wins: 3, losses: 0, ties: 0 });
+    expect(final.standings[0]).toEqual({
+      division: 'Divisão Mestre', rank: 1, name: 'teste5 5', wins: 3, losses: 0, ties: 0, points: 9, opponentWinPct: 50, opponentsOpponentWinPct: 58.33,
+    });
     expect(final.standings).toHaveLength(5);
     await ctx.call('POST', `/events/${ctx.eventId}/close`, ADM);
     expect((await board(ctx.call)).state).toBe('final');
     await ctx.call('POST', '/events', ADM, { label: 'Próximo' });
     expect((await board(ctx.call)).state).toBe('open');
+  });
+
+  it('resultado final: o jogador vê a própria colocação, achada pelo Player ID das guias', async () => {
+    const ctx = await setupRound();
+    const active = ((await ctx.call('GET', '/events/active', ADM)).body as ActiveEventResponse).event;
+    await ctx.call('POST', `/join/${active?.code ?? ''}`, 'p1:c1');
+    await ctx.call('POST', `/events/${ctx.eventId}/confirmation`, ADM);
+    await ctx.call('POST', '/me/event/confirm', 'p1:c1');
+    await ctx.call('POST', '/round/start', ADM, { bestOf: 3, roundMinutes: null });
+    expect(((await ctx.call('GET', '/me/event', 'p1:c1')).body as MyEventResponse).placement).toBeNull();
+    await ctx.send(upload('standings'));
+    // p1 é o Player ID 100001, "teste2 2" nas guias do TOM.
+    expect(((await ctx.call('GET', '/me/event', 'p1:c1')).body as MyEventResponse).placement).toEqual({
+      rank: 2, total: 5, wins: 2, losses: 1, ties: 0, points: 6,
+    });
   });
 
   it('cancelado volta à espera', async () => {

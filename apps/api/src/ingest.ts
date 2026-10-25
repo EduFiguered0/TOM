@@ -77,6 +77,7 @@ export const createIngest = ({ events, registry, snapshots, rounds, clock }: Ing
     if (report.totalRounds === null || report.round < report.totalRounds) return nothing(true, null);
     const event = await events.markFinal(eventId, report.standings.map((s) => ({
       division: s.division, rank: s.rank, name: s.name, wins: s.record.wins, losses: s.record.losses, ties: s.record.ties,
+      points: s.points, opponentWinPct: s.opponentWinPct, opponentsOpponentWinPct: s.opponentsOpponentWinPct,
     })));
     // Antes de o evento começar (ex.: torneio de teste no TOM), os standings só ficam guardados.
     return nothing(true, event.status === 'final' ? 'Resultado final recebido' : null);

@@ -1,7 +1,8 @@
 import type { MyEventResponse } from '@tom/contracts';
+import { Trophy } from 'lucide-preact';
 import { useCallback, useEffect, useState } from 'preact/hooks';
 import type { Api } from '../api.js';
-import { bigPrimary, card, cardWarn, Feedback, subtitle } from '../ui.js';
+import { bigPrimary, card, cardWarn, Feedback, muted, subtitle } from '../ui.js';
 
 /** Mesma cadência curta do celular: o aviso de confirmação aparece em até 15 s. */
 const POLL_MS = 15_000;
@@ -47,6 +48,23 @@ export const MyEventCard = ({ api, refresh }: { api: Api; refresh: number }) => 
 
   if (registration.removed) {
     return <section class={cardWarn}><h2 class={subtitle}>{event.label}</h2><p class="m-0 font-medium text-error">Sua inscrição foi removida, procure o ADM</p></section>;
+  }
+  const placement = mine.placement;
+  if (placement) {
+    const champion = placement.rank === 1;
+    return (
+      <section class={`${card} ${champion ? 'border-orange' : ''}`}>
+        <h2 class={subtitle}>{event.label} · Resultado</h2>
+        {champion && <p class="m-0 flex items-center gap-2 text-2xl font-extrabold text-orange"><Trophy size={28} aria-hidden="true" />Você venceu o torneio!</p>}
+        <p class="m-0 text-lg">Você ficou em <b>{placement.rank}º</b> de {placement.total}.</p>
+        <p class={muted}>
+          {placement.wins}-{placement.losses}-{placement.ties}{placement.points === null ? '' : ` · ${String(placement.points)} pontos`}
+        </p>
+      </section>
+    );
+  }
+  if (event.status === 'final' || event.status === 'closed') {
+    return <section class={card}><h2 class={subtitle}>{event.label}</h2><p class="m-0">Evento encerrado. A classificação está na TV.</p></section>;
   }
   if (event.status === 'confirming' && !registration.confirmed) {
     return (

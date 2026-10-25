@@ -39,7 +39,9 @@ const rejects = async (promise: Promise<unknown>, code: RejectCode, message?: st
   if (message) expect((error as CommandRejected).message).toBe(message);
 };
 
-const standings: FinalStanding[] = [{ division: 'Divisão Mestre', rank: 1, name: 'teste5 5', wins: 3, losses: 0, ties: 0 }];
+const standings: FinalStanding[] = [{
+  division: 'Divisão Mestre', rank: 1, name: 'teste5 5', wins: 3, losses: 0, ties: 0, points: 9, opponentWinPct: 50, opponentsOpponentWinPct: 58.33,
+}];
 
 describe('evento e token do enviador', () => {
   it('só o ADM cria; o token aparece uma vez e o banco guarda só o hash', async () => {

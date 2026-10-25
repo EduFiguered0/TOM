@@ -289,6 +289,7 @@ export const createApi = ({ tokens, emails, accounts, events, ingest, board, rou
         const body: MyEventResponse = {
           event: mine ? toEvent(mine.event) : null,
           registration: mine?.registration ? await registrationOf(mine.registration, mine.event) : null,
+          placement: mine?.registration && !mine.registration.removed ? await placementOf(mine.event, mine.registration.playerId) : null,
         };
         return { status: 200, body };
       },
@@ -471,6 +472,24 @@ export const createApi = ({ tokens, emails, accounts, events, ingest, board, rou
     const current = await activeRound();
     if (!current) throw new CommandRejected('round_not_paired', 'Nenhuma rodada publicada pelo TOM ainda');
     return current.ref;
+  };
+
+  /**
+   * Colocação final do jogador. Os standings do TOM só trazem o nome, e o nome no TOM pode ser outro que o do cadastro:
+   * o nome do TOM sai das guias (Player ID + nome), da última rodada para trás (o jogador pode ter tido bye).
+   */
+  const placementOf = async (event: TournamentEvent, playerId: string): Promise<MyEventResponse['placement']> => {
+    const current = await registry.current();
+    if (!event.standings || current?.eventId !== event.id) return null;
+    for (let round = current.ref.round; round >= 1; round--) {
+      const { tables } = await rounds.state({ ...current.ref, round });
+      const seat = tables.flatMap((t) => [t.player1, t.player2]).find((p) => p.playerId === playerId);
+      if (!seat) continue;
+      const division = event.standings.filter((s) => s.division === current.ref.division);
+      const mine = division.find((s) => s.name === seat.name);
+      return mine ? { rank: mine.rank, total: division.length, wins: mine.wins, losses: mine.losses, ties: mine.ties, points: mine.points } : null;
+    }
+    return null;
   };
 
   const roundRoutes: Route[] = [

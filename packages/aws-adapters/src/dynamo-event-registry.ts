@@ -1,6 +1,6 @@
 import { TransactionCanceledException } from '@aws-sdk/client-dynamodb';
 import { GetCommand, PutCommand, TransactWriteCommand, type DynamoDBDocumentClient } from '@aws-sdk/lib-dynamodb';
-import { ConcurrencyError, DEFAULT_ROUND_MINUTES, type CurrentRound, type EventRegistry, type TournamentEvent } from '@tom/core';
+import { ConcurrencyError, DEFAULT_ROUND_MINUTES, type CurrentRound, type EventRegistry, type FinalStanding, type TournamentEvent } from '@tom/core';
 
 const DAY_SECONDS = 86_400;
 /** Brasília, sem horário de verão: o dia do evento é o dia local da loja. */
@@ -14,8 +14,11 @@ export interface DynamoEventRegistryOptions {
 
 type Stored<T, K extends keyof T> = Omit<T, K> & Record<K, string>;
 /** Eventos antigos não têm os campos que vieram depois (escala, fase, data, tempo, código, classificação). */
+type Tiebreaks = 'points' | 'opponentWinPct' | 'opponentsOpponentWinPct';
+/** Eventos gravados antes dos desempates não têm esses campos. */
+type StoredStanding = Omit<FinalStanding, Tiebreaks> & Partial<Pick<FinalStanding, Tiebreaks>>;
 type StoredEvent = Omit<Stored<TournamentEvent, 'createdAt'>, 'judges' | 'date' | 'roundMinutes' | 'status' | 'code' | 'standings'>
-  & Partial<Pick<TournamentEvent, 'judges' | 'date' | 'roundMinutes' | 'status' | 'code' | 'standings'>>;
+  & Partial<Pick<TournamentEvent, 'judges' | 'date' | 'roundMinutes' | 'status' | 'code'>> & { standings?: StoredStanding[] | null };
 type StoredCurrent = Stored<CurrentRound, 'updatedAt'>;
 
 const eventKey = (id: string) => ({ pk: `event#${id}`, sk: 'event' });
@@ -152,6 +155,8 @@ export const eventFromStored = (stored: StoredEvent): TournamentEvent => {
     roundMinutes: stored.roundMinutes ?? DEFAULT_ROUND_MINUTES,
     status: stored.status ?? 'closed',
     code: stored.code ?? null,
-    standings: stored.standings ?? null,
+    standings: stored.standings?.map((s) => ({
+      ...s, points: s.points ?? null, opponentWinPct: s.opponentWinPct ?? null, opponentsOpponentWinPct: s.opponentsOpponentWinPct ?? null,
+    })) ?? null,
   };
 };
