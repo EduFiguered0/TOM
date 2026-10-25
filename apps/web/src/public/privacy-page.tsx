@@ -5,7 +5,7 @@ import { STORE } from './store.js';
 export const PrivacyPage = () => {
   useEffect(() => { document.title = `Privacidade · ${STORE.name}`; }, []);
   return (
-    <main>
+    <main class="legacy">
       <header><a class="brand" href="/">{STORE.name}</a></header>
       <article class="card">
         <h1>Política de privacidade</h1>
