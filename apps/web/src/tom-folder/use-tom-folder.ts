@@ -3,7 +3,7 @@ import { DEFAULT_QUIET_MS, FatalSinkError, Uploader, type Sink } from '@tom/uplo
 import { useEffect, useRef, useState } from 'preact/hooks';
 import type { Api } from '../api.js';
 import { browserFolder, type DirectoryLike } from './browser-folder.js';
-import { afterPermission, folderStatus, isRetryable, type FolderState } from './status.js';
+import { afterPermission, isRetryable, type FolderState } from './status.js';
 import { idbSentLog, loadHandle, saveHandle } from './stores.js';
 
 /** Mesma cadência do enviador do notebook; o TOM grava um arquivo por vez. */
@@ -24,11 +24,14 @@ const sha256 = async (content: string): Promise<string> =>
   Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(content))), (b) => b.toString(16).padStart(2, '0')).join('');
 
 /**
- * Pasta do TOM conectada no painel: o próprio site lê a pasta (só leitura) e envia os relatórios novos
+ * Pasta do TOM conectada na área do ADM: o próprio site lê a pasta (só leitura) e envia os relatórios novos
  * para o evento ativo com o login do ADM. Sem token e sem comando. Nunca diz "conectado" sem estar enviando.
+ * Vive na casca do ADM: continua enviando em qualquer aba.
  */
-export const FolderCard = ({ api, event }: { api: Api; event: EventDto }) => {
-  const [state, setState] = useState<FolderState>(picker() ? { kind: 'disconnected' } : { kind: 'unsupported' });
+export const useTomFolder = (api: Api, event: EventDto | null) => {
+  const [folder, setState] = useState<FolderState>(picker() ? { kind: 'disconnected' } : { kind: 'unsupported' });
+  const eventId = event?.id ?? null;
+  const state: FolderState = eventId || folder.kind === 'unsupported' ? folder : { kind: 'no-event' };
   const handle = useRef<Handle | null>(null);
   const last = useRef<Last>(null);
   // Muda a cada pasta escolhida: o envio recomeça na pasta nova ("Trocar pasta").
@@ -50,7 +53,7 @@ export const FolderCard = ({ api, event }: { api: Api; event: EventDto }) => {
   // Envio contínuo: confere a permissão antes de cada volta e mostra quando a pasta ou a conexão falham.
   useEffect(() => {
     const dir = handle.current;
-    if (!sending || !dir) return;
+    if (!sending || !dir || !eventId) return;
     let stopped = false;
     // Lido por função: a limpeza do efeito muda `stopped` enquanto uma volta espera.
     const isStopped = () => stopped;
@@ -82,7 +85,7 @@ export const FolderCard = ({ api, event }: { api: Api; event: EventDto }) => {
       },
     };
     const uploader = new Uploader({
-      folder: browserFolder(dir), sink, sentLog: idbSentLog(event.id), clock: { now: () => new Date() }, hash: sha256, quietMs: DEFAULT_QUIET_MS,
+      folder: browserFolder(dir), sink, sentLog: idbSentLog(eventId), clock: { now: () => new Date() }, hash: sha256, quietMs: DEFAULT_QUIET_MS,
     });
     const tick = async () => {
       if (stopped || busy) return;
@@ -112,7 +115,7 @@ export const FolderCard = ({ api, event }: { api: Api; event: EventDto }) => {
     void tick();
     const timer = setInterval(() => { void tick(); }, TICK_MS);
     return () => { stopped = true; clearInterval(timer); document.removeEventListener('visibilitychange', onVisible); };
-  }, [sending, folderVersion, api, event.id]);
+  }, [sending, folderVersion, api, eventId]);
 
   const connect = () => {
     const pick = picker();
@@ -134,19 +137,10 @@ export const FolderCard = ({ api, event }: { api: Api; event: EventDto }) => {
       .catch(() => { setState({ kind: 'needs-permission', name: dir.name }); });
   };
 
-  const status = folderStatus(state);
-  return (
-    <div class="folder">
-      <h3>Pasta do TOM</h3>
-      <p class={status.tone === 'ok' ? 'ok' : status.tone === 'error' ? 'error' : 'muted'} role="status">{status.text}</p>
-      {state.kind === 'disconnected' && <button type="button" onClick={connect}>Conectar pasta do TOM</button>}
-      {state.kind === 'needs-permission' && <button type="button" onClick={allow}>Permitir acesso à pasta {state.name}</button>}
-      {state.kind === 'error' && handle.current && (
-        <button type="button" onClick={() => { setState({ kind: 'connected', name: handle.current?.name ?? '', last: last.current }); }}>Tentar de novo</button>
-      )}
-      {(sending || state.kind === 'needs-permission' || state.kind === 'error') && (
-        <button type="button" class="link" onClick={connect}>Trocar pasta</button>
-      )}
-    </div>
-  );
+  const retry = () => { setState({ kind: 'connected', name: handle.current?.name ?? '', last: last.current }); };
+  /** Trocar pasta: enquanto envia, sem permissão ou depois de um erro. */
+  const canChange = sending || state.kind === 'needs-permission' || state.kind === 'error';
+  return { state, connect, allow, retry, canRetry: state.kind === 'error' && handle.current !== null, canChange };
 };
+
+export type TomFolder = ReturnType<typeof useTomFolder>;

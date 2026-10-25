@@ -1,12 +1,8 @@
 import type { MeResponse } from '@tom/contracts';
 import type { Api } from '../api.js';
-import { EventPanel } from './event-panel.js';
 import { MyEventCard } from './my-event.js';
 import { PlayerIdCard } from './player-id.js';
-import { TeamCard } from './team.js';
-import { UnlinkCard } from './unlink.js';
 import { RoundCard } from '../round/round-card.js';
-import { StartRoundCard } from '../round/start-card.js';
 
 interface Props {
   me: MeResponse;
@@ -34,7 +30,6 @@ export const Home = ({ me, api, onSignOut, onChanged, joinError, eventRefresh }:
     {me.role === 'player' && (me.playerId
       ? <p class="ok">Player ID {me.playerId}. {me.judging ? 'Você é juiz deste evento.' : 'Você já pode reportar resultados.'}</p>
       : <PlayerIdCard api={api} onSaved={onChanged} />)}
-    {me.role === 'admin' && <a class="button" href="/painel">Abrir o painel da rodada</a>}
     <button type="button" class="link" onClick={onSignOut}>Sair deste dispositivo</button>
   </section>
   {me.judge && (
@@ -45,9 +40,5 @@ export const Home = ({ me, api, onSignOut, onChanged, joinError, eventRefresh }:
         : <p class="muted">Você não está escalado no evento atual.</p>}
     </section>
   )}
-  {me.role === 'admin' && <StartRoundCard api={api} />}
-  {me.role === 'admin' && <EventPanel api={api} />}
-  {me.role === 'admin' && <TeamCard api={api} />}
-  {me.role === 'admin' && <UnlinkCard api={api} />}
   </>
 );

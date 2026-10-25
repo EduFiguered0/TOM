@@ -6,3 +6,4 @@ coverage/
 .env.*
 /tools/tom-installer/
 cdk.out/
+.superpowers/

@@ -8,7 +8,7 @@ import { Device } from './screens/device.js';
 import { Home } from './screens/home.js';
 import { Login } from './screens/login.js';
 import { Register } from './screens/register.js';
-import { PanelScreen } from './panel/panel-screen.js';
+import { AdminShell } from './admin/admin-shell.js';
 import type { PendingJoin } from './pending-join.js';
 import { STORE } from './public/store.js';
 
@@ -60,8 +60,11 @@ export const App = ({ cognito, session, api, google, loginError, pendingJoin }: 
 
   const signOut = () => { void session.signOut().then(() => { setScreen({ name: 'login' }); }); };
 
+  // ADM e juiz escalado no notebook: casca própria, sem a coluna estreita do celular.
+  if (screen.name === 'home' && (screen.me.role === 'admin' || screen.me.judging)) return <AdminShell api={api} me={screen.me} onSignOut={signOut} />;
+
   return (
-    <main>
+    <main class="legacy">
       <header><a class="brand" href="/">{STORE.name}</a></header>
       {screen.name === 'loading' && <p class="muted center">Carregando…</p>}
       {screen.name === 'login' && (
@@ -69,9 +72,9 @@ export const App = ({ cognito, session, api, google, loginError, pendingJoin }: 
       )}
       {screen.name === 'register' && <Register api={api} onRegistered={(me) => { setScreen({ name: 'home', me }); }} />}
       {screen.name === 'device' && <Device api={api} onActivated={(me) => { setScreen({ name: 'home', me }); }} onCancel={signOut} />}
-      {screen.name === 'home' && (location.pathname.startsWith('/painel') && (screen.me.role === 'admin' || screen.me.judging)
-        ? <PanelScreen api={api} me={screen.me} />
-        : <Home me={screen.me} api={api} onSignOut={signOut} onChanged={(me) => { setScreen({ name: 'home', me }); }} joinError={joinError} eventRefresh={eventRefresh} />)}
+      {screen.name === 'home' && (
+        <Home me={screen.me} api={api} onSignOut={signOut} onChanged={(me) => { setScreen({ name: 'home', me }); }} joinError={joinError} eventRefresh={eventRefresh} />
+      )}
       {screen.name === 'error' && (
         <section class="card">
           <p class="error" role="alert">{screen.message}</p>

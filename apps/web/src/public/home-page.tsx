@@ -10,7 +10,7 @@ interface Props {
 export const HomePage = ({ loggedIn, onSignOut }: Props) => {
   useEffect(() => { document.title = STORE.name; }, []);
   return (
-    <main>
+    <main class="legacy">
       <section class="card">
         <h1>{STORE.name}</h1>
         <p class="muted">Torneios de Pokémon TCG</p>

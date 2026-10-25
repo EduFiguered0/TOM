@@ -1,79 +1,48 @@
-import type { AccountResponse, EventDto, EventStatusDto } from '@tom/contracts';
-import { useCallback, useEffect, useState } from 'preact/hooks';
+import type { AccountResponse, EventDto } from '@tom/contracts';
+import { useEffect, useState } from 'preact/hooks';
 import type { Api } from '../api.js';
-import { FolderCard } from '../tom-folder/folder-card.js';
-import { RegistrationsCard } from './registrations.js';
-
-const STATUS: Record<EventStatusDto, string> = {
-  open: 'Inscrições abertas',
-  confirming: 'Confirmando presença',
-  running: 'Em andamento',
-  final: 'Resultado final recebido',
-  closed: 'Encerrado',
-  cancelled: 'Cancelado',
-};
-
-const POLL_MS = 15_000;
+import { field, ghost, ok, primary } from '../admin/ui.js';
 
 const today = () => new Date(Date.now() - 3 * 3_600_000).toISOString().slice(0, 10);
 
+const label = 'flex flex-col gap-1 text-xs text-muted';
+
 /** Caixas dos juízes da equipe: na criação e na edição do evento. */
 const JudgesField = ({ team, chosen, onChange }: { team: AccountResponse[]; chosen: string[]; onChange: (ids: string[]) => void }) => (
-  <fieldset class="judges">
-    <legend>Juízes escalados</legend>
+  <fieldset class="m-0 flex flex-col gap-1 border-0 p-0">
+    <legend class="mb-1 text-xs text-muted">Juízes escalados</legend>
     {team.length === 0
-      ? <p class="muted">Nenhum juiz na equipe. Marque na Equipe.</p>
+      ? <p class="m-0 text-sm text-muted">Nenhum juiz na equipe. Marque na aba Equipe.</p>
       : team.map((j) => (
-        <label class="check" key={j.id}>
-          <input
-            type="checkbox"
-            checked={chosen.includes(j.id)}
-            onChange={(e) => { onChange(e.currentTarget.checked ? [...chosen, j.id] : chosen.filter((x) => x !== j.id)); }}
-          />
+        <label class="flex items-center gap-2 text-sm text-text" key={j.id}>
+          <input type="checkbox" class="size-4 accent-accent" checked={chosen.includes(j.id)}
+            onChange={(e) => { onChange(e.currentTarget.checked ? [...chosen, j.id] : chosen.filter((x) => x !== j.id)); }} />
           {j.profile.name}
         </label>
       ))}
   </fieldset>
 );
 
-/** Evento do dia do ADM: cria, conduz as fases (confirmação, encerrar, cancelar), edita tempo e juízes. */
-export const EventPanel = ({ api }: { api: Api }) => {
-  const [active, setActive] = useState<EventDto | null | undefined>(undefined);
+interface Props {
+  api: Api;
+  /** null: sem evento ativo (mostra "Criar evento"). */
+  event: EventDto | null;
+  reload: () => Promise<void>;
+}
+
+/** Bloco Configuração da aba Evento: cria o evento, ou edita tempo e juízes e cancela. */
+export const EventConfig = ({ api, event, reload }: Props) => {
   const [team, setTeam] = useState<AccountResponse[]>([]);
-  const [label, setLabel] = useState('');
+  const [name, setName] = useState('');
   const [date, setDate] = useState(today());
   const [minutes, setMinutes] = useState('30');
   const [chosen, setChosen] = useState<string[]>([]);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<{ ok: boolean; text: string } | null>(null);
 
-  const load = useCallback(async () => {
-    const [event, judges] = await Promise.all([api.activeEvent(), api.judges()]);
-    if (judges.ok) setTeam(judges.body);
-    if (event.ok) {
-      setActive(event.body.event);
-      if (event.body.event) { setMinutes(String(event.body.event.roundMinutes)); setChosen(event.body.event.judges); }
-    } else {
-      setMessage({ ok: false, text: event.error.message });
-    }
-  }, [api]);
-
-  useEffect(() => {
-    void load().catch((e: unknown) => { setMessage({ ok: false, text: (e as Error).message }); });
-    // A fase muda sozinha (rodada 1 iniciada, resultado final do TOM): "Encerrar" aparece sem recarregar.
-    const timer = setInterval(() => { void refreshStatus(); }, POLL_MS);
-    return () => { clearInterval(timer); };
-  }, [load]);
-
-  /** Só o status: não apaga o que o ADM está digitando no tempo de rodada e nos juízes. */
-  const refreshStatus = async () => {
-    try {
-      const result = await api.activeEvent();
-      if (result.ok) setActive((now) => (now && result.body.event?.id === now.id ? { ...now, status: result.body.event.status } : result.body.event));
-    } catch {
-      // Sem conexão: a próxima volta tenta de novo.
-    }
-  };
+  useEffect(() => { void api.judges().then((r) => { if (r.ok) setTeam(r.body); }).catch(() => undefined); }, [api]);
+  // Outro evento (ou o primeiro carregamento): o formulário mostra o que está salvo.
+  useEffect(() => { if (event) { setMinutes(String(event.roundMinutes)); setChosen(event.judges); } }, [event?.id]);
 
   const run = async (action: () => Promise<string | null>) => {
     setBusy(true);
@@ -81,7 +50,7 @@ export const EventPanel = ({ api }: { api: Api }) => {
     try {
       const done = await action();
       if (done) setMessage({ ok: true, text: done });
-      await load();
+      await reload();
     } catch (e) {
       setMessage({ ok: false, text: (e as Error).message });
     } finally {
@@ -89,78 +58,61 @@ export const EventPanel = ({ api }: { api: Api }) => {
     }
   };
 
-  /** Resultado da API: erro vira exceção com a mensagem dela. */
-  const ok = <T,>(result: { ok: true; body: T } | { ok: false; error: { message: string } }): T => {
-    if (!result.ok) throw new Error(result.error.message);
-    return result.body;
-  };
-
   const create = (e: Event) => {
     e.preventDefault();
     void run(async () => {
-      ok(await api.createEvent({ label: label.trim(), date, roundMinutes: Number(minutes), judges: chosen }));
-      setLabel('');
-      return 'Evento criado. Conecte a pasta do TOM abaixo.';
+      ok(await api.createEvent({ label: name.trim(), date, roundMinutes: Number(minutes), judges: chosen }));
+      setName('');
+      return 'Evento criado. Conecte a pasta do TOM.';
     });
   };
 
-  const save = () => {
-    if (active) void run(async () => { ok(await api.updateEvent(active.id, { roundMinutes: Number(minutes), judges: chosen })); return 'Evento salvo.'; });
+  const cancel = () => {
+    if (event && confirm(`Cancelar o evento ${event.label}? Ele não entra no histórico.`)) {
+      void run(async () => { ok(await api.eventAction(event.id, 'cancel')); return 'Evento cancelado.'; });
+    }
   };
 
-  const step = (action: 'confirmation' | 'close' | 'cancel', question: string | null, done: string) => {
-    if (!active || (question && !confirm(question))) return;
-    void run(async () => { ok(await api.eventAction(active.id, action)); return done; });
-  };
+  const feedback = message && <p class={`m-0 text-sm ${message.ok ? 'text-ok' : 'text-error'}`} role={message.ok ? 'status' : 'alert'}>{message.text}</p>;
+
+  if (!event) {
+    return (
+      <form class="m-0 flex flex-col gap-3" onSubmit={create}>
+        <label class={label}>Nome do evento
+          <input class={field} required minLength={2} value={name} onInput={(e) => { setName(e.currentTarget.value); }} />
+        </label>
+        <div class="grid grid-cols-2 gap-3">
+          <label class={label}>Data<input class={field} type="date" required value={date} onInput={(e) => { setDate(e.currentTarget.value); }} /></label>
+          <label class={label}>Tempo de rodada (min)
+            <input class={field} inputmode="numeric" required value={minutes} onInput={(e) => { setMinutes(e.currentTarget.value); }} />
+          </label>
+        </div>
+        <JudgesField team={team} chosen={chosen} onChange={setChosen} />
+        <button type="submit" class={`${primary} self-start`} disabled={busy}>Criar evento</button>
+        {feedback}
+      </form>
+    );
+  }
 
   return (
-    <>
-      <section class="card">
-        <h2>Evento do dia</h2>
-        {active === undefined && <p class="muted">Carregando…</p>}
-        {active === null && (
-          <form onSubmit={create}>
-            <label for="event-label">Nome do evento</label>
-            <input id="event-label" required minLength={2} value={label} onInput={(e) => { setLabel(e.currentTarget.value); }} />
-            <label for="event-date">Data</label>
-            <input id="event-date" type="date" required value={date} onInput={(e) => { setDate(e.currentTarget.value); }} />
-            <label for="event-minutes">Tempo de rodada (minutos)</label>
-            <input id="event-minutes" inputmode="numeric" required value={minutes} onInput={(e) => { setMinutes(e.currentTarget.value); }} />
-            <JudgesField team={team} chosen={chosen} onChange={setChosen} />
-            <button type="submit" disabled={busy}>Criar evento</button>
-          </form>
-        )}
-        {active && (
-          <div>
-            <p><b>{active.label}</b> · {active.date.split('-').reverse().join('/')}</p>
-            <p class="muted">{STATUS[active.status]}</p>
-            <a class="link" href="/tv" target="_blank" rel="noopener">Abrir a TV</a>
-            {active.status === 'open' && (
-              <button type="button" disabled={busy} onClick={() => { step('confirmation', 'Pedir confirmação fecha o QR. Continuar?', 'Confirmação pedida: o QR fechou.'); }}>
-                Pedir confirmação
-              </button>
-            )}
-            {active.status === 'final' && (
-              <button type="button" disabled={busy} onClick={() => { step('close', null, 'Evento encerrado.'); }}>Encerrar evento</button>
-            )}
-            <label for="edit-minutes">Tempo de rodada (minutos)</label>
-            <input id="edit-minutes" inputmode="numeric" value={minutes} onInput={(e) => { setMinutes(e.currentTarget.value); }} />
-            <JudgesField team={team} chosen={chosen} onChange={setChosen} />
-            <button type="button" disabled={busy} onClick={save}>Salvar</button>
-            <button
-              type="button"
-              class="link"
-              disabled={busy}
-              onClick={() => { step('cancel', `Cancelar o evento ${active.label}? Ele não entra no histórico.`, 'Evento cancelado.'); }}
-            >
-              Cancelar evento
-            </button>
-          </div>
-        )}
-        {active && <FolderCard api={api} event={active} />}
-        {message && <p class={message.ok ? 'ok' : 'error'} role={message.ok ? 'status' : 'alert'}>{message.text}</p>}
-      </section>
-      {active && <RegistrationsCard api={api} event={active} />}
-    </>
+    <div class="flex flex-col gap-3">
+      <div class="grid grid-cols-2 gap-3">
+        <div class={label}>Nome do evento<span class="text-sm text-text">{event.label}</span></div>
+        <div class={label}>Data<span class="text-sm text-text">{event.date.split('-').reverse().join('/')}</span></div>
+      </div>
+      <label class={label}>Tempo de rodada (minutos)
+        <input class={field} inputmode="numeric" value={minutes} onInput={(e) => { setMinutes(e.currentTarget.value); }} />
+      </label>
+      <JudgesField team={team} chosen={chosen} onChange={setChosen} />
+      <div class="flex items-center gap-2">
+        <button type="button" class={primary} disabled={busy}
+          onClick={() => { void run(async () => { ok(await api.updateEvent(event.id, { roundMinutes: Number(minutes), judges: chosen })); return 'Evento salvo.'; }); }}>
+          Salvar
+        </button>
+        <div class="flex-1" />
+        <button type="button" class={`${ghost} text-error`} disabled={busy} onClick={cancel}>Cancelar evento</button>
+      </div>
+      {feedback}
+    </div>
   );
 };
