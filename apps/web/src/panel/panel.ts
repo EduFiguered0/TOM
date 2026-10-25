@@ -1,4 +1,5 @@
 import type { OverrideDto, PanelTable, ReportDto } from '@tom/contracts';
+import { reportOptions } from '../round/round.js';
 
 /** O que precisa de ação vem primeiro: vermelho (juiz), laranja, cinza, verde a lançar; key lançada por último. */
 const PRIORITY = { red: 0, orange: 1, gray: 2, green: 3 } as const;
@@ -11,12 +12,20 @@ export const sortForAction = (tables: readonly PanelTable[]): PanelTable[] =>
 export const pickTable = (tables: readonly PanelTable[], selected: number | null): number | null =>
   tables.some((t) => t.table === selected) ? selected : (sortForAction(tables)[0]?.table ?? null);
 
-export const describePlayerReport =(report: ReportDto | null): string =>
+/** Placares do ajuste (games do jogador 1 x do jogador 2), na mesma ordem dos botões do jogador; sem o ID. */
+export const overrideScores = (bestOf: 1 | 3): [number, number][] =>
+  reportOptions(bestOf).flatMap((o) => (o.report.kind === 'score' ? [[o.report.own, o.report.opponent] as [number, number]] : []));
+
+export const describePlayerReport = (report: ReportDto | null): string =>
   !report ? 'não reportou' : report.kind === 'intentional_draw' ? 'ID' : `${String(report.own)}x${String(report.opponent)}`;
 
 export const describeOverride = (o: OverrideDto, table: Pick<PanelTable, 'player1' | 'player2'>): string => {
   switch (o.kind) {
-    case 'score': return `Placar ${String(o.player1)}x${String(o.player2)}`;
+    case 'score': {
+      const [high, low] = [Math.max(o.player1, o.player2), Math.min(o.player1, o.player2)];
+      if (o.player1 === o.player2) return `Empate ${String(high)}x${String(low)}`;
+      return `${o.player1 > o.player2 ? table.player1.name : table.player2.name} venceu ${String(high)}x${String(low)}`;
+    }
     case 'intentional_draw': return 'Intentional draw (ID)';
     case 'double_game_loss': return 'Double game loss (DGL)';
     case 'win_by_absence': return `Vitória por ausência de ${o.winner === 'player1' ? table.player2.name : table.player1.name}`;
