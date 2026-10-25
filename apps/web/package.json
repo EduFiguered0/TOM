@@ -10,6 +10,7 @@
   },
   "dependencies": {
     "@tom/contracts": "0.0.0",
+    "@tom/uploader": "0.0.0",
     "preact": "^10.29.8",
     "uqr": "0.1.3"
   },

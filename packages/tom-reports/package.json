@@ -9,6 +9,11 @@
       "source": "./src/index.ts",
       "types": "./dist/index.d.ts",
       "default": "./dist/index.js"
+    },
+    "./files": {
+      "source": "./src/files.ts",
+      "types": "./dist/files.d.ts",
+      "default": "./dist/files.js"
     }
   },
   "dependencies": {

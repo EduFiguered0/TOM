@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { MemorySentLog, Uploader, looksComplete, type FileStat, type Folder, type Sink, type Snapshot } from '../src/index.js';
+import { MemorySentLog, Uploader, looksComplete, nodeSha256, type FileStat, type Folder, type Sink, type Snapshot } from '../src/index.js';
+import { Uploader as CoreUploader, type SentLog } from '../src/core.js';
 
 const HTML = (body: string) => `<html><body>${body}</body></html>\n`;
 
@@ -44,7 +45,7 @@ const setup = (sentLog = new MemorySentLog()) => {
   const folder = new FakeFolder(clock);
   const sink = new RecordingSink();
   const logs: string[] = [];
-  const uploader = new Uploader({ folder, sink, sentLog, clock, quietMs: 1500, log: (m) => logs.push(m) });
+  const uploader = new Uploader({ folder, sink, sentLog, clock, hash: nodeSha256, quietMs: 1500, log: (m) => logs.push(m) });
   const tickAfter = async (ms: number) => {
     now += ms;
     await uploader.tick();
@@ -158,5 +159,32 @@ describe('Uploader', () => {
     await tickAfter(0);
     await tickAfter(2000);
     expect(sink.sent).toHaveLength(0);
+  });
+});
+
+describe('núcleo sem Node (o mesmo do navegador)', () => {
+  it('usa o hash injetado e o registro assíncrono', async () => {
+    let now = new Date('2026-10-23T14:00:00Z').getTime();
+    const clock = { now: () => new Date(now) };
+    const folder = new FakeFolder(clock);
+    const sink = new RecordingSink();
+    const stored = new Map<string, string>();
+    const sentLog: SentLog = {
+      get: (name) => Promise.resolve(stored.get(name)),
+      set: (name, hash) => { stored.set(name, hash); return Promise.resolve(); },
+    };
+    const uploader = new CoreUploader({ folder, sink, sentLog, clock, hash: (c) => Promise.resolve(`h:${String(c.length)}`), quietMs: 1500 });
+    folder.write('FODASEpairings.html', HTML('r3'));
+    await uploader.tick();
+    now += 2000;
+    await uploader.tick();
+    expect(sink.sent.map((x) => x.sha256)).toEqual([`h:${String(HTML('r3').length)}`]);
+
+    // Outro "reinício" com o mesmo registro: não reenvia.
+    const again = new CoreUploader({ folder, sink, sentLog, clock, hash: (c) => Promise.resolve(`h:${String(c.length)}`), quietMs: 1500 });
+    await again.tick();
+    now += 2000;
+    await again.tick();
+    expect(sink.sent).toHaveLength(1);
   });
 });

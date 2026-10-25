@@ -31,9 +31,9 @@ describe('JsonFileSentLog', () => {
   it('persiste entre aberturas e cria a pasta', async () => {
     const path = join(dir, 'estado', 'sent.json');
     const log = await JsonFileSentLog.open(path);
-    expect(log.get('a.html')).toBeUndefined();
+    expect(await log.get('a.html')).toBeUndefined();
     await log.set('a.html', 'abc');
-    expect((await JsonFileSentLog.open(path)).get('a.html')).toBe('abc');
+    expect(await (await JsonFileSentLog.open(path)).get('a.html')).toBe('abc');
     expect(JSON.parse(await readFile(path, 'utf8'))).toEqual({ 'a.html': 'abc' });
   });
 });

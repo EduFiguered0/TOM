@@ -4,6 +4,7 @@ import { ConfigError, parseConfig } from './config.js';
 import { ConsoleSink } from './console-sink.js';
 import { FatalSinkError, HttpSink } from './http-sink.js';
 import { LocalFolder } from './folder.js';
+import { nodeSha256 } from './node-hash.js';
 import { JsonFileSentLog } from './sent-log.js';
 import { Uploader } from './uploader.js';
 
@@ -19,6 +20,7 @@ const run = async (): Promise<void> => {
     sink: config.upload ? new HttpSink(config.upload.api, config.upload.token, log) : new ConsoleSink(log),
     sentLog: await JsonFileSentLog.open(config.statePath),
     clock: { now: () => new Date() },
+    hash: nodeSha256,
     quietMs: config.quietMs,
     log,
   });
