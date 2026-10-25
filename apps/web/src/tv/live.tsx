@@ -1,6 +1,7 @@
 import type { BoardResponse } from '@tom/contracts';
 import { useEffect, useState } from 'preact/hooks';
 import { Tv } from './tv.js';
+import { centered } from './styles.js';
 import { WaitingTv } from './waiting.js';
 
 /** Mesmo tempo do cache do CloudFront: consultar mais rápido não traz dado mais novo. */
@@ -36,9 +37,13 @@ export const LiveTv = ({ fetchFn = browserFetch }: { fetchFn?: typeof fetch }) =
 
   return (
     <>
-      {state.kind === 'loading' && <div class="tv tv-empty"><p>Carregando…</p></div>}
+      {state.kind === 'loading' && <div class={`${centered} text-[2.4vw] text-muted`}><p class="m-0">Carregando…</p></div>}
       {state.kind === 'board' && (state.board.state === 'running' ? <Tv board={state.board} /> : <WaitingTv board={state.board} />)}
-      {offline && <div class="tv-offline" role="status">Sem conexão · mostrando a última rodada recebida</div>}
+      {offline && (
+        <div class="fixed bottom-[1.5vh] right-[2vw] rounded-[.6vw] bg-orange-900 px-[1vw] py-[.4vh] text-[1.1vw] font-semibold text-orange-50" role="status">
+          Sem conexão · mostrando a última rodada recebida
+        </div>
+      )}
     </>
   );
 };

@@ -1,9 +1,9 @@
 import type { RoundBoard, TableColor } from '@tom/contracts';
 import { useEffect, useState } from 'preact/hooks';
 import { pages, roundClock } from './board.js';
-import './tv.css';
+import { DOT, EDGE, eventTitle, screen, tile } from './styles.js';
 
-/** 2 colunas de 10 (o CSS fixa 10 linhas). */
+/** 2 colunas de 10 (a grade fixa 10 linhas). */
 const PER_PAGE = 20;
 const PAGE_MS = 15_000;
 
@@ -13,6 +13,13 @@ const LABEL: Record<TableColor, string> = {
   green: 'Resultado validado',
   red: 'Juiz na mesa',
 };
+
+const CLOCK = {
+  waiting: 'text-[2vw] text-muted',
+  running: 'text-[5vw]',
+  warning: 'text-[5vw] text-orange',
+  over: 'text-[2.6vw] text-red',
+} as const;
 
 /** TV do salão: todos os pareamentos e o cronômetro, legíveis de longe. Pública e sem login. */
 export const Tv = ({ board }: { board: RoundBoard }) => {
@@ -30,32 +37,39 @@ export const Tv = ({ board }: { board: RoundBoard }) => {
   }, []);
 
   return (
-    <div class="tv">
-      <header class="tv-head">
+    <div class={screen}>
+      <header class="flex items-center justify-between gap-[2vw]">
         <div>
-          <div class="tv-event">{board.tournament}</div>
-          <div class="tv-round">Rodada {board.round} · {board.division}</div>
+          <div class={eventTitle}>{board.tournament}</div>
+          <div class="text-[1.6vw] text-muted">Rodada {board.round} · {board.division}</div>
         </div>
-        <div class={`tv-clock ${clock.state}${clock.state === 'running' && clock.warning ? ' warning' : ''}`}>
+        <div class={`font-extrabold tracking-wider tabular-nums ${CLOCK[clock.state === 'running' && clock.warning ? 'warning' : clock.state]}`}>
           {clock.state === 'waiting' && 'Aguardando início'}
           {clock.state === 'running' && clock.text}
           {clock.state === 'over' && 'Tempo esgotado'}
         </div>
       </header>
 
-      <ol class="tv-tables">
+      {/* Numeração descendo a coluna (1–10 à esquerda, 11–20 à direita): é assim que se procura a mesa. */}
+      <ol class="m-0 grid min-h-0 flex-1 list-none grid-flow-col grid-cols-2 grid-rows-[repeat(10,minmax(0,1fr))] gap-x-[1.5vw] gap-y-[1vh] p-0">
         {current.map((t) => (
-          <li key={t.table} class={`tv-table ${t.color}`} title={LABEL[t.color]}>
-            <span class="tv-number">{t.table}</span>
-            <span class="tv-players"><span>{t.player1}</span><span class="tv-vs">x</span><span>{t.player2}</span></span>
-            <span class="tv-dot" aria-label={LABEL[t.color]} />
+          <li key={t.table} class={`${tile} border-l-[.5vw] ${EDGE[t.color]}`} title={LABEL[t.color]}>
+            <span class="w-[3.6vw] text-right text-[2.2vw] font-extrabold tabular-nums">{t.table}</span>
+            <span class="flex min-w-0 flex-1 items-baseline gap-[.8vw] text-[1.55vw]">
+              <span class="flex-1 truncate">{t.player1}</span>
+              <span class="text-[1.1vw] text-muted">x</span>
+              <span class="flex-1 truncate">{t.player2}</span>
+            </span>
+            <span class={`size-[1.1vw] shrink-0 rounded-full ${DOT[t.color]}`} aria-label={LABEL[t.color]} />
           </li>
         ))}
       </ol>
 
-      <footer class="tv-foot">
-        <div class="tv-legend">
-          {(Object.keys(LABEL) as TableColor[]).map((c) => <span key={c}><i class={`tv-dot ${c}`} />{LABEL[c]}</span>)}
+      <footer class="flex justify-between gap-[2vw] text-[1.2vw] text-muted">
+        <div class="flex gap-[1.6vw]">
+          {(Object.keys(LABEL) as TableColor[]).map((c) => (
+            <span key={c} class="inline-flex items-center gap-[.5vw]"><i class={`size-[.9vw] rounded-full ${DOT[c]}`} />{LABEL[c]}</span>
+          ))}
         </div>
         {board.byes.length > 0 && <div>Bye: {board.byes.join(', ')}</div>}
         {all.length > 1 && <div>Página {(page % all.length) + 1} de {all.length}</div>}
