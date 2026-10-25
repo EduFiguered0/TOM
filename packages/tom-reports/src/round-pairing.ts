@@ -3,15 +3,23 @@ import type { MatchSlip, MatchSlipsReport } from './reports/match-slips.js';
 import type { PairingsReport } from './reports/pairings.js';
 import { InconsistentReportsError } from './shared/errors.js';
 
-const samePlayers = (slip: MatchSlip, a: string, b: string): boolean =>
-  (slip.player1.name === a && slip.player2.name === b) || (slip.player1.name === b && slip.player2.name === a);
+/** As guias do TOM cortam o nome em 20 letras; o pareamento traz o nome completo. */
+const SLIP_NAME_MAX = 20;
+const sameName = (slipName: string, full: string): boolean =>
+  slipName === full || (slipName.length === SLIP_NAME_MAX && full.startsWith(slipName));
 
-const toTable = (slip: MatchSlip): PairedTable => ({
-  table: slip.table,
-  player1: { playerId: slip.player1.playerId, name: slip.player1.name },
-  player2: { playerId: slip.player2.playerId, name: slip.player2.name },
-  keys: slip.keys,
-});
+/** Mesa com os nomes completos do pareamento, na ordem da guia; null se os jogadores não batem. */
+const toTable = (slip: MatchSlip, a: string, b: string): PairedTable | null => {
+  const [name1, name2] = sameName(slip.player1.name, a) && sameName(slip.player2.name, b) ? [a, b]
+    : sameName(slip.player1.name, b) && sameName(slip.player2.name, a) ? [b, a] : [null, null];
+  if (!name1 || !name2) return null;
+  return {
+    table: slip.table,
+    player1: { playerId: slip.player1.playerId, name: name1 },
+    player2: { playerId: slip.player2.playerId, name: name2 },
+    keys: slip.keys,
+  };
+};
 
 /**
  * Cruza pairings (divisão, mesas e bye) com match_slips (Player ID e keys).
@@ -40,11 +48,12 @@ export const toRoundPairings = (slips: MatchSlipsReport, pairings: PairingsRepor
       continue;
     }
     const slip = pending.get(p.table);
-    if (!slip || !samePlayers(slip, p.player.name, p.opponent.name)) {
+    const table = slip ? toTable(slip, p.player.name, p.opponent.name) : null;
+    if (!table) {
       throw new InconsistentReportsError(`Mesa ${String(p.table)} sem guia correspondente; gere as guias da rodada no TOM`);
     }
     pending.delete(p.table);
-    entry.tables.push(toTable(slip));
+    entry.tables.push(table);
   }
 
   if (pending.size > 0) {
