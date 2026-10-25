@@ -7,7 +7,11 @@ export const sortForAction = (tables: readonly PanelTable[]): PanelTable[] =>
   [...tables].sort((a, b) =>
     Number(a.keyLaunched) - Number(b.keyLaunched) || PRIORITY[a.color] - PRIORITY[b.color] || a.table - b.table);
 
-export const describePlayerReport = (report: ReportDto | null): string =>
+/** Mesa aberta ao lado da tabela: a escolhida, se ainda existe; senão a primeira que pede ação. */
+export const pickTable = (tables: readonly PanelTable[], selected: number | null): number | null =>
+  tables.some((t) => t.table === selected) ? selected : (sortForAction(tables)[0]?.table ?? null);
+
+export const describePlayerReport =(report: ReportDto | null): string =>
   !report ? 'não reportou' : report.kind === 'intentional_draw' ? 'ID' : `${String(report.own)}x${String(report.opponent)}`;
 
 export const describeOverride = (o: OverrideDto, table: Pick<PanelTable, 'player1' | 'player2'>): string => {
