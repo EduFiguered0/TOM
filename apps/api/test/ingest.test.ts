@@ -106,6 +106,15 @@ describe('envio pelo navegador do ADM', () => {
     expect((await call('POST', '/events/active/uploads', ADM, upload('pairings'))).body).toMatchObject({ stored: true });
   });
 
+  it('arquivo do torneio anterior (de antes do evento) é ignorado e não prende o evento a ele', async () => {
+    const { call } = await withEvent();
+    const old = upload('pairings', undefined, '2026-10-22T20:00:00Z');
+    expect(await call('POST', '/events/active/uploads', ADM, old)).toMatchObject({
+      status: 200, body: { stored: false, published: [], note: 'Arquivo de antes do evento: ignorado' },
+    });
+    expect((await call('POST', '/events/active/uploads', ADM, upload('pairings'))).body).toMatchObject({ stored: true });
+  });
+
   it('token antigo continua funcionando', async () => {
     const { send } = await withEvent();
     expect((await send(upload('pairings'))).status).toBe(200);
