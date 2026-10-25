@@ -14,6 +14,8 @@ Oct 20, 2026 · @Edduardo Souza Figueredo · revisão 2: Oct 21, 2026 · revisã
 
 > **Revisão 7.** Ciclo do evento: QR na TV com inscrição automática, confirmação de presença que fecha o QR, rodada 1 só com todos confirmados, resultado final do TOM libera o encerramento. Trechos marcados com **[R7]**.
 
+> **Revisão 8.** A pasta do TOM é conectada pelo navegador do ADM, no próprio painel do evento: sem token nem comando no notebook. O enviador por comando fica como plano B; um executável que roda em segundo plano fica como evolução.
+
 ## Visão e problema
 
 O sistema é uma camada de auditoria de resultados entre os jogadores e o TOM: nenhuma rodada nova começa antes de todos os resultados da anterior estarem validados.
@@ -371,3 +373,10 @@ Fora de escopo:
 | 2 | Jogadores lançados no TOM sem lista | QR na TV inscreve sozinho; painel de inscritos com Player ID, nome e ano para digitar no TOM |
 | 3 | Rodada 1 iniciava a qualquer momento | Só depois de pedir a confirmação de presença e com nenhum pendente |
 | 4 | TV só com a rodada | TV por fase: espera, QR, confirmação, rodada e classificação final |
+
+### Revisão 8 — Oct 24, 2026
+
+| # | Antes | Agora |
+| --- | --- | --- |
+| 1 | Enviador por comando no PowerShell, com token copiado da tela | O ADM conecta a pasta do TOM no painel (Chrome ou Edge) e o site envia sozinho para o evento ativo, com o login do ADM |
+| 2 | — | Evolução: executável no notebook, pareado pelo painel, rodando em segundo plano |

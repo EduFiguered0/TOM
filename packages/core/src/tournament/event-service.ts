@@ -188,17 +188,38 @@ export class EventService {
     if (!record || record.event.revoked || !isActive(record.event)) {
       throw new CommandRejected('invalid_token', 'Token do enviador inválido ou revogado');
     }
+    return this.bind(record, tournament, () => new CommandRejected('tournament_mismatch', `Este token é do torneio "${record.event.tournament ?? ''}", não de "${tournament}"`),
+      () => this.authorizeUpload(token, tournament));
+  }
+
+  /** Envio pelo navegador do ADM (pasta do TOM conectada no painel): sempre para o evento ativo, sem token. */
+  async authorizeAdminUpload(actor: Actor | null, tournament: string): Promise<TournamentEvent> {
+    requireAdmin(actor);
+    const latest = await this.deps.events.latest();
+    if (!latest || !isActive(latest.event)) throw new CommandRejected('event_state', 'Crie o evento para começar a enviar');
+    const bound = latest.event.tournament ?? '';
+    return this.bind(latest, tournament, () => new CommandRejected(
+      'tournament_mismatch',
+      `A pasta está com o torneio ${tournament}, mas este evento é do torneio ${bound}. Abra o torneio ${bound} no TOM.`,
+    ), () => this.authorizeAdminUpload(actor, tournament));
+  }
+
+  /** O primeiro envio amarra o torneio do TOM ao evento; depois, outro torneio é recusado. */
+  private async bind(
+    record: { event: TournamentEvent; version: number },
+    tournament: string,
+    mismatch: () => CommandRejected,
+    retry: () => Promise<TournamentEvent>,
+  ): Promise<TournamentEvent> {
     const { event, version } = record;
     if (event.tournament === tournament) return event;
-    if (event.tournament !== null) {
-      throw new CommandRejected('tournament_mismatch', `Este token é do torneio "${event.tournament}", não de "${tournament}"`);
-    }
+    if (event.tournament !== null) throw mismatch();
     const bound = { ...event, tournament };
     try {
       await this.deps.events.save(bound, version);
     } catch (e) {
       // Dois arquivos do mesmo envio chegaram juntos: o outro já amarrou; confere de novo.
-      if (e instanceof ConcurrencyError) return this.authorizeUpload(token, tournament);
+      if (e instanceof ConcurrencyError) return retry();
       throw e;
     }
     return bound;

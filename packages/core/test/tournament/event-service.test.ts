@@ -187,3 +187,36 @@ describe('escala de juízes', () => {
     await rejects(service.setJudges(null, event.id, []), 'forbidden');
   });
 });
+
+describe('envio pelo navegador do ADM', () => {
+  it('ADM envia para o evento ativo e amarra o torneio', async () => {
+    const { service } = setup();
+    const { event } = await service.createEvent(actors.admin, { label: 'Liga' });
+    expect(await service.authorizeAdminUpload(actors.admin, 'FODASE')).toMatchObject({ id: event.id, tournament: 'FODASE' });
+    expect((await service.authorizeAdminUpload(actors.admin, 'FODASE')).tournament).toBe('FODASE');
+  });
+
+  it('sem evento ativo: recusa com a mensagem', async () => {
+    const { service } = setup();
+    await rejects(service.authorizeAdminUpload(actors.admin, 'FODASE'), 'event_state', 'Crie o evento para começar a enviar');
+    const { event } = await service.createEvent(actors.admin, { label: 'Liga' });
+    await service.cancel(actors.admin, event.id);
+    await rejects(service.authorizeAdminUpload(actors.admin, 'FODASE'), 'event_state', 'Crie o evento para começar a enviar');
+  });
+
+  it('torneio diferente do amarrado: mensagem com os dois nomes', async () => {
+    const { service } = setup();
+    await service.createEvent(actors.admin, { label: 'Liga' });
+    await service.authorizeAdminUpload(actors.admin, 'FODASE');
+    await rejects(service.authorizeAdminUpload(actors.admin, 'TESTE'), 'tournament_mismatch',
+      'A pasta está com o torneio TESTE, mas este evento é do torneio FODASE. Abra o torneio FODASE no TOM.');
+  });
+
+  it('jogador e juiz não enviam', async () => {
+    const { service } = setup();
+    await service.createEvent(actors.admin, { label: 'Liga' });
+    await rejects(service.authorizeAdminUpload(actors.p1, 'FODASE'), 'forbidden');
+    await rejects(service.authorizeAdminUpload(actors.judge, 'FODASE'), 'forbidden');
+    await rejects(service.authorizeAdminUpload(null, 'FODASE'), 'forbidden');
+  });
+});

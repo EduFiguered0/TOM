@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { ConfigError, FatalSinkError, HttpSink, MemorySentLog, Uploader, parseConfig, type Snapshot } from '../src/index.js';
+import { ConfigError, FatalSinkError, HttpSink, MemorySentLog, Uploader, nodeSha256, parseConfig, type Snapshot } from '../src/index.js';
 
 const snapshot: Snapshot = {
   tournament: 'FODASE', type: 'pairings', fileName: 'FODASEpairings.html', content: '<html></html>',
@@ -41,13 +41,14 @@ describe('envio para a API', () => {
       },
       sink: { send: () => Promise.reject(new FatalSinkError('revogado')) },
       sentLog,
+      hash: nodeSha256,
       clock: { now: () => new Date(now) },
       quietMs: 10,
     });
     await uploader.tick();
     now = 100;
     await expect(uploader.tick()).rejects.toThrow(FatalSinkError);
-    expect(sentLog.get('FODASEpairings.html')).toBeUndefined();
+    expect(await sentLog.get('FODASEpairings.html')).toBeUndefined();
   });
 });
 

@@ -1,17 +1,15 @@
 import { mkdir, readFile, rename, writeFile } from 'node:fs/promises';
 import { dirname } from 'node:path';
 
-/** Último conteúdo enviado por arquivo; sobrevive a reinícios para só reenviar o que mudou. */
-export interface SentLog {
-  get(fileName: string): string | undefined;
-  set(fileName: string, sha256: string): Promise<void>;
-}
+import type { SentLog } from './sent-log-port.js';
+
+export type { SentLog } from './sent-log-port.js';
 
 export class MemorySentLog implements SentLog {
   private readonly sent = new Map<string, string>();
 
-  get(fileName: string): string | undefined {
-    return this.sent.get(fileName);
+  get(fileName: string): Promise<string | undefined> {
+    return Promise.resolve(this.sent.get(fileName));
   }
 
   set(fileName: string, sha256: string): Promise<void> {
@@ -36,8 +34,8 @@ export class JsonFileSentLog implements SentLog {
     }
   }
 
-  get(fileName: string): string | undefined {
-    return this.sent.get(fileName);
+  get(fileName: string): Promise<string | undefined> {
+    return Promise.resolve(this.sent.get(fileName));
   }
 
   /** Grava em arquivo temporário e renomeia: uma queda no meio não corrompe o registro. */

@@ -46,7 +46,9 @@ npm run web:dev      # http://localhost:5173 e http://localhost:5173/tv
 npm run web:deploy   # build, envio ao S3 e limpeza do cache do CloudFront
 ```
 
-Enviador, no notebook do TOM (somente leitura da pasta). O ADM gera o token do evento na tela dele; o token vai pela variável de ambiente para não ficar no histórico do terminal:
+**Pasta do TOM (caminho principal).** No notebook do TOM, abra o painel do ADM no **Chrome ou no Edge**, crie o evento e clique em **"Conectar pasta do TOM"** no cartão "Evento do dia". O site lê a pasta (só leitura) a cada 3 s e envia sozinho os relatórios novos para o evento ativo, com o login do ADM: sem token e sem comando. Num dia novo, o navegador pede um clique em "Permitir". A página precisa ficar aberta (pode ficar atrás do TOM).
+
+**Plano B: enviador por comando**, no notebook do TOM (somente leitura da pasta). O token é gerado na criação do evento (resposta de `POST /events`); ele vai pela variável de ambiente para não ficar no histórico do terminal:
 
 ```powershell
 $env:TOM_UPLOAD_TOKEN="<token do evento>"
@@ -111,6 +113,7 @@ Rotas da API (as de conta e ADM exigem `Authorization: Bearer <token de acesso d
 | `PUT /events/{id}/judges` | ADM | Troca os juízes escalados no evento (só juízes da equipe) |
 | `POST /events/{id}/revoke` | ADM | Revoga o token do enviador |
 | `POST /uploads` | enviador (`x-upload-token`) | Recebe um HTML do TOM; com pareamento e guias da rodada, publica a rodada |
+| `POST /events/active/uploads` | ADM | O mesmo envio, pelo navegador do ADM (pasta do TOM conectada no painel), sempre para o evento ativo |
 | `GET /board` | público | TV por fase do evento (espera, QR com inscritos, confirmação, rodada, classificação final), só nomes, guardada 5 s no CloudFront |
 
 O ADM vem do grupo `admin` do Cognito; o juiz é marcado pelo ADM no cartão "Equipe" do site e só age no evento em que for escalado (até o plano 4, o evento atual é o da rodada publicada pelo TOM). Para dar o papel de ADM a uma conta já criada; vale no próximo token, em até 15 min:

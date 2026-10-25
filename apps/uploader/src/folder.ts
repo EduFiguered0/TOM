@@ -1,16 +1,8 @@
 import { readdir, readFile, stat } from 'node:fs/promises';
 import { basename, join } from 'node:path';
-import type { ReportFileInfo } from '@tom/tom-reports';
+import type { FileStat, Folder } from './folder-port.js';
 
-export interface FileStat extends ReportFileInfo {
-  size: number;
-}
-
-/** Acesso somente leitura à pasta do TOM. */
-export interface Folder {
-  list(): Promise<FileStat[]>;
-  read(fileName: string): Promise<string>;
-}
+export type { FileStat, Folder } from './folder-port.js';
 
 const isMissing = (e: unknown): boolean => (e as NodeJS.ErrnoException).code === 'ENOENT';
 

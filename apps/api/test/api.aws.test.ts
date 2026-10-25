@@ -189,6 +189,30 @@ describe('API real (TomApiTest)', () => {
     await call('POST', `/events/${String(created.body['id'])}/cancel`, adm);
   });
 
+  it('ADM envia pelo navegador para o evento ativo (sem token)', async () => {
+    const [adm, player] = await Promise.all([login(adminEmail), login()]);
+    await Promise.all([call('POST', '/session', adm, { replace: true }), call('POST', '/session', player, { replace: true })]);
+    await cancelActive(adm);
+    const created = await call('POST', '/events', adm, { label: 'Envio pelo navegador' });
+    const fixtures = new URL('../../../packages/tom-reports/test/fixtures/fodase/', import.meta.url);
+    const body = (report: string) => {
+      const content = readFileSync(new URL(`FODASE${report}.html`, fixtures), 'utf8');
+      return {
+        tournament: 'FODASE', report, fileName: `FODASE${report}.html`, content,
+        sha256: createHash('sha256').update(content).digest('hex'),
+        // Versão nova a cada execução: o S3 de teste guarda as anteriores por 1 dia.
+        modifiedAt: new Date().toISOString(),
+      };
+    };
+    expect((await call('POST', '/events/active/uploads', player, body('pairings'))).status).toBe(403);
+    expect((await call('POST', '/events/active/uploads', adm, body('pairings'))).status).toBe(200);
+    expect(await call('POST', '/events/active/uploads', adm, body('match_slips'))).toMatchObject({ status: 200, body: { stored: true } });
+    await call('POST', `/events/${String(created.body['id'])}/cancel`, adm);
+    expect(await call('POST', '/events/active/uploads', adm, body('standings'))).toMatchObject({
+      status: 409, body: { message: 'Crie o evento para começar a enviar' },
+    });
+  });
+
   it('ciclo do evento de ponta a ponta: QR, confirmação fecha o QR, presença e contadores', async () => {
     const [player, adm, other] = await Promise.all([login(), login(adminEmail), login(otherEmail)]);
     await Promise.all([player, adm, other].map((t) => call('POST', '/session', t, { replace: true })));

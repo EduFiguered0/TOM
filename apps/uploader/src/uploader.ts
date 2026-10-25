@@ -1,10 +1,8 @@
-import { createHash } from 'node:crypto';
 import type { Clock } from '@tom/core';
-import { latestTournament, type ReportType } from '@tom/tom-reports';
-import type { Folder } from './folder.js';
-import type { SentLog } from './sent-log.js';
-import { FatalSinkError } from './http-sink.js';
-import type { Sink } from './sink.js';
+import { latestTournament, type ReportType } from '@tom/tom-reports/files';
+import type { Folder } from './folder-port.js';
+import type { SentLog } from './sent-log-port.js';
+import { FatalSinkError, type Sink } from './sink.js';
 
 export const DEFAULT_QUIET_MS = 1500;
 
@@ -13,6 +11,8 @@ export interface UploaderDeps {
   sink: Sink;
   sentLog: SentLog;
   clock: Clock;
+  /** SHA-256 em hexadecimal: `node:crypto` no notebook, Web Crypto no navegador. */
+  hash: (content: string) => Promise<string>;
   quietMs?: number;
   log?: (message: string) => void;
 }
@@ -27,8 +27,6 @@ interface Tracked {
 
 /** Todo HTML do TOM termina assim; sem isso o arquivo ainda está sendo escrito. */
 export const looksComplete = (html: string): boolean => /<\/html>\s*$/i.test(html);
-
-const sha256 = (content: string): string => createHash('sha256').update(content).digest('hex');
 
 /**
  * A cada `tick`, olha o evento mais recente da pasta e envia cada arquivo
@@ -74,8 +72,8 @@ export class Uploader {
       this.log(`${fileName}: incompleto, aguardando o TOM terminar de escrever`);
       return;
     }
-    const hash = sha256(content);
-    if (this.deps.sentLog.get(fileName) === hash) {
+    const hash = await this.deps.hash(content);
+    if ((await this.deps.sentLog.get(fileName)) === hash) {
       prev.done = true;
       return;
     }

@@ -1,10 +1,7 @@
 import type { ErrorResponse, UploadRequest, UploadResponse } from '@tom/contracts';
-import type { Sink, Snapshot } from './sink.js';
+import { FatalSinkError, type Sink, type Snapshot } from './sink.js';
 
-/** Erro que não se resolve tentando de novo (token revogado, torneio errado): o enviador para e avisa. */
-export class FatalSinkError extends Error {
-  override name = 'FatalSinkError';
-}
+export { FatalSinkError };
 
 /** Envia cada versão para a API com o token do evento; só resolve depois do "ok" da API. */
 export class HttpSink implements Sink {

@@ -8,6 +8,7 @@ import {
   type RoundPairing,
   type RoundService,
   type SnapshotStore,
+  type TournamentEvent,
 } from '@tom/core';
 import {
   identifyReportFile,
@@ -50,11 +51,11 @@ export const createIngest = ({ events, registry, snapshots, rounds, clock }: Ing
     return last ? snapshots.load(last) : null;
   };
 
-  const publish = async (eventId: string, pairing: RoundPairing): Promise<boolean> => {
+  const publish = async (eventId: string, pairing: RoundPairing, author: Actor): Promise<boolean> => {
     const state = await rounds.state(pairing.ref);
     if (canonical(state.pairing) === canonical(pairing)) return false;
     try {
-      await rounds.publishPairing(UPLOADER, pairing);
+      await rounds.publishPairing(author, pairing);
     } catch (e) {
       // Rodada já começou: o pareamento não muda mais (spec); o TOM pode ter só regravado o arquivo.
       if (e instanceof CommandRejected && e.code === 'round_already_started') return false;
@@ -81,13 +82,15 @@ export const createIngest = ({ events, registry, snapshots, rounds, clock }: Ing
     return nothing(true, event.status === 'final' ? 'Resultado final recebido' : null);
   };
 
-  return async (token: string, upload: UploadRequest): Promise<UploadResponse> => {
+  const checkName = (upload: UploadRequest) => {
     const id = identifyReportFile(upload.fileName);
     if (id?.tournament !== upload.tournament || id.type !== upload.report) {
       throw new CommandRejected('invalid_input', `Arquivo "${upload.fileName}" não corresponde a ${upload.tournament}/${upload.report}`);
     }
-    const event = await events.authorizeUpload(token, upload.tournament);
+  };
 
+  /** Depois da autorização: guarda a fotografia e publica a rodada ou o resultado final. */
+  const store = async (event: TournamentEvent, upload: UploadRequest, author: Actor): Promise<UploadResponse> => {
     let stored: boolean;
     try {
       stored = await snapshots.save({
@@ -118,9 +121,22 @@ export const createIngest = ({ events, registry, snapshots, rounds, clock }: Ing
     }
     const published: UploadResponse['published'] = [];
     for (const pairing of built) {
-      if (await publish(event.id, pairing)) published.push({ division: pairing.ref.division, round: pairing.ref.round });
+      if (await publish(event.id, pairing, author)) published.push({ division: pairing.ref.division, round: pairing.ref.round });
     }
     return { stored: true, published, note: published.length ? null : 'Rodada sem mudanças' };
+  };
+
+  return {
+    /** Enviador do notebook (CLI), com o token do evento. */
+    async withToken(token: string, upload: UploadRequest): Promise<UploadResponse> {
+      checkName(upload);
+      return store(await events.authorizeUpload(token, upload.tournament), upload, UPLOADER);
+    },
+    /** Navegador do ADM: o evento já foi resolvido (o ativo) pela rota. */
+    async forEvent(event: TournamentEvent, upload: UploadRequest, author: Actor): Promise<UploadResponse> {
+      checkName(upload);
+      return store(event, upload, author);
+    },
   };
 };
 
