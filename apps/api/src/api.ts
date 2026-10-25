@@ -341,6 +341,16 @@ export const createApi = ({ tokens, emails, accounts, events, ingest, board, rou
       },
     },
     {
+      method: 'POST', path: /^\/events\/active\/uploads$/,
+      handle: async ({ request, identity }) => {
+        const upload = parseUploadRequest(jsonBody(request));
+        const actor = await requireAdmin(identity);
+        const event = await events.authorizeAdminUpload(actor, upload.tournament);
+        const author = { role: 'system', source: `navegador:${actor.accountId}` } as const;
+        return { status: 200, body: await ingest.forEvent(event, upload, author) };
+      },
+    },
+    {
       method: 'GET', path: /^\/events\/active$/,
       handle: async ({ identity }) => {
         await requireAdmin(identity);
@@ -579,7 +589,7 @@ export const createApi = ({ tokens, emails, accounts, events, ingest, board, rou
       method: 'POST', path: /^\/uploads$/,
       handle: async (request) => ({
         status: 200,
-        body: await ingest(request.headers['x-upload-token'] ?? '', parseUploadRequest(jsonBody(request))),
+        body: await ingest.withToken(request.headers['x-upload-token'] ?? '', parseUploadRequest(jsonBody(request))),
       }),
     },
     {

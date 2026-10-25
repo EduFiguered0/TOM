@@ -76,3 +76,38 @@ describe('ingestão: pareamento já publicado', () => {
     expect((await send(upload('match_slips', undefined, '2026-10-24T15:00:00Z'))).body).toMatchObject({ stored: true, published: [] });
   });
 });
+
+describe('envio pelo navegador do ADM', () => {
+  const ADM = 'adm:a1:admin';
+
+  it('ADM envia pelo navegador: pareamento + guias publicam a rodada do evento ativo', async () => {
+    const { call, eventId } = await withEvent();
+    expect((await call('POST', '/events/active/uploads', ADM, upload('pairings'))).status).toBe(200);
+    const done = await call('POST', '/events/active/uploads', ADM, upload('match_slips'));
+    expect(done).toMatchObject({ status: 200, body: { stored: true, published: [{ round: 3 }] } });
+    await call('POST', `/events/${eventId}/confirmation`, ADM);
+    expect((await call('POST', '/round/start', ADM, { bestOf: 3, roundMinutes: null })).status).toBe(200);
+  });
+
+  it('jogador recebe 403', async () => {
+    const { call } = await withEvent();
+    await register(call, 'p1:c1', '100001');
+    expect((await call('POST', '/events/active/uploads', 'p1:c1', upload('pairings'))).status).toBe(403);
+    expect((await call('POST', '/events/active/uploads', null, upload('pairings'))).status).toBe(401);
+  });
+
+  it('evento cancelado: recusa e nada é guardado', async () => {
+    const { call, eventId } = await withEvent();
+    await call('POST', `/events/${eventId}/cancel`, ADM);
+    expect(await call('POST', '/events/active/uploads', ADM, upload('pairings'))).toMatchObject({
+      status: 409, body: { message: 'Crie o evento para começar a enviar' },
+    });
+    await call('POST', '/events', ADM, { label: 'Outro' });
+    expect((await call('POST', '/events/active/uploads', ADM, upload('pairings'))).body).toMatchObject({ stored: true });
+  });
+
+  it('token antigo continua funcionando', async () => {
+    const { send } = await withEvent();
+    expect((await send(upload('pairings'))).status).toBe(200);
+  });
+});
