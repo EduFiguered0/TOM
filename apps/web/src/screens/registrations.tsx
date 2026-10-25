@@ -1,7 +1,7 @@
 import type { AccountResponse, EventDto, RegistrationDto, RegistrationsResponse } from '@tom/contracts';
 import { useCallback, useEffect, useState } from 'preact/hooks';
 import type { Api } from '../api.js';
-import { field as input, ghost, linkButton as action } from '../admin/ui.js';
+import { field as input, ghost, linkButton as action } from '../ui.js';
 
 /** O ADM digita no TOM enquanto as pessoas chegam: a lista se atualiza sozinha. */
 const POLL_MS = 10_000;

@@ -1,6 +1,7 @@
 import { useState } from 'preact/hooks';
 import { AuthError, type Cognito, type Tokens } from '../auth/cognito.js';
 import type { Google } from '../auth/google.js';
+import { bigGhost, bigPrimary, card, Feedback, input, label, muted, textButton, title } from '../ui.js';
 
 interface Props {
   cognito: Cognito;
@@ -47,47 +48,45 @@ export const Login = ({ cognito, google, initialError, onSignedIn }: Props) => {
   const withGoogle = () => { if (google) void run(async () => { location.assign(await google.authorizeUrl()); }); };
 
   return (
-    <section class="card">
-      <h1>{TITLE[mode]}</h1>
+    <section class={card}>
+      <h1 class={title}>{TITLE[mode]}</h1>
       {google && (mode === 'signin' || mode === 'signup') && (
         <>
-          <button type="button" disabled={busy} onClick={withGoogle}>Entrar com o Google</button>
-          <p class="muted center">ou com e-mail e senha</p>
+          <button type="button" class={bigGhost} disabled={busy} onClick={withGoogle}>Entrar com o Google</button>
+          <p class={`${muted} text-center`}>ou com e-mail e senha</p>
         </>
       )}
-      <form onSubmit={submit}>
-        <label for="email">E-mail</label>
-        <input id="email" type="email" autocomplete="email" required readOnly={mode === 'reset'} value={email} onInput={(e) => { setEmail(e.currentTarget.value); }} />
+      <form class="m-0 flex flex-col gap-3" onSubmit={submit}>
+        <label class={label}>E-mail
+          <input class={input} type="email" autocomplete="email" required readOnly={mode === 'reset'} value={email} onInput={(e) => { setEmail(e.currentTarget.value); }} />
+        </label>
         {mode === 'reset' && (
-          <>
-            <label for="code">Código recebido por e-mail</label>
-            <input id="code" inputmode="numeric" autocomplete="one-time-code" required value={code} onInput={(e) => { setCode(e.currentTarget.value); }} />
-          </>
+          <label class={label}>Código recebido por e-mail
+            <input class={input} inputmode="numeric" autocomplete="one-time-code" required value={code} onInput={(e) => { setCode(e.currentTarget.value); }} />
+          </label>
         )}
         {mode !== 'forgot' && (
-          <>
-            <label for="password">{mode === 'reset' ? 'Nova senha' : 'Senha'}</label>
+          <label class={label}>{mode === 'reset' ? 'Nova senha' : 'Senha'}
             <input
-              id="password" type="password" required minLength={mode === 'signin' ? undefined : 8}
+              class={input} type="password" required minLength={mode === 'signin' ? undefined : 8}
               autocomplete={mode === 'signin' ? 'current-password' : 'new-password'}
               value={password} onInput={(e) => { setPassword(e.currentTarget.value); }}
             />
-            {mode !== 'signin' && <p class="muted">Pelo menos 8 caracteres, com uma letra minúscula e um número.</p>}
-          </>
+            {mode !== 'signin' && <span class="text-xs">Pelo menos 8 caracteres, com uma letra minúscula e um número.</span>}
+          </label>
         )}
-        <button type="submit" disabled={busy}>
+        <button type="submit" class={bigPrimary} disabled={busy}>
           {busy ? 'Aguarde…' : { signin: 'Entrar', signup: 'Criar conta', forgot: 'Enviar código', reset: 'Salvar senha' }[mode]}
         </button>
       </form>
-      {info && <p class="ok" role="status">{info}</p>}
-      {error && <p class="error" role="alert">{error}</p>}
+      <Feedback message={info ? { ok: true, text: info } : error ? { ok: false, text: error } : null} />
       {mode === 'signin' && (
-        <>
-          <button type="button" class="link" onClick={() => { go('signup'); }}>Ainda não tenho conta</button>
-          <button type="button" class="link" onClick={() => { go('forgot'); }}>Esqueci minha senha</button>
-        </>
+        <div class="flex justify-between">
+          <button type="button" class={textButton} onClick={() => { go('signup'); }}>Ainda não tenho conta</button>
+          <button type="button" class={textButton} onClick={() => { go('forgot'); }}>Esqueci minha senha</button>
+        </div>
       )}
-      {mode !== 'signin' && <button type="button" class="link" onClick={() => { go('signin'); }}>Voltar para entrar</button>}
+      {mode !== 'signin' && <button type="button" class={textButton} onClick={() => { go('signin'); }}>Voltar para entrar</button>}
     </section>
   );
 };

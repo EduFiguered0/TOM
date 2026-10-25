@@ -6,7 +6,7 @@ import { RegistrationsTable, type Registrations } from '../screens/registrations
 import type { TomFolder } from '../tom-folder/use-tom-folder.js';
 import { FolderBox } from './folder-box.js';
 import { eventSteps } from './steps.js';
-import { box, linkButton, ok, primary } from './ui.js';
+import { box, linkButton, ok, primary } from '../ui.js';
 
 interface Props {
   api: Api;

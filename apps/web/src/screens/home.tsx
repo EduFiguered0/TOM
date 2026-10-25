@@ -1,5 +1,6 @@
 import type { MeResponse } from '@tom/contracts';
 import type { Api } from '../api.js';
+import { card, cardWarn, muted, textButton, title } from '../ui.js';
 import { MyEventCard } from './my-event.js';
 import { PlayerIdCard } from './player-id.js';
 import { RoundCard } from '../round/round-card.js';
@@ -20,25 +21,18 @@ const ROLE: Record<MeResponse['role'], string> = { player: 'Jogador', admin: 'AD
 
 export const Home = ({ me, api, onSignOut, onChanged, joinError, eventRefresh }: Props) => (
   <>
-  {joinError && <section class="card warn"><p class="error" role="alert">{joinError}</p></section>}
+  {joinError && <section class={cardWarn}><p class="m-0 font-medium text-error" role="alert">{joinError}</p></section>}
   {me.role === 'player' && <MyEventCard api={api} refresh={eventRefresh} />}
   {/* No salão o que importa é a mesa: a rodada vem primeiro. */}
   {me.role === 'player' && me.canAct && <RoundCard api={api} />}
-  <section class="card">
-    <h1>Olá, {me.profile.name.split(' ')[0]}</h1>
-    <p class="muted">{ROLE[me.role]} · {me.email}</p>
+  <section class={card}>
+    <h1 class={title}>Olá, {me.profile.name.split(' ')[0]}</h1>
+    <p class={muted}>{ROLE[me.role]} · {me.email}</p>
     {me.role === 'player' && (me.playerId
-      ? <p class="ok">Player ID {me.playerId}. {me.judging ? 'Você é juiz deste evento.' : 'Você já pode reportar resultados.'}</p>
+      ? <p class="m-0 font-medium text-ok">Player ID {me.playerId}. {me.judging ? 'Você é juiz deste evento.' : 'Você já pode reportar resultados.'}</p>
       : <PlayerIdCard api={api} onSaved={onChanged} />)}
-    <button type="button" class="link" onClick={onSignOut}>Sair deste dispositivo</button>
+    {me.judge && <p class={muted}>Juiz da equipe. Você não está escalado no evento atual.</p>}
+    <button type="button" class={textButton} onClick={onSignOut}>Sair deste dispositivo</button>
   </section>
-  {me.judge && (
-    <section class="card">
-      <h2>Juiz</h2>
-      {me.judging
-        ? <a class="button" href="/painel">Abrir o painel da rodada</a>
-        : <p class="muted">Você não está escalado no evento atual.</p>}
-    </section>
-  )}
   </>
 );

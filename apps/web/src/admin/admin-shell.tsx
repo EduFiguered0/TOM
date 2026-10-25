@@ -12,7 +12,7 @@ import { useTomFolder } from '../tom-folder/use-tom-folder.js';
 import { EventTab } from './event-tab.js';
 import { FolderDot } from './folder-box.js';
 import { ADMIN_TABS, tabFor, tabsFor, type AdminTab, type StaffRole } from './tabs.js';
-import { box, ghost, primary } from './ui.js';
+import { box, ghost, primary } from '../ui.js';
 import { useActiveEvent } from './use-active-event.js';
 
 interface Props {
@@ -46,7 +46,6 @@ export const AdminShell = ({ api, me, onSignOut }: Props) => {
   };
 
   const count = registrations.data?.registrations.filter((r) => !r.removed).length;
-  const legacy = 'legacy min-h-0 flex-1 overflow-y-auto';
 
   return (
     <div class="grid h-dvh grid-cols-[210px_1fr] overflow-hidden bg-bg text-text">
@@ -98,8 +97,8 @@ export const AdminShell = ({ api, me, onSignOut }: Props) => {
           {event !== undefined && tab === 'inscritos' && (event
             ? <section class={`${box} flex-1`} aria-label="Inscritos"><RegistrationsTable api={api} event={event} registrations={registrations} /></section>
             : <p class="m-0 text-sm text-muted">Sem evento ativo.</p>)}
-          {tab === 'equipe' && <div class={`${legacy} max-w-xl`}><TeamCard api={api} /></div>}
-          {tab === 'jogadores' && <div class={`${legacy} max-w-xl`}><UnlinkCard api={api} /></div>}
+          {tab === 'equipe' && <TeamCard api={api} />}
+          {tab === 'jogadores' && <UnlinkCard api={api} />}
         </main>
       </div>
     </div>
