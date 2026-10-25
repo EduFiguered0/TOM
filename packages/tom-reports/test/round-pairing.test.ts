@@ -51,6 +51,19 @@ describe('toRoundPairings', () => {
     expect(() => toRoundPairings(slips(), extra)).toThrow(/Guias sem pareamento: mesas 2/);
   });
 
+  it('aceita o nome cortado em 20 letras nas guias e mostra o nome completo do pareamento', () => {
+    const long = 'Eduardo Souza Figueredo';
+    const full = { ...pairings(), pairings: pairings().pairings.map((p) => (p.table === 1 ? { ...p, player: { ...p.player, name: long } } : p)) };
+    const cut = { ...slips(), slips: slips().slips.map((s) => (s.table === 1 ? { ...s, player1: { ...s.player1, name: long.slice(0, 20) } } : s)) };
+    const [division] = toRoundPairings(cut, full);
+    expect(division?.tables[0]?.player1).toEqual({ playerId: '100001', name: long });
+  });
+
+  it('nome curto diferente não casa por prefixo', () => {
+    const cut = { ...slips(), slips: slips().slips.map((s) => (s.table === 1 ? { ...s, player1: { ...s.player1, name: 'teste' } } : s)) };
+    expect(() => toRoundPairings(cut, pairings())).toThrow(/Mesa 1 sem guia/);
+  });
+
   it('recusa guia com jogadores diferentes do pareamento', () => {
     const swapped = { ...slips(), slips: slips().slips.map((s) => (s.table === 1 ? { ...s, table: 2 } : { ...s, table: 1 })) };
     expect(() => toRoundPairings(swapped, pairings())).toThrow(InconsistentReportsError);

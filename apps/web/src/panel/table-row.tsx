@@ -10,6 +10,8 @@ interface Props {
   table: PanelTable;
   admin: boolean;
   started: boolean;
+  /** Rodada anterior aberta nas abas; sem ela, a atual. */
+  round: number | undefined;
   bestOf: 1 | 3 | null;
   now: number;
   skew: number;
@@ -19,7 +21,7 @@ interface Props {
 type OverrideKind = OverrideDto['kind'];
 
 /** Uma mesa no painel: resumo sempre visível; reportes e ações ao abrir. */
-export const TableRow = ({ api, table: t, admin, started, bestOf, now, skew, onUpdate }: Props) => {
+export const TableRow = ({ api, table: t, admin, started, round, bestOf, now, skew, onUpdate }: Props) => {
   const [message, setMessage] = useState<{ ok: boolean; text: string } | null>(null);
   const [busy, setBusy] = useState(false);
   const [kind, setKind] = useState<OverrideKind>('score');
@@ -78,13 +80,13 @@ export const TableRow = ({ api, table: t, admin, started, bestOf, now, skew, onU
         </dl>
 
         {admin && t.color === 'green' && !t.keyLaunched && (
-          <button type="button" disabled={busy} onClick={() => { void run(() => api.keyLaunched(t.table), 'Key marcada como lançada.'); }}>
+          <button type="button" disabled={busy} onClick={() => { void run(() => api.keyLaunched(t.table, round), 'Key marcada como lançada.'); }}>
             Key lançada no TOM
           </button>
         )}
 
         {started && (
-          <form class="pt-form" onSubmit={(e) => { e.preventDefault(); void run(() => api.override(t.table, override(), reason), 'Override aplicado.'); }}>
+          <form class="pt-form" onSubmit={(e) => { e.preventDefault(); void run(() => api.override(t.table, override(), reason, round), 'Override aplicado.'); }}>
             <h3>Override</h3>
             <select value={kind} onChange={(e) => { setKind(e.currentTarget.value as OverrideKind); }}>
               <option value="score">Placar</option>
@@ -111,7 +113,7 @@ export const TableRow = ({ api, table: t, admin, started, bestOf, now, skew, onU
         )}
 
         {started && !t.keyLaunched && (
-          <form class="pt-form" onSubmit={(e) => { e.preventDefault(); void run(() => api.extend(t.table, Number(minutes)), 'Acréscimo lançado.'); }}>
+          <form class="pt-form" onSubmit={(e) => { e.preventDefault(); void run(() => api.extend(t.table, Number(minutes), round), 'Acréscimo lançado.'); }}>
             <h3>Acréscimo de tempo</h3>
             <div class="pt-inline">
               <input aria-label="Minutos" inputmode="numeric" value={minutes} onInput={(e) => { setMinutes(e.currentTarget.value); }} />
@@ -134,7 +136,7 @@ export const TableRow = ({ api, table: t, admin, started, bestOf, now, skew, onU
             ) : (
               <div class="notice">
                 <p>Reportar por <b>{name(side)}</b>: <b>{pending.label}</b>?</p>
-                <button type="button" disabled={busy} onClick={() => { void run(() => api.staffReport(t.table, side, pending.report), 'Reporte registrado.'); }}>Confirmar</button>
+                <button type="button" disabled={busy} onClick={() => { void run(() => api.staffReport(t.table, side, pending.report, round), 'Reporte registrado.'); }}>Confirmar</button>
                 <button type="button" class="link" onClick={() => { setPending(null); }}>Voltar</button>
               </div>
             )}
