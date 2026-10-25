@@ -1,6 +1,6 @@
 import type { PanelTable } from '@tom/contracts';
 import { describe, expect, it } from 'vitest';
-import { describeOverride, describePlayerReport, nextAction, pickTable, sortForAction } from '../src/panel/panel.js';
+import { describeOverride, describePlayerReport, nextAction, overrideScores, pickTable, sortForAction } from '../src/panel/panel.js';
 
 const table = (n: number, over: Partial<PanelTable> = {}): PanelTable => ({
   table: n,
@@ -24,7 +24,8 @@ describe('painel', () => {
     expect(describePlayerReport({ kind: 'score', own: 2, opponent: 1 })).toBe('2x1');
     expect(describePlayerReport({ kind: 'intentional_draw' })).toBe('ID');
     expect(describeOverride({ kind: 'win_by_absence', winner: 'player1' }, table(1))).toBe('Vitória por ausência de Bia');
-    expect(describeOverride({ kind: 'score', player1: 0, player2: 2 }, table(1))).toBe('Placar 0x2');
+    expect(describeOverride({ kind: 'score', player1: 0, player2: 2 }, table(1))).toBe('Bia venceu 2x0');
+    expect(describeOverride({ kind: 'score', player1: 1, player2: 1 }, table(1))).toBe('Empate 1x1');
   });
 
   it('próxima ação por estado da mesa', () => {
@@ -42,5 +43,10 @@ describe('painel', () => {
     expect(pickTable(tables, 9)).toBe(2);
     expect(pickTable(tables, null)).toBe(2);
     expect(pickTable([], 1)).toBeNull();
+  });
+
+  it('placares do ajuste, do ponto de vista do jogador 1: vitórias, derrotas, empates', () => {
+    expect(overrideScores(3)).toEqual([[2, 0], [2, 1], [1, 0], [0, 2], [1, 2], [0, 1], [1, 1], [0, 0]]);
+    expect(overrideScores(1)).toEqual([[1, 0], [0, 1], [0, 0]]);
   });
 });

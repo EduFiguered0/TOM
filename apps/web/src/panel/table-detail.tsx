@@ -3,7 +3,7 @@ import { useEffect, useState } from 'preact/hooks';
 import type { Api, ApiResult } from '../api.js';
 import { field, ghost, linkButton, primary } from '../ui.js';
 import { reportOptions, type ReportOption } from '../round/round.js';
-import { describeOverride, describePlayerReport, nextAction } from './panel.js';
+import { describeOverride, describePlayerReport, nextAction, overrideScores } from './panel.js';
 
 interface Props {
   api: Api;
@@ -16,7 +16,34 @@ interface Props {
   onUpdate: (panel: PanelResponse) => void;
 }
 
-type OverrideKind = OverrideDto['kind'];
+const REASONS = ['Reportes errados', 'Não reportaram', 'Jogador sem celular', 'Decisão do juiz'];
+
+const sameOverride = (a: OverrideDto, b: OverrideDto): boolean => JSON.stringify(a) === JSON.stringify(b);
+
+/** Botões do ajuste, agrupados por quem venceu: o placar sempre do ponto de vista de quem venceu. */
+const overrideGroups = (t: PanelTable, bestOf: 1 | 3): { title: string; options: { label: string; value: OverrideDto }[] }[] => {
+  const scores = overrideScores(bestOf);
+  const score = (a: number, b: number): OverrideDto => ({ kind: 'score', player1: a, player2: b });
+  return [
+    { title: `${t.player1.name} venceu`, options: scores.filter(([a, b]) => a > b).map(([a, b]) => ({ label: `${String(a)}x${String(b)}`, value: score(a, b) })) },
+    { title: `${t.player2.name} venceu`, options: scores.filter(([a, b]) => a < b).map(([a, b]) => ({ label: `${String(b)}x${String(a)}`, value: score(a, b) })) },
+    {
+      title: 'Empate',
+      options: [
+        ...scores.filter(([a, b]) => a === b).map(([a, b]) => ({ label: `${String(a)}x${String(b)}`, value: score(a, b) })),
+        { label: 'ID', value: { kind: 'intentional_draw' } },
+      ],
+    },
+    {
+      title: 'Outros',
+      options: [
+        { label: `${t.player1.name} ausente`, value: { kind: 'win_by_absence', winner: 'player2' } },
+        { label: `${t.player2.name} ausente`, value: { kind: 'win_by_absence', winner: 'player1' } },
+        { label: 'DGL', value: { kind: 'double_game_loss' } },
+      ],
+    },
+  ];
+};
 
 const section = 'flex flex-col gap-2 border-t border-line pt-3';
 const small = `${field} py-1.5`;
@@ -25,17 +52,14 @@ const small = `${field} py-1.5`;
 export const TableDetail = ({ api, table: t, admin, started, round, bestOf, onUpdate }: Props) => {
   const [message, setMessage] = useState<{ ok: boolean; text: string } | null>(null);
   const [busy, setBusy] = useState(false);
-  const [kind, setKind] = useState<OverrideKind>('score');
-  const [p1, setP1] = useState('');
-  const [p2, setP2] = useState('');
-  const [winner, setWinner] = useState<'player1' | 'player2'>('player1');
+  const [choice, setChoice] = useState<OverrideDto | null>(null);
   const [reason, setReason] = useState('');
   const [minutes, setMinutes] = useState('5');
   const [side, setSide] = useState<'player1' | 'player2'>('player1');
   const [pending, setPending] = useState<ReportOption | null>(null);
 
   // Outra mesa: o formulário começa limpo.
-  useEffect(() => { setMessage(null); setPending(null); setP1(''); setP2(''); setReason(''); }, [t.table, round]);
+  useEffect(() => { setMessage(null); setPending(null); setChoice(null); setReason(''); }, [t.table, round]);
 
   const run = async (action: () => Promise<ApiResult<PanelResponse & { requiresTomFix?: boolean }>>, done: string) => {
     setBusy(true);
@@ -46,18 +70,12 @@ export const TableDetail = ({ api, table: t, admin, started, round, bestOf, onUp
       onUpdate(result.body);
       setMessage({ ok: true, text: result.body.requiresTomFix ? `${done} A key já tinha sido lançada: corrija também no TOM.` : done });
       setPending(null);
+      setChoice(null);
+      setReason('');
     } catch (e) {
       setMessage({ ok: false, text: (e as Error).message });
     } finally {
       setBusy(false);
-    }
-  };
-
-  const override = (): OverrideDto => {
-    switch (kind) {
-      case 'score': return { kind, player1: Number(p1), player2: Number(p2) };
-      case 'win_by_absence': return { kind, winner };
-      default: return { kind };
     }
   };
 
@@ -94,29 +112,38 @@ export const TableDetail = ({ api, table: t, admin, started, round, bestOf, onUp
       )}
 
       {started && (
-        <form class={`m-0 ${section}`} onSubmit={(e) => { e.preventDefault(); void run(() => api.override(t.table, override(), reason, round), 'Override aplicado.'); }}>
+        <form class={`m-0 ${section}`} onSubmit={(e) => {
+          e.preventDefault();
+          if (choice) void run(() => api.override(t.table, choice, reason, round), 'Resultado ajustado.');
+        }}>
           <h3 class="m-0 text-sm font-bold">Ajustar resultado</h3>
-          <select class={small} aria-label="Tipo de ajuste" value={kind} onChange={(e) => { setKind(e.currentTarget.value as OverrideKind); }}>
-            <option value="score">Placar</option>
-            <option value="intentional_draw">Intentional draw (ID)</option>
-            <option value="double_game_loss">Double game loss (DGL)</option>
-            <option value="win_by_absence">Vitória por ausência</option>
-          </select>
-          {kind === 'score' && (
-            <div class="flex items-center gap-2">
-              <input class={small} aria-label={`Games de ${name('player1')}`} inputmode="numeric" placeholder={name('player1')} value={p1} onInput={(e) => { setP1(e.currentTarget.value); }} />
-              <span class="text-muted">x</span>
-              <input class={small} aria-label={`Games de ${name('player2')}`} inputmode="numeric" placeholder={name('player2')} value={p2} onInput={(e) => { setP2(e.currentTarget.value); }} />
+          {overrideGroups(t, bestOf ?? 3).map((g) => (
+            <div key={g.title} class="flex flex-col gap-1">
+              <span class="text-xs text-muted">{g.title}</span>
+              <div class="flex flex-wrap gap-1.5">
+                {g.options.map((o) => {
+                  const on = choice !== null && sameOverride(choice, o.value);
+                  return (
+                    <button key={o.label} type="button" aria-pressed={on} onClick={() => { setChoice(o.value); }}
+                      class={`rounded-md border px-3 py-1.5 text-sm font-semibold ${on ? 'border-accent bg-accent text-accent-text' : 'border-line bg-bg text-text hover:border-accent'}`}>
+                      {o.label}
+                    </button>
+                  );
+                })}
+              </div>
             </div>
-          )}
-          {kind === 'win_by_absence' && (
-            <select class={small} aria-label="Vencedor" value={winner} onChange={(e) => { setWinner(e.currentTarget.value as 'player1' | 'player2'); }}>
-              <option value="player1">Vence {name('player1')}</option>
-              <option value="player2">Vence {name('player2')}</option>
-            </select>
-          )}
-          <input class={small} aria-label="Motivo" placeholder="Motivo (obrigatório)" required value={reason} onInput={(e) => { setReason(e.currentTarget.value); }} />
-          <button type="submit" class={`${ghost} self-start`} disabled={busy}>Aplicar</button>
+          ))}
+          <label class="flex flex-col gap-1 text-xs text-muted">Motivo
+            <input class={small} required value={reason} onInput={(e) => { setReason(e.currentTarget.value); }} placeholder="Por que o resultado mudou" />
+          </label>
+          <div class="flex flex-wrap gap-1.5">
+            {REASONS.map((r) => (
+              <button key={r} type="button" class={`${linkButton} text-xs`} onClick={() => { setReason(r); }}>{r}</button>
+            ))}
+          </div>
+          <button type="submit" class={primary} disabled={busy || !choice || !reason.trim()}>
+            {choice ? `Aplicar: ${describeOverride(choice, t)}` : 'Escolha o resultado'}
+          </button>
         </form>
       )}
 
