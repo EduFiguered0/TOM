@@ -193,7 +193,7 @@ describe('envio pelo navegador do ADM', () => {
     const { service } = setup();
     const { event } = await service.createEvent(actors.admin, { label: 'Liga' });
     expect(await service.authorizeAdminUpload(actors.admin, 'FODASE')).toMatchObject({ id: event.id, tournament: 'FODASE' });
-    expect((await service.authorizeAdminUpload(actors.admin, 'FODASE')).tournament).toBe('FODASE');
+    expect((await service.authorizeAdminUpload(actors.admin, 'FODASE'))?.tournament).toBe('FODASE');
   });
 
   it('sem evento ativo: recusa com a mensagem', async () => {
@@ -210,6 +210,17 @@ describe('envio pelo navegador do ADM', () => {
     await service.authorizeAdminUpload(actors.admin, 'FODASE');
     await rejects(service.authorizeAdminUpload(actors.admin, 'TESTE'), 'tournament_mismatch',
       'A pasta está com o torneio TESTE, mas este evento é do torneio FODASE. Abra o torneio FODASE no TOM.');
+  });
+
+  it('arquivo de antes do evento (torneio antigo na pasta) é ignorado e não amarra o torneio', async () => {
+    const { service } = setup();
+    const { event } = await service.createEvent(actors.admin, { label: 'Liga' });
+    const before = new Date(event.createdAt.getTime() - 60_000);
+    expect(await service.authorizeAdminUpload(actors.admin, 'ANTIGO', before)).toBeNull();
+    const after = new Date(event.createdAt.getTime() + 60_000);
+    expect(await service.authorizeAdminUpload(actors.admin, 'NOVO', after)).toMatchObject({ tournament: 'NOVO' });
+    // Já amarrado: arquivo antigo do mesmo torneio (ex.: o roster gravado antes do evento) segue normal.
+    expect(await service.authorizeAdminUpload(actors.admin, 'NOVO', before)).toMatchObject({ tournament: 'NOVO' });
   });
 
   it('jogador e juiz não enviam', async () => {

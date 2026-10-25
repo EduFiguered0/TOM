@@ -24,6 +24,7 @@ import {
   type RegistrationDto,
   type RegistrationsResponse,
   type BoardResponse,
+  type UploadResponse,
   type CreateEventResponse,
   type ErrorResponse,
   type MeResponse,
@@ -345,7 +346,8 @@ export const createApi = ({ tokens, emails, accounts, events, ingest, board, rou
       handle: async ({ request, identity }) => {
         const upload = parseUploadRequest(jsonBody(request));
         const actor = await requireAdmin(identity);
-        const event = await events.authorizeAdminUpload(actor, upload.tournament);
+        const event = await events.authorizeAdminUpload(actor, upload.tournament, new Date(upload.modifiedAt));
+        if (!event) return { status: 200, body: { stored: false, published: [], note: 'Arquivo de antes do evento: ignorado' } satisfies UploadResponse };
         const author = { role: 'system', source: `navegador:${actor.accountId}` } as const;
         return { status: 200, body: await ingest.forEvent(event, upload, author) };
       },

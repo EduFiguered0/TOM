@@ -192,16 +192,29 @@ export class EventService {
       () => this.authorizeUpload(token, tournament));
   }
 
-  /** Envio pelo navegador do ADM (pasta do TOM conectada no painel): sempre para o evento ativo, sem token. */
-  async authorizeAdminUpload(actor: Actor | null, tournament: string): Promise<TournamentEvent> {
+  /**
+   * Envio pelo navegador do ADM (pasta do TOM conectada no painel): sempre para o evento ativo, sem token.
+   * null: arquivo gravado antes de o evento existir e o evento ainda sem torneio. É o torneio anterior que
+   * ficou na pasta: não amarra (o primeiro arquivo novo amarra) e o envio é só ignorado.
+   */
+  async authorizeAdminUpload(actor: Actor | null, tournament: string, modifiedAt?: Date): Promise<TournamentEvent | null> {
     requireAdmin(actor);
     const latest = await this.deps.events.latest();
     if (!latest || !isActive(latest.event)) throw new CommandRejected('event_state', 'Crie o evento para começar a enviar');
+    if (latest.event.tournament === null && modifiedAt && modifiedAt < latest.event.createdAt) return null;
+    return this.bindAdmin(latest, tournament);
+  }
+
+  private bindAdmin(latest: { event: TournamentEvent; version: number }, tournament: string): Promise<TournamentEvent> {
     const bound = latest.event.tournament ?? '';
     return this.bind(latest, tournament, () => new CommandRejected(
       'tournament_mismatch',
       `A pasta está com o torneio ${tournament}, mas este evento é do torneio ${bound}. Abra o torneio ${bound} no TOM.`,
-    ), () => this.authorizeAdminUpload(actor, tournament));
+    ), async () => {
+      const again = await this.deps.events.latest();
+      if (!again || !isActive(again.event)) throw new CommandRejected('event_state', 'Crie o evento para começar a enviar');
+      return this.bindAdmin(again, tournament);
+    });
   }
 
   /** O primeiro envio amarra o torneio do TOM ao evento; depois, outro torneio é recusado. */
