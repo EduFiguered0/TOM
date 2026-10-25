@@ -1,6 +1,7 @@
 import type { AccountResponse, EventDto, EventStatusDto } from '@tom/contracts';
 import { useCallback, useEffect, useState } from 'preact/hooks';
 import type { Api } from '../api.js';
+import { FolderCard } from '../tom-folder/folder-card.js';
 import { RegistrationsCard } from './registrations.js';
 
 const STATUS: Record<EventStatusDto, string> = {
@@ -39,7 +40,6 @@ const JudgesField = ({ team, chosen, onChange }: { team: AccountResponse[]; chos
 export const EventPanel = ({ api }: { api: Api }) => {
   const [active, setActive] = useState<EventDto | null | undefined>(undefined);
   const [team, setTeam] = useState<AccountResponse[]>([]);
-  const [command, setCommand] = useState<string | null>(null);
   const [label, setLabel] = useState('');
   const [date, setDate] = useState(today());
   const [minutes, setMinutes] = useState('30');
@@ -98,10 +98,9 @@ export const EventPanel = ({ api }: { api: Api }) => {
   const create = (e: Event) => {
     e.preventDefault();
     void run(async () => {
-      const created = ok(await api.createEvent({ label: label.trim(), date, roundMinutes: Number(minutes), judges: chosen }));
-      setCommand(`$env:TOM_UPLOAD_TOKEN="${created.token}"; npm run uploader -- --folder "<pasta de relatórios do TOM>" --api ${location.origin}/api`);
+      ok(await api.createEvent({ label: label.trim(), date, roundMinutes: Number(minutes), judges: chosen }));
       setLabel('');
-      return null;
+      return 'Evento criado. Conecte a pasta do TOM abaixo.';
     });
   };
 
@@ -112,13 +111,6 @@ export const EventPanel = ({ api }: { api: Api }) => {
   const step = (action: 'confirmation' | 'close' | 'cancel', question: string | null, done: string) => {
     if (!active || (question && !confirm(question))) return;
     void run(async () => { ok(await api.eventAction(active.id, action)); return done; });
-  };
-
-  const copy = (text: string) => {
-    void navigator.clipboard.writeText(text).then(
-      () => { setMessage({ ok: true, text: 'Comando copiado.' }); },
-      () => { setMessage({ ok: false, text: 'Não foi possível copiar; selecione e copie manualmente.' }); },
-    );
   };
 
   return (
@@ -165,13 +157,7 @@ export const EventPanel = ({ api }: { api: Api }) => {
             </button>
           </div>
         )}
-        {command && (
-          <div>
-            <p class="muted">Copie agora: o token do enviador não aparece de novo. No notebook do TOM, no PowerShell:</p>
-            <p class="code">{command}</p>
-            <button type="button" onClick={() => { copy(command); }}>Copiar comando</button>
-          </div>
-        )}
+        {active && <FolderCard api={api} event={active} />}
         {message && <p class={message.ok ? 'ok' : 'error'} role={message.ok ? 'status' : 'alert'}>{message.text}</p>}
       </section>
       {active && <RegistrationsCard api={api} event={active} />}

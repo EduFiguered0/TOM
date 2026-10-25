@@ -5,6 +5,8 @@ import type {
   EventDto,
   RegistrationsResponse,
   UpdateEventRequest,
+  UploadRequest,
+  UploadResponse,
   BoardResponse,
   CreateEventResponse,
   ErrorResponse,
@@ -62,6 +64,7 @@ export const createApi = (session: Session, base = '/api', fetchFn: typeof fetch
     unlinkPlayerId: (playerId: string) => call<AccountResponse>('POST', `/player-ids/${encodeURIComponent(playerId)}/unlink`),
     createEvent: (request: CreateEventRequest) => call<CreateEventResponse>('POST', '/events', request),
     activeEvent: () => call<ActiveEventResponse>('GET', '/events/active'),
+    uploadAsAdmin: (request: UploadRequest) => call<UploadResponse>('POST', '/events/active/uploads', request),
     updateEvent: (eventId: string, change: UpdateEventRequest) => call<EventDto>('PATCH', `/events/${encodeURIComponent(eventId)}`, change),
     eventAction: (eventId: string, action: 'confirmation' | 'close' | 'cancel') =>
       call<EventDto>('POST', `/events/${encodeURIComponent(eventId)}/${action}`),
