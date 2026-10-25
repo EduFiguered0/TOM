@@ -1,6 +1,7 @@
 import type { AccountResponse } from '@tom/contracts';
 import { useState } from 'preact/hooks';
 import type { Api } from '../api.js';
+import { box, Feedback, field, ghost } from '../ui.js';
 
 /** ADM desfaz um vínculo errado: o Player ID sai da conta e o dono verdadeiro pode cadastrá-lo. */
 export const UnlinkCard = ({ api }: { api: Api }) => {
@@ -37,24 +38,21 @@ export const UnlinkCard = ({ api }: { api: Api }) => {
   };
 
   return (
-    <section class="card">
-      <h2>Desfazer vínculo de Player ID</h2>
-      <form onSubmit={lookup}>
-        <p class="muted">Use quando alguém cadastrou o Player ID de outra pessoa.</p>
-        <label for="unlink-pid">Player ID</label>
-        <input id="unlink-pid" inputmode="numeric" required value={playerId} onInput={(e) => { setPlayerId(e.currentTarget.value); }} />
-        <button type="submit" disabled={busy}>Buscar</button>
+    <section class={`${box} max-w-xl`} aria-label="Desfazer vínculo de Player ID">
+      <h2 class="m-0 text-sm font-bold">Desfazer vínculo de Player ID</h2>
+      <p class="m-0 text-sm text-muted">Use quando alguém cadastrou o Player ID de outra pessoa.</p>
+      <form class="m-0 flex gap-2" onSubmit={lookup}>
+        <input class={field} aria-label="Player ID" placeholder="Player ID" inputmode="numeric" required value={playerId}
+          onInput={(e) => { setPlayerId(e.currentTarget.value); }} />
+        <button type="submit" class={ghost} disabled={busy}>Buscar</button>
       </form>
       {account && (
-        <div>
-          <dl>
-            <dt>Nome</dt><dd>{account.profile.name}</dd>
-            <dt>E-mail</dt><dd>{account.email}</dd>
-          </dl>
-          <button type="button" disabled={busy} onClick={unlink}>Desfazer vínculo</button>
+        <div class="flex items-center justify-between gap-3 rounded-md border border-line p-3 text-sm">
+          <div><div class="font-semibold">{account.profile.name}</div><div class="text-muted">{account.email}</div></div>
+          <button type="button" class={`${ghost} text-error`} disabled={busy} onClick={unlink}>Desfazer vínculo</button>
         </div>
       )}
-      {message && <p class={message.ok ? 'ok' : 'error'} role={message.ok ? 'status' : 'alert'}>{message.text}</p>}
+      <Feedback message={message} />
     </section>
   );
 };

@@ -1,6 +1,7 @@
 import type { MyEventResponse } from '@tom/contracts';
 import { useCallback, useEffect, useState } from 'preact/hooks';
 import type { Api } from '../api.js';
+import { bigPrimary, card, cardWarn, Feedback, subtitle } from '../ui.js';
 
 /** Mesma cadência curta do celular: o aviso de confirmação aparece em até 15 s. */
 const POLL_MS = 15_000;
@@ -45,24 +46,24 @@ export const MyEventCard = ({ api, refresh }: { api: Api; refresh: number }) => 
   if (!event || !registration || event.status === 'running') return null;
 
   if (registration.removed) {
-    return <section class="card warn"><h2>{event.label}</h2><p class="error">Sua inscrição foi removida, procure o ADM</p></section>;
+    return <section class={cardWarn}><h2 class={subtitle}>{event.label}</h2><p class="m-0 font-medium text-error">Sua inscrição foi removida, procure o ADM</p></section>;
   }
   if (event.status === 'confirming' && !registration.confirmed) {
     return (
-      <section class="card warn">
-        <h2>Confirme sua presença</h2>
-        <p>{event.label}: o ADM pediu a confirmação de quem está na loja.</p>
-        <button type="button" disabled={busy} onClick={confirm}>{busy ? 'Confirmando…' : 'Confirmar presença'}</button>
-        {error && <p class="error" role="alert">{error}</p>}
+      <section class={cardWarn}>
+        <h2 class={subtitle}>Confirme sua presença</h2>
+        <p class="m-0">{event.label}: o ADM pediu a confirmação de quem está na loja.</p>
+        <button type="button" class={bigPrimary} disabled={busy} onClick={confirm}>{busy ? 'Confirmando…' : 'Confirmar presença'}</button>
+        <Feedback message={error ? { ok: false, text: error } : null} />
       </section>
     );
   }
   return (
-    <section class="card">
-      <h2>Evento do dia</h2>
+    <section class={card}>
+      <h2 class={subtitle}>Evento do dia</h2>
       {event.status === 'confirming'
-        ? <p class="ok">Presença confirmada. Aguarde o início da rodada.</p>
-        : <p>Inscrito no evento {event.label}, aguardando início.</p>}
+        ? <p class="m-0 font-medium text-ok">Presença confirmada. Aguarde o início da rodada.</p>
+        : <p class="m-0">Inscrito no evento {event.label}, aguardando início.</p>}
     </section>
   );
 };

@@ -1,7 +1,7 @@
 import type { AccountResponse, EventDto } from '@tom/contracts';
 import { useEffect, useState } from 'preact/hooks';
 import type { Api } from '../api.js';
-import { field, ghost, ok, primary } from '../admin/ui.js';
+import { field, ghost, ok, primary } from '../ui.js';
 
 const today = () => new Date(Date.now() - 3 * 3_600_000).toISOString().slice(0, 10);
 

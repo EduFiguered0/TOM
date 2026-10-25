@@ -11,6 +11,7 @@ import { Register } from './screens/register.js';
 import { AdminShell } from './admin/admin-shell.js';
 import type { PendingJoin } from './pending-join.js';
 import { STORE } from './public/store.js';
+import { bigPrimary, card, muted, page } from './ui.js';
 
 interface Props {
   cognito: Cognito;
@@ -64,9 +65,9 @@ export const App = ({ cognito, session, api, google, loginError, pendingJoin }: 
   if (screen.name === 'home' && (screen.me.role === 'admin' || screen.me.judging)) return <AdminShell api={api} me={screen.me} onSignOut={signOut} />;
 
   return (
-    <main class="legacy">
-      <header><a class="brand" href="/">{STORE.name}</a></header>
-      {screen.name === 'loading' && <p class="muted center">Carregando…</p>}
+    <main class={page}>
+      <header><a class="font-bold text-text no-underline" href="/">{STORE.name}</a></header>
+      {screen.name === 'loading' && <p class={`${muted} text-center`}>Carregando…</p>}
       {screen.name === 'login' && (
         <Login cognito={cognito} google={google} initialError={screen.message ?? loginError} onSignedIn={(tokens) => { session.signedIn(tokens); void check(); }} />
       )}
@@ -76,9 +77,9 @@ export const App = ({ cognito, session, api, google, loginError, pendingJoin }: 
         <Home me={screen.me} api={api} onSignOut={signOut} onChanged={(me) => { setScreen({ name: 'home', me }); }} joinError={joinError} eventRefresh={eventRefresh} />
       )}
       {screen.name === 'error' && (
-        <section class="card">
-          <p class="error" role="alert">{screen.message}</p>
-          <button type="button" onClick={() => { void check(); }}>Tentar de novo</button>
+        <section class={card}>
+          <p class="m-0 font-medium text-error" role="alert">{screen.message}</p>
+          <button type="button" class={bigPrimary} onClick={() => { void check(); }}>Tentar de novo</button>
         </section>
       )}
     </main>

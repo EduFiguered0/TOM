@@ -1,7 +1,7 @@
 import type { OverrideDto, PanelResponse, PanelTable } from '@tom/contracts';
 import { useEffect, useState } from 'preact/hooks';
 import type { Api, ApiResult } from '../api.js';
-import { field, ghost, linkButton, primary } from '../admin/ui.js';
+import { field, ghost, linkButton, primary } from '../ui.js';
 import { reportOptions, type ReportOption } from '../round/round.js';
 import { describeOverride, describePlayerReport, nextAction } from './panel.js';
 

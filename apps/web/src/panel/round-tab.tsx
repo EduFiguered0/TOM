@@ -1,6 +1,6 @@
 import { useState } from 'preact/hooks';
 import type { Api } from '../api.js';
-import { box, field, linkButton, primary } from '../admin/ui.js';
+import { box, field, linkButton, primary } from '../ui.js';
 import { roundClock } from '../tv/board.js';
 import { pickTable } from './panel.js';
 import { TableDetail } from './table-detail.js';

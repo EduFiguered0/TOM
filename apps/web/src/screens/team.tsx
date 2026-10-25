@@ -1,6 +1,7 @@
 import type { AccountResponse } from '@tom/contracts';
 import { useEffect, useState } from 'preact/hooks';
 import type { Api } from '../api.js';
+import { box, Feedback, field, ghost, linkButton } from '../ui.js';
 
 /** Equipe do ADM: busca a conta por nome ou Player ID e marca ou tira o juiz. */
 export const TeamCard = ({ api }: { api: Api }) => {
@@ -43,27 +44,42 @@ export const TeamCard = ({ api }: { api: Api }) => {
   };
 
   const row = (account: AccountResponse) => (
-    <li key={account.id}>
-      <b>{account.profile.name}</b>
-      <span class="muted"> · {account.playerId ?? 'sem Player ID'} · {account.email}</span>
-      <button type="button" class="link" disabled={busy} onClick={() => { toggle(account); }}>
-        {account.judge ? 'Tirar da equipe' : 'Marcar como juiz'}
-      </button>
-    </li>
+    <tr key={account.id} class="border-b border-line">
+      <td class="py-2 pr-2 font-semibold">{account.profile.name}</td>
+      <td class="py-2 pr-2 text-muted">{account.playerId ?? 'sem Player ID'}</td>
+      <td class="py-2 pr-2 text-muted">{account.email}</td>
+      <td class="py-2 text-right">
+        <button type="button" class={linkButton} disabled={busy} onClick={() => { toggle(account); }}>
+          {account.judge ? 'Tirar da equipe' : 'Marcar como juiz'}
+        </button>
+      </td>
+    </tr>
   );
 
   return (
-    <section class="card">
-      <h2>Equipe</h2>
-      <form onSubmit={search}>
-        <label for="team-query">Buscar por nome ou Player ID</label>
-        <input id="team-query" required minLength={2} value={query} onInput={(e) => { setQuery(e.currentTarget.value); }} />
-        <button type="submit" disabled={busy}>Buscar</button>
-      </form>
-      {results && (results.length === 0 ? <p class="muted">Nenhuma conta encontrada.</p> : <ul class="list">{results.map(row)}</ul>)}
-      <h2>Juízes da equipe</h2>
-      {judges.length === 0 ? <p class="muted">Nenhum juiz na equipe.</p> : <ul class="list">{judges.map(row)}</ul>}
-      {error && <p class="error" role="alert">{error}</p>}
-    </section>
+    <div class="grid min-h-0 flex-1 grid-cols-2 gap-4">
+      <section class={box} aria-label="Buscar conta">
+        <h2 class="m-0 text-sm font-bold">Buscar conta</h2>
+        <form class="m-0 flex gap-2" onSubmit={search}>
+          <input class={field} aria-label="Buscar por nome ou Player ID" placeholder="Nome ou Player ID" required minLength={2}
+            value={query} onInput={(e) => { setQuery(e.currentTarget.value); }} />
+          <button type="submit" class={ghost} disabled={busy}>Buscar</button>
+        </form>
+        <div class="min-h-0 overflow-y-auto">
+          {results && (results.length === 0
+            ? <p class="m-0 text-sm text-muted">Nenhuma conta encontrada.</p>
+            : <table class="w-full border-collapse text-sm"><tbody>{results.map(row)}</tbody></table>)}
+        </div>
+      </section>
+      <section class={box} aria-label="Juízes da equipe">
+        <h2 class="m-0 text-sm font-bold">Juízes da equipe</h2>
+        <div class="min-h-0 overflow-y-auto">
+          {judges.length === 0
+            ? <p class="m-0 text-sm text-muted">Nenhum juiz na equipe.</p>
+            : <table class="w-full border-collapse text-sm"><tbody>{judges.map(row)}</tbody></table>}
+        </div>
+        <Feedback message={error ? { ok: false, text: error } : null} />
+      </section>
+    </div>
   );
 };

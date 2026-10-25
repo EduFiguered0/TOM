@@ -1,6 +1,7 @@
 import type { MeResponse } from '@tom/contracts';
 import { useState } from 'preact/hooks';
 import type { Api } from '../api.js';
+import { bigPrimary, cardWarn, Feedback, textButton, title } from '../ui.js';
 
 interface Props {
   api: Api;
@@ -28,12 +29,12 @@ export const Device = ({ api, onActivated, onCancel }: Props) => {
   };
 
   return (
-    <section class="card warn">
-      <h1>Outro dispositivo está ativo</h1>
-      <p>Sua conta só fica ativa em um dispositivo por vez. <b>Entrar aqui desconecta o outro dispositivo.</b></p>
-      <button type="button" disabled={busy} onClick={() => { void activate(); }}>{busy ? 'Ativando…' : 'Entrar aqui'}</button>
-      <button type="button" class="link" onClick={onCancel}>Agora não (sair)</button>
-      {error && <p class="error" role="alert">{error}</p>}
+    <section class={cardWarn}>
+      <h1 class={title}>Outro dispositivo está ativo</h1>
+      <p class="m-0">Sua conta só fica ativa em um dispositivo por vez. <b>Entrar aqui desconecta o outro dispositivo.</b></p>
+      <button type="button" class={bigPrimary} disabled={busy} onClick={() => { void activate(); }}>{busy ? 'Ativando…' : 'Entrar aqui'}</button>
+      <button type="button" class={textButton} onClick={onCancel}>Agora não (sair)</button>
+      <Feedback message={error ? { ok: false, text: error } : null} />
     </section>
   );
 };
