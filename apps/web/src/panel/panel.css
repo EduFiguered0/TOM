@@ -31,3 +31,6 @@ main:has(.panel) { max-width: 1100px; }
 .pt-inline { display: flex; align-items: center; gap: 8px; }
 .pt-inline input { max-width: 140px; }
 .notice.ok { color: var(--ok); padding: 10px 12px; }
+.panel-tabs { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 12px; }
+.panel-tabs button { width: auto; margin: 0; padding: 8px 16px; background: var(--card); color: var(--text); border: 1px solid var(--line); }
+.panel-tabs button.active { background: var(--accent); color: var(--accent-text); border-color: var(--accent); }

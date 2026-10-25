@@ -1,6 +1,6 @@
 import type { PanelResponse } from '@tom/contracts';
 import { describe, expect, it } from 'vitest';
-import { addJudge, setupRound } from './support.js';
+import { addJudge, setupRound, upload } from './support.js';
 
 const ADM = 'adm:a1:admin';
 const JUIZ = 'juiz:j1';
@@ -97,6 +97,33 @@ describe('painel do ADM e do juiz', () => {
     const late = await act('override', { override: { kind: 'double_game_loss' }, reason: 'Correção' });
     expect(late.body).toMatchObject({ requiresTomFix: true });
     expect((await table1())?.tomKey).toBeNull();
+  });
+
+  it('rodadas anteriores: o ADM vê e ajusta a rodada 3 para liberar a 4', async () => {
+    const { start, send, call, panel } = await withPanel();
+    await start();
+    const next = (report: string) => upload(report, upload(report).content.replace(/Rodada\s+3/g, 'Rodada 4'), '2026-10-24T15:00:00Z');
+    await send(next('pairings'));
+    await send(next('match_slips'));
+    expect((await panel()).round?.round).toBe(4);
+    expect((await panel()).latestRound).toBe(4);
+    expect((await call('POST', '/round/start', ADM, { bestOf: 3, roundMinutes: null })).body).toMatchObject({ error: 'previous_round_open' });
+
+    const previous = async () => ((await call('GET', '/panel/rounds/3', ADM)).body as PanelResponse).round;
+    expect((await previous())?.round).toBe(3);
+    for (const table of [1, 2]) {
+      const path = `/panel/rounds/3/tables/${String(table)}`;
+      expect((await call('POST', `${path}/override`, ADM, { override: { kind: 'intentional_draw' }, reason: 'Não reportaram' })).status).toBe(200);
+      expect((await call('POST', `${path}/key-launched`, ADM)).status).toBe(200);
+    }
+    expect((await previous())?.closed).toBe(true);
+    expect((await call('POST', '/round/start', ADM, { bestOf: 3, roundMinutes: null })).status).toBe(200);
+  });
+
+  it('rodada fora do torneio atual não existe no painel', async () => {
+    const { call } = await withPanel();
+    expect((await call('GET', '/panel/rounds/9', ADM)).body).toMatchObject({ error: 'round_not_paired' });
+    expect((await call('GET', '/panel/rounds/0', ADM)).body).toMatchObject({ error: 'round_not_paired' });
   });
 
   it('acréscimo de tempo e reporte em nome do jogador sem celular (só ADM)', async () => {

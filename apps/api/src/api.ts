@@ -537,48 +537,65 @@ export const createApi = ({ tokens, emails, accounts, events, ingest, board, rou
     }
     return actor;
   };
-  const respond = (state: Awaited<ReturnType<RoundService['state']>>, extra: Record<string, unknown> = {}): HttpResponse =>
-    ({ status: 200, body: { ...panel(reader.remember(state), clock.now()), ...extra } });
+  /** Rodada pedida no caminho (`/panel/rounds/N/...`) ou a atual; só rodadas do torneio atual, de 1 até a mais recente. */
+  const roundRef = async (round: string | undefined) => {
+    const ref = await currentRef();
+    if (round === undefined) return ref;
+    const n = Number(round);
+    if (n < 1 || n > ref.round) throw new CommandRejected('round_not_paired', `Rodada ${round} não publicada pelo TOM`);
+    return { ...ref, round: n };
+  };
+  const respond = async (state: Awaited<ReturnType<RoundService['state']>>, extra: Record<string, unknown> = {}): Promise<HttpResponse> => {
+    const latest = (await activeRound())?.ref.round ?? null;
+    // Só a rodada atual vai para o cache de leitura (o reporte do jogador lê dele).
+    const shown = state.ref.round === latest ? reader.remember(state) : state;
+    return { status: 200, body: { ...panel(shown, clock.now(), latest), ...extra } };
+  };
+  const ROUND = String.raw`^\/panel(?:\/rounds\/(\d+))?`;
+  const tableRoute = (action: string) => new RegExp(String.raw`${ROUND}\/tables\/(\d+)\/${action}$`);
 
   const panelRoutes: Route[] = [
     {
-      method: 'GET', path: /^\/panel$/,
-      handle: async ({ identity }) => {
+      method: 'GET', path: new RegExp(`${ROUND}$`),
+      handle: async ({ identity, params: [round] }) => {
         await staff(identity);
         const current = await activeRound();
-        return { status: 200, body: panel(current ? await reader.state(current.ref) : null, clock.now()) };
+        if (!current) return { status: 200, body: panel(null, clock.now(), null) };
+        const ref = await roundRef(round);
+        const state = round === undefined ? await reader.state(ref) : await rounds.state(ref);
+        return { status: 200, body: panel(state, clock.now(), current.ref.round) };
       },
     },
     {
-      method: 'POST', path: /^\/panel\/tables\/(\d+)\/override$/,
-      handle: async ({ request, identity, params: [table = ''] }) => {
+      method: 'POST', path: tableRoute('override'),
+      handle: async ({ request, identity, params: [round, table = ''] }) => {
         const { override, reason } = parseOverrideRequest(jsonBody(request));
         const actor = await staff(identity);
-        const result = await rounds.applyOverride(actor, await currentRef(), { table: Number(table), override, reason });
+        const result = await rounds.applyOverride(actor, await roundRef(round), { table: Number(table), override, reason });
         return respond(result.state, { requiresTomFix: result.requiresTomFix });
       },
     },
     {
-      method: 'POST', path: /^\/panel\/tables\/(\d+)\/extend$/,
-      handle: async ({ request, identity, params: [table = ''] }) => {
+      method: 'POST', path: tableRoute('extend'),
+      handle: async ({ request, identity, params: [round, table = ''] }) => {
         const { minutes } = parseExtendRequest(jsonBody(request));
         const actor = await staff(identity);
-        return respond(await rounds.extendTime(actor, await currentRef(), { table: Number(table), minutes }));
+        return respond(await rounds.extendTime(actor, await roundRef(round), { table: Number(table), minutes }));
       },
     },
     {
-      method: 'POST', path: /^\/panel\/tables\/(\d+)\/key-launched$/,
-      handle: async ({ identity, params: [table = ''] }) => {
+      method: 'POST', path: tableRoute('key-launched'),
+      handle: async ({ identity, params: [round, table = ''] }) => {
         const actor = await staff(identity);
-        return respond(await rounds.markKeyLaunched(actor, await currentRef(), { table: Number(table) }));
+        return respond(await rounds.markKeyLaunched(actor, await roundRef(round), { table: Number(table) }));
       },
     },
     {
-      method: 'POST', path: /^\/panel\/tables\/(\d+)\/report$/,
-      handle: async ({ request, identity, params: [table = ''] }) => {
+      method: 'POST', path: tableRoute('report'),
+      handle: async ({ request, identity, params: [round, table = ''] }) => {
         const { side, report } = parseStaffReportRequest(jsonBody(request));
         const actor = await staff(identity);
-        return respond(await rounds.submitReport(actor, await currentRef(), { table: Number(table), report, side }));
+        return respond(await rounds.submitReport(actor, await roundRef(round), { table: Number(table), report, side }));
       },
     },
   ];

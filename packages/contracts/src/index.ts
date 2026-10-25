@@ -412,6 +412,8 @@ export interface PanelResponse {
     /** Todas as keys lançadas: a próxima rodada pode começar. */
     closed: boolean;
   } | null;
+  /** Rodada mais recente publicada pelo TOM (as abas vão de 1 até ela). */
+  latestRound: number | null;
   serverTime: string;
 }
 

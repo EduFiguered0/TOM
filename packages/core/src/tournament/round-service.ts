@@ -66,7 +66,8 @@ export class RoundService {
     validated(() => tableDeadline(new Date(0), roundMinutes));
     if (ref.round > 1) {
       const previous = await this.state({ ...ref, round: ref.round - 1 });
-      if (previous.pairing && !previous.closed) {
+      // Rodada que nunca começou no site foi resolvida só no TOM: não segura a próxima.
+      if (previous.startedAt && !previous.closed) {
         throw new CommandRejected('previous_round_open', 'A rodada anterior ainda tem keys não lançadas');
       }
     }

@@ -65,6 +65,14 @@ describe('pareamento e início da rodada', () => {
     }
     expect((await service.startRound(actors.admin, next, { bestOf: 3 })).startedAt).not.toBeNull();
   });
+
+  it('rodada anterior que nunca foi iniciada no site não segura a próxima (o TOM seguiu sem o site)', async () => {
+    const { service } = setup();
+    await service.publishPairing(actors.uploader, pairing());
+    const next = { ...ref, round: 4 };
+    await service.publishPairing(actors.uploader, pairing(next));
+    expect((await service.startRound(actors.admin, next, { bestOf: 3 })).startedAt).not.toBeNull();
+  });
 });
 
 describe('reportes', () => {

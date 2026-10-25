@@ -57,4 +57,18 @@ describe('cliente da API', () => {
     });
     expect(await api.me()).toMatchObject({ ok: false, status: 404, error: { error: 'account_not_found' } });
   });
+
+  it('painel: rodada atual sem número; rodada anterior no caminho', async () => {
+    const urls: string[] = [];
+    const api = createApi(session('tok'), '/api', (url) => { urls.push(url as string); return Promise.resolve(new Response('{}')); });
+    await api.panel();
+    await api.panel(2);
+    await api.keyLaunched(1);
+    await api.keyLaunched(1, 2);
+    await api.override(3, { kind: 'intentional_draw' }, 'x', 2);
+    expect(urls).toEqual([
+      '/api/panel', '/api/panel/rounds/2', '/api/panel/tables/1/key-launched', '/api/panel/rounds/2/tables/1/key-launched',
+      '/api/panel/rounds/2/tables/3/override',
+    ]);
+  });
 });
