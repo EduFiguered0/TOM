@@ -39,6 +39,7 @@ import {
   type Registration,
   type RegistrationService,
   type RejectCode,
+  type RoundRef,
   type RoundService,
   type TournamentEvent,
   staffActor,
@@ -102,7 +103,6 @@ const STATUS: Record<RejectCode, number> = {
   round_not_paired: 409,
   round_already_started: 409,
   round_not_started: 409,
-  previous_round_open: 409,
   side_required: 400,
   table_locked: 409,
   not_green: 409,
@@ -545,11 +545,19 @@ export const createApi = ({ tokens, emails, accounts, events, ingest, board, rou
     if (n < 1 || n > ref.round) throw new CommandRejected('round_not_paired', `Rodada ${round} não publicada pelo TOM`);
     return { ...ref, round: n };
   };
+  /** Rodadas anteriores iniciadas no site com key por lançar; as que ficaram só no TOM não contam. */
+  const pendingKeys = async (latest: RoundRef) => {
+    const previous = await Promise.all(Array.from({ length: latest.round - 1 }, (_, i) => rounds.state({ ...latest, round: i + 1 })));
+    return previous
+      .filter((s) => s.startedAt && !s.closed)
+      .map((s) => ({ round: s.ref.round, tables: s.tables.filter((t) => !t.keyLaunched).map((t) => t.table) }));
+  };
   const respond = async (state: Awaited<ReturnType<RoundService['state']>>, extra: Record<string, unknown> = {}): Promise<HttpResponse> => {
-    const latest = (await activeRound())?.ref.round ?? null;
+    const latest = (await activeRound())?.ref ?? null;
     // Só a rodada atual vai para o cache de leitura (o reporte do jogador lê dele).
-    const shown = state.ref.round === latest ? reader.remember(state) : state;
-    return { status: 200, body: { ...panel(shown, clock.now(), latest), ...extra } };
+    const shown = state.ref.round === latest?.round ? reader.remember(state) : state;
+    const pending = latest ? await pendingKeys(latest) : [];
+    return { status: 200, body: { ...panel(shown, clock.now(), latest?.round ?? null, pending), ...extra } };
   };
   const ROUND = String.raw`^\/panel(?:\/rounds\/(\d+))?`;
   const tableRoute = (action: string) => new RegExp(String.raw`${ROUND}\/tables\/(\d+)\/${action}$`);
@@ -563,7 +571,7 @@ export const createApi = ({ tokens, emails, accounts, events, ingest, board, rou
         if (!current) return { status: 200, body: panel(null, clock.now(), null) };
         const ref = await roundRef(round);
         const state = round === undefined ? await reader.state(ref) : await rounds.state(ref);
-        return { status: 200, body: panel(state, clock.now(), current.ref.round) };
+        return { status: 200, body: panel(state, clock.now(), current.ref.round, await pendingKeys(current.ref)) };
       },
     },
     {

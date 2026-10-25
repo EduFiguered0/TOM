@@ -53,16 +53,10 @@ describe('pareamento e início da rodada', () => {
     await rejects(service.publishPairing(actors.uploader, pairing()), 'round_already_started');
   });
 
-  it('próxima rodada só começa com todas as keys da anterior lançadas', async () => {
+  it('próxima rodada começa mesmo com keys da anterior pendentes (o painel avisa)', async () => {
     const { service } = await startedRound();
     const next = { ...ref, round: 4 };
     await service.publishPairing(actors.uploader, pairing(next));
-    await rejects(service.startRound(actors.admin, next, { bestOf: 3 }), 'previous_round_open');
-
-    for (const table of [1, 2]) {
-      await service.applyOverride(actors.judge, ref, { table, override: { kind: 'intentional_draw' }, reason: 'teste' });
-      await service.markKeyLaunched(actors.admin, ref, { table });
-    }
     expect((await service.startRound(actors.admin, next, { bestOf: 3 })).startedAt).not.toBeNull();
   });
 

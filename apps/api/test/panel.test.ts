@@ -99,7 +99,7 @@ describe('painel do ADM e do juiz', () => {
     expect((await table1())?.tomKey).toBeNull();
   });
 
-  it('rodadas anteriores: o ADM vê e ajusta a rodada 3 para liberar a 4', async () => {
+  it('rodadas anteriores: o painel avisa as keys pendentes da 3, sem travar a 4; o ADM ajusta pela aba', async () => {
     const { start, send, call, panel } = await withPanel();
     await start();
     const next = (report: string) => upload(report, upload(report).content.replace(/Rodada\s+3/g, 'Rodada 4'), '2026-10-24T15:00:00Z');
@@ -107,7 +107,7 @@ describe('painel do ADM e do juiz', () => {
     await send(next('match_slips'));
     expect((await panel()).round?.round).toBe(4);
     expect((await panel()).latestRound).toBe(4);
-    expect((await call('POST', '/round/start', ADM, { bestOf: 3, roundMinutes: null })).body).toMatchObject({ error: 'previous_round_open' });
+    expect((await panel()).pendingKeys).toEqual([{ round: 3, tables: [1, 2] }]);
 
     const previous = async () => ((await call('GET', '/panel/rounds/3', ADM)).body as PanelResponse).round;
     expect((await previous())?.round).toBe(3);
@@ -117,6 +117,16 @@ describe('painel do ADM e do juiz', () => {
       expect((await call('POST', `${path}/key-launched`, ADM)).status).toBe(200);
     }
     expect((await previous())?.closed).toBe(true);
+    expect((await panel()).pendingKeys).toEqual([]);
+    expect((await call('POST', '/round/start', ADM, { bestOf: 3, roundMinutes: null })).status).toBe(200);
+  });
+
+  it('inicia a próxima rodada mesmo com keys pendentes na anterior', async () => {
+    const { start, send, call } = await withPanel();
+    await start();
+    const next = (report: string) => upload(report, upload(report).content.replace(/Rodada\s+3/g, 'Rodada 4'), '2026-10-24T15:00:00Z');
+    await send(next('pairings'));
+    await send(next('match_slips'));
     expect((await call('POST', '/round/start', ADM, { bestOf: 3, roundMinutes: null })).status).toBe(200);
   });
 

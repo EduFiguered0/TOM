@@ -60,17 +60,11 @@ export class RoundService {
     });
   }
 
+  /** Keys pendentes de rodadas anteriores não seguram a próxima: o painel avisa quais faltam. */
   async startRound(actor: Actor, ref: RoundRef, options: { bestOf: BestOf; roundMinutes?: number }): Promise<RoundState> {
     requireRole(actor, 'admin');
     const roundMinutes = options.roundMinutes ?? DEFAULT_ROUND_MINUTES;
     validated(() => tableDeadline(new Date(0), roundMinutes));
-    if (ref.round > 1) {
-      const previous = await this.state({ ...ref, round: ref.round - 1 });
-      // Rodada que nunca começou no site foi resolvida só no TOM: não segura a próxima.
-      if (previous.startedAt && !previous.closed) {
-        throw new CommandRejected('previous_round_open', 'A rodada anterior ainda tem keys não lançadas');
-      }
-    }
     return this.execute(ref, (state) => {
       if (!state.pairing) throw new CommandRejected('round_not_paired', 'O pareamento ainda não chegou do TOM');
       if (state.startedAt) throw new CommandRejected('round_already_started', 'A rodada já foi iniciada');

@@ -59,7 +59,15 @@ export const PanelScreen = ({ api, me }: { api: Api; me: MeResponse }) => {
       </header>
 
       {!data && <p class="muted">Carregando…</p>}
-      {data && !round && <p class="muted">Nenhuma rodada publicada pelo TOM ainda.</p>}
+      {data && !round && (
+        <p class="muted">{selected === null ? 'Nenhuma rodada publicada pelo TOM ainda.' : `A rodada ${String(selected)} não chegou do TOM para o site.`}</p>
+      )}
+      {data?.pendingKeys.map((p) => (
+        <p key={p.round} class="notice">
+          Rodada {p.round}: {p.tables.length === 1 ? 'mesa' : 'mesas'} {p.tables.join(', ')} sem key lançada.{' '}
+          {(selected ?? latest) !== p.round && <button type="button" class="link" onClick={() => { open(p.round); }}>Ver rodada {p.round}</button>}
+        </p>
+      ))}
       {latest !== null && latest > 1 && (
         <nav class="panel-tabs" aria-label="Rodadas">
           {Array.from({ length: latest }, (_, i) => i + 1).map((n) => (
