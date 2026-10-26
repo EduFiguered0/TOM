@@ -26,7 +26,7 @@ export const EventTab = ({ api, event, reload, folder, registrations, onTeam }: 
   const [message, setMessage] = useState<{ ok: boolean; text: string } | null>(null);
 
   /** Avança a fase do evento pela faixa de etapas. */
-  const step = (action: 'confirmation' | 'close', question: string | null, done: string) => {
+  const step = (action: 'close', question: string | null, done: string) => {
     if (!event || (question && !confirm(question))) return;
     setBusy(true);
     setMessage(null);
@@ -54,13 +54,7 @@ export const EventTab = ({ api, event, reload, folder, registrations, onTeam }: 
           <li key={s.label} class={`flex flex-1 items-center gap-2 border-r border-line px-3 py-2 last:border-r-0 ${STEP[s.state]}`}
             aria-current={s.state === 'now' ? 'step' : undefined}>
             <span>{s.state === 'done' ? '✓' : s.state === 'now' ? '●' : '○'} {s.label}</span>
-            {i === 1 && event.status === 'open' && (
-              <button type="button" class={`${primary} ml-auto px-2 py-1 text-xs`} disabled={busy}
-                onClick={() => { step('confirmation', 'Pedir confirmação fecha o QR. Continuar?', 'Confirmação pedida: o QR fechou.'); }}>
-                Pedir confirmação
-              </button>
-            )}
-            {i === 4 && event.status === 'final' && (
+            {i === 3 && event.status === 'final' && (
               <button type="button" class={`${primary} ml-auto px-2 py-1 text-xs`} disabled={busy}
                 onClick={() => { step('close', null, 'Evento encerrado.'); }}>
                 Encerrar evento
@@ -70,6 +64,11 @@ export const EventTab = ({ api, event, reload, folder, registrations, onTeam }: 
         ))}
       </ol>
       {message && <p class={`m-0 text-sm ${message.ok ? 'text-ok' : 'text-error'}`} role={message.ok ? 'status' : 'alert'}>{message.text}</p>}
+      {data && data.awaiting > 0 && (
+        <p class="m-0 rounded-md border border-warn px-3 py-1.5 text-sm font-semibold text-warn" role="status">
+          {data.awaiting} {data.awaiting === 1 ? 'entrada tardia aguardando' : 'entradas tardias aguardando'} aprovação: veja em Inscritos.
+        </p>
+      )}
 
       <div class="grid min-h-0 flex-1 grid-cols-[1fr_0.9fr_1.7fr] gap-4">
         <section class={box} aria-label="Configuração">
@@ -88,7 +87,7 @@ export const EventTab = ({ api, event, reload, folder, registrations, onTeam }: 
         <section class={box} aria-label="Inscritos">
           <h2 class="m-0 flex justify-between gap-2 text-sm font-bold">
             Inscritos
-            {data && <span class="font-semibold text-muted">{data.confirmed} de {data.total} confirmados · {data.launched} lançados no TOM</span>}
+            {data && <span class="font-semibold text-muted">{data.total} inscritos · {data.launched} lançados no TOM</span>}
           </h2>
           <RegistrationsTable api={api} event={event} registrations={registrations} />
         </section>

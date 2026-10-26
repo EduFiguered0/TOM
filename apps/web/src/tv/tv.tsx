@@ -1,6 +1,7 @@
 import type { RoundBoard, TableColor } from '@tom/contracts';
 import { useEffect, useState } from 'preact/hooks';
-import { pages, roundClock } from './board.js';
+import { joinUrl, pages, roundClock } from './board.js';
+import { Qr } from './qr.js';
 import { DOT, EDGE, eventTitle, screen, tile } from './styles.js';
 
 /** 2 colunas de 10 (a grade fixa 10 linhas). */
@@ -21,8 +22,8 @@ const CLOCK = {
   over: 'text-[2.6vw] text-red',
 } as const;
 
-/** TV do salão: todos os pareamentos e o cronômetro, legíveis de longe. Pública e sem login. */
-export const Tv = ({ board }: { board: RoundBoard }) => {
+/** TV do salão: todos os pareamentos e o cronômetro, legíveis de longe, e o QR para quem chega tarde. */
+export const Tv = ({ board }: { board: RoundBoard & { code?: string } }) => {
   const [now, setNow] = useState(Date.now());
   const [page, setPage] = useState(0);
   const skew = Date.parse(board.serverTime) - Date.now();
@@ -65,7 +66,7 @@ export const Tv = ({ board }: { board: RoundBoard }) => {
         ))}
       </ol>
 
-      <footer class="flex justify-between gap-[2vw] text-[1.2vw] text-muted">
+      <footer class="flex items-end justify-between gap-[2vw] text-[1.2vw] text-muted">
         <div class="flex gap-[1.6vw]">
           {(Object.keys(LABEL) as TableColor[]).map((c) => (
             <span key={c} class="inline-flex items-center gap-[.5vw]"><i class={`size-[.9vw] rounded-full ${DOT[c]}`} />{LABEL[c]}</span>
@@ -73,6 +74,12 @@ export const Tv = ({ board }: { board: RoundBoard }) => {
         </div>
         {board.byes.length > 0 && <div>Bye: {board.byes.join(', ')}</div>}
         {all.length > 1 && <div>Página {(page % all.length) + 1} de {all.length}</div>}
+        {board.code && (
+          <div class="flex items-center gap-[.8vw] text-right">
+            <span>Chegou agora?<br />Escaneie para entrar</span>
+            <Qr url={joinUrl(location.origin, board.code)} class="h-[9vw]" />
+          </div>
+        )}
       </footer>
     </div>
   );

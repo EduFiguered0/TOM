@@ -1,19 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { confirmCall, joinUrl, pages, qrPath, roundClock } from '../src/tv/board.js';
-
-describe('chamada da confirmação na TV', () => {
-  it('pede a confirmação enquanto falta alguém', () => {
-    expect(confirmCall({ confirmed: 1, registered: 2 })).toBe('Confirme sua presença no celular');
-  });
-
-  it('com todos confirmados, avisa que aguarda o início da rodada 1', () => {
-    expect(confirmCall({ confirmed: 1, registered: 1 })).toBe('Todos confirmados — aguardando o início da rodada 1');
-  });
-
-  it('sem inscritos, continua pedindo a confirmação', () => {
-    expect(confirmCall({ confirmed: 0, registered: 0 })).toBe('Confirme sua presença no celular');
-  });
-});
+import { joinUrl, pages, qrPath, roundClock } from '../src/tv/board.js';
 
 const endsAt = '2026-10-24T15:30:00.000Z';
 const at = (iso: string) => Date.parse(iso);

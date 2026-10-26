@@ -45,7 +45,8 @@ export const AdminShell = ({ api, me, onSignOut }: Props) => {
     setTab(next);
   };
 
-  const count = registrations.data?.registrations.filter((r) => !r.removed).length;
+  const count = registrations.data?.total;
+  const awaiting = registrations.data?.awaiting ?? 0;
 
   return (
     <div class="grid h-dvh grid-cols-[210px_1fr] overflow-hidden bg-bg text-text">
@@ -58,7 +59,9 @@ export const AdminShell = ({ api, me, onSignOut }: Props) => {
               class={`flex items-center justify-between rounded-md px-3 py-2 text-sm no-underline ${tab === t ? 'bg-accent/15 font-bold text-accent' : 'text-muted hover:text-text'}`}
               onClick={(e) => { e.preventDefault(); go(t); }}>
               {info?.label}
-              {t === 'inscritos' && count !== undefined && <span class="text-xs text-muted">{count}</span>}
+              {t === 'inscritos' && count !== undefined && (
+                <span class="text-xs text-muted">{count}{awaiting > 0 && <b class="ml-1 text-orange">+{awaiting}</b>}</span>
+              )}
               {t === 'rodada' && panel.latest !== null && <span class="rounded-full bg-orange/15 px-2 text-xs font-bold text-orange">{panel.latest}</span>}
             </a>
           );
@@ -83,7 +86,7 @@ export const AdminShell = ({ api, me, onSignOut }: Props) => {
           <a href="/tv" target="_blank" rel="noopener" class={`${ghost} flex items-center gap-1 no-underline`}>
             Abrir TV<ExternalLink size={14} aria-hidden="true" />
           </a>
-          {tab === 'evento' && event && (event.status === 'confirming' || event.status === 'running') && (
+          {tab === 'evento' && event && event.status === 'running' && (
             <button type="button" class={primary} onClick={() => { go('rodada'); }}>Ir para a rodada</button>
           )}
         </header>

@@ -2,10 +2,10 @@ import type { EventStatusDto } from '@tom/contracts';
 
 export type StepState = 'done' | 'now' | 'todo';
 
-const LABELS = ['Evento criado', 'Inscrições (QR)', 'Confirmação', 'Rodadas', 'Resultado final'] as const;
+const LABELS = ['Evento criado', 'Inscrições (QR)', 'Rodadas', 'Resultado final'] as const;
 
 /** Etapa em andamento: sem evento, a primeira (criar); encerrado ou cancelado, todas feitas. */
-const CURRENT: Record<EventStatusDto, number> = { open: 1, confirming: 2, running: 3, final: 4, closed: 5, cancelled: 5 };
+const CURRENT: Record<EventStatusDto, number> = { open: 1, running: 2, final: 3, closed: 4, cancelled: 4 };
 
 /** Faixa de etapas da aba Evento. */
 export const eventSteps = (status: EventStatusDto | null): { label: string; state: StepState }[] => {
