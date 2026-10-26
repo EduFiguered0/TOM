@@ -14,15 +14,15 @@ export interface Registration {
   at: Date;
   /** Pelo QR ou à mão pelo ADM (atrasado, sem celular). */
   by: 'self' | 'admin';
-  /** Presença confirmada (pelo celular ou pelo ADM). */
-  confirmed: boolean;
+  /** Entrou pelo QR depois do início da rodada 1: espera o ADM aprovar (recusar = remover). */
+  awaitingApproval: boolean;
   /** O ADM já digitou no TOM. */
   launched: boolean;
   /** Removida pelo ADM: só ele inscreve de novo. */
   removed: boolean;
 }
 
-/** O evento saiu do status exigido antes de a inscrição ser gravada (ex.: o ADM pediu a confirmação). */
+/** O evento saiu do status exigido antes de a inscrição ser gravada (ex.: o TOM mandou o resultado final). */
 export class EventStatusChangedError extends Error {
   override name = 'EventStatusChangedError';
 }

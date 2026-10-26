@@ -47,15 +47,24 @@ describe('inscrição pelo QR', () => {
     const { service, accounts, events, event, code } = await setup();
     const ana = await account(accounts, 'ana', '100001');
     const first = await service.join(ana, code);
-    expect(first.registration).toMatchObject({ accountId: 'ana', playerId: '100001', name: 'Nome ana', birthYear: 1990, by: 'self', confirmed: false });
+    expect(first.registration).toMatchObject({ accountId: 'ana', playerId: '100001', name: 'Nome ana', birthYear: 1990, by: 'self', awaitingApproval: false });
     expect((await service.join(ana, code)).registration).toEqual(first.registration);
-    await events.requestConfirmation(actors.admin, event.id);
-    expect((await service.join(ana, code)).registration.accountId).toBe('ana');
+    await events.markRunning(event.id);
+    expect((await service.join(ana, code)).registration).toEqual(first.registration);
   });
 
-  it('inscrições fechadas para quem não estava inscrito', async () => {
+  it('com o resultado final, o QR fecha para quem não estava inscrito', async () => {
     const { service, accounts, events, event, code } = await setup();
-    await events.requestConfirmation(actors.admin, event.id);
+    await events.markRunning(event.id);
+    await events.markFinal(event.id, []);
+    await rejects(service.join(await account(accounts, 'bia', '100002'), code), 'event_state', 'Inscrições encerradas');
+  });
+
+  it('resultado final chega entre a leitura e a gravação: a guarda recusa', async () => {
+    const { service, accounts, events, registrations, event, code } = await setup();
+    await events.markRunning(event.id);
+    const put = registrations.put.bind(registrations);
+    registrations.put = async (r, guard) => { await events.markFinal(event.id, []); return put(r, guard); };
     await rejects(service.join(await account(accounts, 'bia', '100002'), code), 'event_state', 'Inscrições encerradas');
   });
 
@@ -89,37 +98,41 @@ describe('inscrição pelo QR', () => {
   });
 });
 
-describe('confirmação de presença e painel do ADM', () => {
-  it('o próprio só confirma na fase de confirmação; o ADM confirma por ele', async () => {
+describe('entrada tardia e painel do ADM', () => {
+  it('depois da rodada 1, o QR inscreve aguardando o ADM; aprovado, deixa de aguardar', async () => {
     const { service, accounts, events, event, code } = await setup();
-    const ana = await account(accounts, 'ana', '100001');
+    await events.markRunning(event.id);
     const bia = await account(accounts, 'bia', '100002');
-    await service.join(ana, code);
-    await service.join(bia, code);
-    await rejects(service.confirm(ana, event.id), 'event_state', 'A confirmação de presença não está aberta');
-    await events.requestConfirmation(actors.admin, event.id);
-    expect(await service.pending(event.id)).toBe(2);
-    expect((await service.confirm(ana, event.id)).confirmed).toBe(true);
-    expect((await service.confirmFor(actors.admin, event.id, 'bia')).confirmed).toBe(true);
-    expect(await service.pending(event.id)).toBe(0);
+    expect((await service.join(bia, code)).registration).toMatchObject({ by: 'self', awaitingApproval: true });
+    expect(await service.awaiting(event.id)).toBe(1);
+    expect((await service.approve(actors.admin, event.id, 'bia')).awaitingApproval).toBe(false);
+    expect((await service.join(bia, code)).registration.awaitingApproval).toBe(false);
+    expect(await service.awaiting(event.id)).toBe(0);
   });
 
-  it('atrasado inscrito pelo ADM já entra confirmado; antes da confirmação, não', async () => {
-    const { service, accounts, events, event } = await setup();
-    await account(accounts, 'cedo', '100003');
-    await account(accounts, 'tarde', '100004');
-    expect((await service.add(actors.admin, event.id, 'cedo')).confirmed).toBe(false);
-    await events.requestConfirmation(actors.admin, event.id);
-    expect((await service.add(actors.admin, event.id, 'tarde')).confirmed).toBe(true);
-  });
-
-  it('pendentes não contam os removidos', async () => {
+  it('recusar é remover: escanear de novo não reabre o pedido', async () => {
     const { service, accounts, events, event, code } = await setup();
-    await service.join(await account(accounts, 'ana', '100001'), code);
-    await service.join(await account(accounts, 'bia', '100002'), code);
-    await events.requestConfirmation(actors.admin, event.id);
+    await events.markRunning(event.id);
+    const bia = await account(accounts, 'bia', '100002');
+    await service.join(bia, code);
     await service.remove(actors.admin, event.id, 'bia');
-    expect(await service.pending(event.id)).toBe(1);
+    expect(await service.awaiting(event.id)).toBe(0);
+    await rejects(service.join(bia, code), 'forbidden', 'Sua inscrição foi removida, procure o ADM');
+  });
+
+  it('só o ADM aprova', async () => {
+    const { service, accounts, events, event, code } = await setup();
+    await events.markRunning(event.id);
+    await service.join(await account(accounts, 'bia', '100002'), code);
+    await rejects(service.approve(actors.p1, event.id, 'bia'), 'forbidden');
+    await rejects(service.approve(actors.admin, event.id, 'ninguem'), 'account_not_found');
+  });
+
+  it('ADM inscreve à mão durante a rodada sem esperar aprovação', async () => {
+    const { service, accounts, events, event } = await setup();
+    await account(accounts, 'tarde', '100004');
+    await events.markRunning(event.id);
+    expect((await service.add(actors.admin, event.id, 'tarde')).awaitingApproval).toBe(false);
   });
 
   it('só o ADM lista, remove, marca lançado e inscreve à mão', async () => {

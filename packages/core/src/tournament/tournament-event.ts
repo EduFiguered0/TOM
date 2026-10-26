@@ -1,13 +1,13 @@
 import type { RoundRef } from './round-pairing.js';
 
 /**
- * Fases do evento: inscrições abertas (QR na TV) → confirmando presença (QR fechado) → em andamento →
+ * Fases do evento: inscrições abertas (QR na TV) → em andamento (desde a rodada 1; o QR continua aberto) →
  * resultado final do TOM recebido → encerrado. Cancelado em qualquer fase antes de encerrar.
  */
-export type EventStatus = 'open' | 'confirming' | 'running' | 'final' | 'closed' | 'cancelled';
+export type EventStatus = 'open' | 'running' | 'final' | 'closed' | 'cancelled';
 
 /** Fases em que o evento é o ativo: só um por vez. */
-export const ACTIVE_STATUSES: readonly EventStatus[] = ['open', 'confirming', 'running', 'final'];
+export const ACTIVE_STATUSES: readonly EventStatus[] = ['open', 'running', 'final'];
 
 /** Linha da classificação final (standings do TOM), para a TV e o histórico. */
 export interface FinalStanding {

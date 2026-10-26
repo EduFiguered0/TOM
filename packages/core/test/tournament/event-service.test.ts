@@ -82,11 +82,11 @@ describe('evento e token do enviador', () => {
     expect((await service.createEvent(actors.admin, { label: 'Outra' })).event.status).toBe('open');
   });
 
-  it('ciclo: abre → confirma → em andamento → final → encerrado', async () => {
+  it('ciclo: abre → em andamento → final → encerrado', async () => {
     const { service } = setup();
     const { event } = await service.createEvent(actors.admin, { label: 'Liga' });
-    expect((await service.requestConfirmation(actors.admin, event.id)).status).toBe('confirming');
     expect((await service.markRunning(event.id)).status).toBe('running');
+    await rejects(service.markRunning(event.id), 'event_state', 'O evento já está em andamento');
     expect((await service.markFinal(event.id, standings)).status).toBe('final');
     expect((await service.close(actors.admin, event.id)).status).toBe('closed');
     expect(await service.active()).toBeNull();
@@ -96,13 +96,12 @@ describe('evento e token do enviador', () => {
     const { service } = setup();
     const { event } = await service.createEvent(actors.admin, { label: 'Liga' });
     await rejects(service.close(actors.admin, event.id), 'event_state', 'O evento só encerra depois do resultado final do TOM');
-    await rejects(service.requestConfirmation(actors.p1, event.id), 'forbidden');
   });
 
   it('cancela a qualquer momento antes de encerrar; depois não muda', async () => {
     const { service } = setup();
     const { event } = await service.createEvent(actors.admin, { label: 'Liga' });
-    await service.requestConfirmation(actors.admin, event.id);
+    await service.markRunning(event.id);
     expect((await service.cancel(actors.admin, event.id)).status).toBe('cancelled');
     await rejects(service.cancel(actors.admin, event.id), 'event_state', 'Evento encerrado ou cancelado não muda');
     await rejects(service.update(actors.admin, event.id, { roundMinutes: 40 }), 'event_state', 'Evento encerrado ou cancelado não muda');
@@ -112,7 +111,6 @@ describe('evento e token do enviador', () => {
     const { service } = setup();
     const { event } = await service.createEvent(actors.admin, { label: 'Liga' });
     expect((await service.markFinal(event.id, standings)).status).toBe('open');
-    await service.requestConfirmation(actors.admin, event.id);
     await service.markRunning(event.id);
     expect(await service.markFinal(event.id, standings)).toMatchObject({ status: 'final', standings });
   });

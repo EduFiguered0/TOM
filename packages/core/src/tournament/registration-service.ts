@@ -13,8 +13,8 @@ export interface RegistrationServiceDeps {
   clock: Clock;
 }
 
-/** Fases em que o ADM ainda inscreve à mão (atrasados, sem celular). */
-const MANUAL_STATUSES: readonly EventStatus[] = ['open', 'confirming', 'running'];
+/** Fases em que o QR e o ADM ainda inscrevem (o QR só fecha com o resultado final). */
+const JOIN_STATUSES: readonly EventStatus[] = ['open', 'running'];
 
 function requireAdmin(actor: Actor | null): asserts actor is Actor {
   if (actor?.role !== 'admin') throw new CommandRejected('forbidden', 'Só o ADM pode executar esta ação');
@@ -26,13 +26,16 @@ const judgeRejection = () => new CommandRejected('forbidden', 'Você é juiz des
 const incomplete = () => new CommandRejected('invalid_input', 'Complete o cadastro com o Player ID para se inscrever');
 
 /**
- * Inscrição pelo QR, confirmação de presença e o painel de inscritos do ADM. A lista serve para o ADM
+ * Inscrição pelo QR, entrada tardia aprovada pelo ADM e o painel de inscritos do ADM. A lista serve para o ADM
  * digitar no TOM; quem reporta continua sendo quem está nas guias.
  */
 export class RegistrationService {
   constructor(private readonly deps: RegistrationServiceDeps) {}
 
-  /** Fim do caminho do QR (depois do login e do cadastro): inscreve sozinho; de novo, só devolve a inscrição. */
+  /**
+   * Fim do caminho do QR (depois do login e do cadastro): inscreve sozinho; de novo, só devolve a inscrição.
+   * Depois do início da rodada 1, a inscrição espera o ADM aprovar.
+   */
   async join(principal: Principal, code: string): Promise<{ event: TournamentEvent; registration: Registration }> {
     const record = await this.deps.registry.findByCode(code);
     if (!record) throw new CommandRejected('event_not_found', 'Evento não encontrado');
@@ -43,7 +46,7 @@ export class RegistrationService {
     const existing = await this.deps.registrations.get(event.id, account.id);
     if (existing?.removed) throw removedRejection();
     if (existing) return { event, registration: existing };
-    if (event.status !== 'open') throw closed();
+    if (!JOIN_STATUSES.includes(event.status)) throw closed();
     const registration: Registration = {
       eventId: event.id,
       accountId: account.id,
@@ -52,25 +55,25 @@ export class RegistrationService {
       birthYear: account.profile.birthYear,
       at: this.deps.clock.now(),
       by: 'self',
-      confirmed: false,
+      awaitingApproval: event.status === 'running',
       launched: false,
       removed: false,
     };
     try {
-      await this.deps.registrations.put(registration, 'open');
+      await this.deps.registrations.put(registration, event.status);
     } catch (e) {
-      // O ADM pediu a confirmação entre a leitura e a gravação: o QR já fechou.
+      // O resultado final chegou entre a leitura e a gravação: o QR já fechou.
       if (e instanceof EventStatusChangedError) throw closed();
       throw e;
     }
     return { event, registration };
   }
 
-  /** O ADM inscreve à mão; depois de pedida a confirmação, quem chega já está presente. */
+  /** O ADM inscreve à mão (atrasado, sem celular): nunca espera aprovação. */
   async add(actor: Actor | null, eventId: string, accountId: string): Promise<Registration> {
     requireAdmin(actor);
     const event = await this.event(eventId);
-    if (!MANUAL_STATUSES.includes(event.status)) throw closed();
+    if (!JOIN_STATUSES.includes(event.status)) throw closed();
     const record = await this.deps.accounts.get(accountId);
     if (!record) throw new CommandRejected('account_not_found', 'Conta não cadastrada');
     const { account } = record;
@@ -85,7 +88,7 @@ export class RegistrationService {
       birthYear: account.profile.birthYear,
       at: existing?.at ?? this.deps.clock.now(),
       by: 'admin',
-      confirmed: existing?.confirmed === true || event.status !== 'open',
+      awaitingApproval: false,
       launched: existing?.launched ?? false,
       removed: false,
     };
@@ -98,20 +101,10 @@ export class RegistrationService {
     return this.update(eventId, accountId, { removed: true });
   }
 
-  /** O próprio jogador confirma pelo celular, quando o ADM pediu. */
-  async confirm(principal: Principal, eventId: string): Promise<Registration> {
-    const event = await this.event(eventId);
-    if (event.status !== 'confirming') throw new CommandRejected('event_state', 'A confirmação de presença não está aberta');
-    const registration = await this.deps.registrations.get(eventId, principal.account.id);
-    if (!registration) throw new CommandRejected('account_not_found', 'Você não está inscrito neste evento');
-    if (registration.removed) throw removedRejection();
-    return this.update(eventId, principal.account.id, { confirmed: true });
-  }
-
-  /** "Confirmar por ele": presente sem celular. */
-  async confirmFor(actor: Actor | null, eventId: string, accountId: string): Promise<Registration> {
+  /** Entrada tardia aprovada: o ADM lança no TOM e a pessoa entra no próximo pareamento. */
+  async approve(actor: Actor | null, eventId: string, accountId: string): Promise<Registration> {
     requireAdmin(actor);
-    return this.update(eventId, accountId, { confirmed: true });
+    return this.update(eventId, accountId, { awaitingApproval: false });
   }
 
   async setLaunched(actor: Actor | null, eventId: string, accountId: string, launched: boolean): Promise<Registration> {
@@ -132,9 +125,9 @@ export class RegistrationService {
     return { event: latest.event, registration: await this.deps.registrations.get(latest.event.id, principal.account.id) };
   }
 
-  /** Inscritos que ainda não confirmaram (os removidos não contam). */
-  async pending(eventId: string): Promise<number> {
-    return (await this.deps.registrations.list(eventId)).filter((r) => !r.removed && !r.confirmed).length;
+  /** Entradas tardias esperando o ADM (as recusadas, removidas, não contam). */
+  async awaiting(eventId: string): Promise<number> {
+    return (await this.deps.registrations.list(eventId)).filter((r) => !r.removed && r.awaitingApproval).length;
   }
 
   /** "Desfazer vínculo": a conta errada sai do evento ativo junto com o Player ID. */

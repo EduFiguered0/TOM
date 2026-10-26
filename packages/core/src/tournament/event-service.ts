@@ -142,15 +142,9 @@ export class EventService {
     return this.update(actor, eventId, { judges });
   }
 
-  /** "Pedir confirmação": o QR fecha na hora. */
-  async requestConfirmation(actor: Actor | null, eventId: string): Promise<TournamentEvent> {
-    requireAdmin(actor);
-    return this.move(eventId, ['open'], 'confirming', 'A confirmação de presença já foi pedida');
-  }
-
-  /** A rodada 1 começou (sem pendentes). */
+  /** A rodada 1 começou. */
   markRunning(eventId: string): Promise<TournamentEvent> {
-    return this.move(eventId, ['confirming'], 'running', 'O evento já está em andamento');
+    return this.move(eventId, ['open'], 'running', 'O evento já está em andamento');
   }
 
   /** O TOM mandou os standings da última rodada. Antes de o evento começar, não muda nada. */
