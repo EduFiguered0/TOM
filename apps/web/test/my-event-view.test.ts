@@ -28,6 +28,11 @@ describe('cartão do evento do dia', () => {
     expect(myEventView(mine('running', { removed: true, awaitingApproval: true }))).toBe('removed');
   });
 
+  it('nunca aprovado e o evento acabou: encerrado, não "aguardando"', () => {
+    expect(myEventView(mine('final', { awaitingApproval: true }))).toBe('ended');
+    expect(myEventView(mine('closed', { awaitingApproval: true }))).toBe('ended');
+  });
+
   it('resultado: colocação ou evento encerrado', () => {
     expect(myEventView(mine('final', {}, { rank: 2, total: 5, wins: 2, losses: 1, ties: 0, points: 6 }))).toBe('placement');
     expect(myEventView(mine('closed', {}))).toBe('ended');

@@ -6,7 +6,7 @@ export type MyEventView = 'none' | 'awaiting' | 'removed' | 'placement' | 'ended
 export const myEventView = ({ event, registration, placement }: MyEventResponse): MyEventView => {
   if (!event || !registration) return 'none';
   if (registration.removed) return 'removed';
-  if (registration.awaitingApproval) return 'awaiting';
+  if (registration.awaitingApproval && event.status === 'running') return 'awaiting';
   if (placement) return 'placement';
   if (event.status === 'final' || event.status === 'closed') return 'ended';
   if (event.status === 'running') return 'none';

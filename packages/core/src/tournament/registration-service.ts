@@ -1,7 +1,9 @@
+import type { Account } from '../identity/account.js';
 import type { AccountRepository } from '../identity/account-repository.js';
 import type { Principal } from '../identity/account-service.js';
 import type { Actor } from '../shared/actor.js';
 import { CommandRejected } from '../shared/command-rejected.js';
+import type { PlayerId } from '../shared/player-id.js';
 import type { Clock } from '../shared/ports.js';
 import { EventStatusChangedError, type Registration, type RegistrationRepository } from './registration.js';
 import { ACTIVE_STATUSES, type EventRegistry, type EventStatus, type TournamentEvent } from './tournament-event.js';
@@ -46,27 +48,39 @@ export class RegistrationService {
     const existing = await this.deps.registrations.get(event.id, account.id);
     if (existing?.removed) throw removedRejection();
     if (existing) return { event, registration: existing };
+    try {
+      return { event, registration: await this.enroll(event, account.id, account.playerId, account.profile) };
+    } catch (e) {
+      if (!(e instanceof EventStatusChangedError)) throw e;
+      // A rodada 1 começou entre a leitura e a gravação: tenta de novo, agora aguardando o ADM.
+      const again = await this.event(event.id);
+      try {
+        return { event: again, registration: await this.enroll(again, account.id, account.playerId, account.profile) };
+      } catch (retry) {
+        // O resultado final chegou no meio: o QR já fechou.
+        if (retry instanceof EventStatusChangedError) throw closed();
+        throw retry;
+      }
+    }
+  }
+
+  /** Grava a inscrição pelo QR só se o evento ainda estiver no status lido. */
+  private async enroll(event: TournamentEvent, accountId: string, playerId: PlayerId, profile: Account['profile']): Promise<Registration> {
     if (!JOIN_STATUSES.includes(event.status)) throw closed();
     const registration: Registration = {
       eventId: event.id,
-      accountId: account.id,
-      playerId: account.playerId,
-      name: account.profile.name,
-      birthYear: account.profile.birthYear,
+      accountId,
+      playerId,
+      name: profile.name,
+      birthYear: profile.birthYear,
       at: this.deps.clock.now(),
       by: 'self',
       awaitingApproval: event.status === 'running',
       launched: false,
       removed: false,
     };
-    try {
-      await this.deps.registrations.put(registration, event.status);
-    } catch (e) {
-      // O resultado final chegou entre a leitura e a gravação: o QR já fechou.
-      if (e instanceof EventStatusChangedError) throw closed();
-      throw e;
-    }
-    return { event, registration };
+    await this.deps.registrations.put(registration, event.status);
+    return registration;
   }
 
   /** O ADM inscreve à mão (atrasado, sem celular): nunca espera aprovação. */

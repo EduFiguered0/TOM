@@ -68,6 +68,17 @@ describe('inscrição pelo QR', () => {
     await rejects(service.join(await account(accounts, 'bia', '100002'), code), 'event_state', 'Inscrições encerradas');
   });
 
+  it('rodada 1 começa entre a leitura e a gravação: inscreve aguardando o ADM, sem recusar', async () => {
+    const { service, accounts, events, registrations, event, code } = await setup();
+    const put = registrations.put.bind(registrations);
+    let first = true;
+    registrations.put = async (r, guard) => {
+      if (first) { first = false; await events.markRunning(event.id); }
+      return put(r, guard);
+    };
+    expect((await service.join(await account(accounts, 'bia', '100002'), code)).registration.awaitingApproval).toBe(true);
+  });
+
   it('código desconhecido e cadastro sem Player ID', async () => {
     const { service, accounts, code } = await setup();
     await rejects(service.join(await account(accounts, 'ana', '100001'), 'XXXXXXXX'), 'event_not_found', 'Evento não encontrado');
