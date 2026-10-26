@@ -24,7 +24,7 @@ Hoje, se dois jogadores reportam vitória depois que a próxima rodada já foi i
 
 - Validar os resultados de cada rodada por consenso entre os jogadores, antes de lançá-los no TOM.
 - Mostrar a cada jogador a mesa e o oponente em tempo real, no celular e numa TV do salão.
-- Guardar o histórico de jogadores e resultados numa base própria, consultável pelo próprio jogador depois do evento. **[R2]**
+- Guardar os resultados numa base própria (auditoria e ranking futuro). **[R2]**
 
 O TOM continua sendo a fonte oficial. O sistema só lê os arquivos que ele gera e nunca escreve neles.
 
@@ -79,7 +79,7 @@ O TOM grava um conjunto de HTMLs por torneio, com o nome do torneio como prefixo
 | --- | --- | --- |
 | match\_slips | Mesa, rodada, divisão, nomes, **Player ID** e as keys de resultado (vitória P1, vitória P2, empate) | Fonte principal: vínculo Player ID ↔ mesa e keys validadas para lançar no TOM |
 | pairings | Rodada, mesa, nome e campanha (V/D/E); cada partida aparece duas vezes, uma de cada lado; bye | Conferência do pareamento e detecção de rodada nova |
-| standings | Classificação, pontos, % de vitória dos oponentes | TV e histórico |
+| standings | Classificação, pontos, % de vitória dos oponentes | TV (classificação final) e colocação no celular |
 | matchrecord | Vitórias, derrotas e empates por jogador | Conferência |
 | roster | Lista de jogadores, divisão; **sem Player ID** | Conferência |
 | tournament\_details | Nome, local, data, organizador, formato, nº de rodadas | Metadados do torneio |
@@ -99,7 +99,7 @@ Os HTMLs reais gerados pelo TOM 1.86 num torneio de teste ficam em `packages/tom
 2. **Check-in:** no salão, o jogador faz login pelo QR. O ADM lança os jogadores no TOM. **[R5]** Não há conferência do Player ID pelo ADM.
    **[R7]** O ADM cria o evento (um ativo por vez) e a TV mostra o QR. Quem escaneia passa pelo login e pelo cadastro e fica inscrito sozinho. O ADM pede a confirmação de presença (o QR fecha na hora), digita no TOM os confirmados pelo painel de inscritos e só inicia a rodada 1 sem pendentes. Os standings da última rodada marcam o resultado final; aí o ADM encerra. A inscrição não decide quem reporta: continua valendo quem está nas guias do TOM.
 3. **Rodadas:** o ciclo abaixo, uma vez por rodada.
-4. **Depois:** resultados e histórico já estão online; o jogador consulta quando quiser.
+4. **Depois:** a TV mostra a classificação final (pontos e desempates do TOM) e cada jogador vê a própria colocação no celular.
 
 ```mermaid
 flowchart TB
@@ -166,7 +166,7 @@ São três visões do mesmo estado, todas servidas online.
 
 | Tela | Quem vê | O que mostra |
 | --- | --- | --- |
-| Celular do jogador | Só o jogador logado | Mesa e oponente da rodada atual (ex.: Mesa 1 — você x teste2), botões de reporte com placar e, fora do evento, o histórico do jogador |
+| Celular do jogador | Só o jogador logado | Mesa e oponente da rodada atual (ex.: Mesa 1 — você x teste2), botões de reporte com placar e, no fim do evento, a própria colocação |
 | TV do salão | Todos | Todos os pareamentos e o cronômetro da rodada; atende jogadores sem celular e o juiz |
 | Painel do ADM / juiz | Organização | Termômetro por mesa, motivo dos vermelhos, override, keys validadas, "key lançada", iniciar rodada, acréscimo por mesa, reporte em nome do jogador, desfazer vínculo de Player ID **[R5]**, Equipe (marcar juiz) e escala de juízes no evento **[R6]** |
 
@@ -300,7 +300,6 @@ Em aberto:
 - [ ] Estética das telas (celular, TV, painel): o layout atual é funcional; o visual será revisto com as três telas lado a lado.
 - [ ] Top cut / eliminatória (arquivo brackets).
 - [ ] Critério do ranking (fase futura).
-- [ ] Histórico do jogador fora do evento (torneios, rodadas, oponentes e placares): fica para uma próxima spec. Os dados já ficam guardados (eventos das rodadas e fotografias do TOM), então nada se perde até lá.
 - [ ] Atualização em tempo real no celular sem polling (evolução).
 
 Fora de escopo:
