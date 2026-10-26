@@ -1,6 +1,6 @@
 # TOM Pokémon
 
-Camada de auditoria de resultados para torneios de Pokémon TCG rodados no TOM (Tournament Operations Manager). Os jogadores reportam pelo celular, o sistema valida por consenso e só libera a próxima rodada com todas as mesas verdes. O TOM continua sendo a fonte oficial: o sistema só lê os HTMLs que ele gera.
+Camada de auditoria de resultados para torneios de Pokémon TCG rodados no TOM (Tournament Operations Manager). Os jogadores se inscrevem pelo QR da TV e reportam pelo celular; o sistema valida por consenso (termômetro por mesa) e o ADM lança as keys no TOM. O TOM continua sendo a fonte oficial: o sistema só lê os HTMLs que ele gera.
 
 Detalhes do produto em [`docs/spec-tom.md`](docs/spec-tom.md); arquitetura em [`docs/adr/0001-arquitetura-do-repositorio.md`](docs/adr/0001-arquitetura-do-repositorio.md).
 
@@ -9,8 +9,9 @@ Detalhes do produto em [`docs/spec-tom.md`](docs/spec-tom.md); arquitetura em [`
 ```
 apps/
   api/           API: uma Lambda atrás de Function URL (rotas abaixo)
-  web/           site em Preact: home pública da loja (/), privacidade (/privacidade), conta do jogador (/conta),
-                 QR do evento (/e/<código>, inscreve sozinho), TV do salão (/tv), painel do ADM e do juiz (/painel)
+  web/           site em Preact + Tailwind (tema escuro): home pública (/), privacidade (/privacidade),
+                 celular do jogador (/conta), QR do evento (/e/<código>, inscreve sozinho), TV do salão (/tv)
+                 e área do ADM no notebook (/conta, /painel, /conta/inscritos, /conta/equipe, /conta/jogadores)
   uploader/      enviador: observa a pasta do TOM (somente leitura)
 packages/
   core/          domínio e casos de uso, sem dependências
@@ -46,7 +47,16 @@ npm run web:dev      # http://localhost:5173 e http://localhost:5173/tv
 npm run web:deploy   # build, envio ao S3 e limpeza do cache do CloudFront
 ```
 
-**Pasta do TOM (caminho principal).** No notebook do TOM, abra o painel do ADM no **Chrome ou no Edge**, crie o evento e clique em **"Conectar pasta do TOM"** no cartão "Evento do dia". O site lê a pasta (só leitura) a cada 3 s e envia sozinho os relatórios novos para o evento ativo, com o login do ADM: sem token e sem comando. Num dia novo, o navegador pede um clique em "Permitir". A página precisa ficar aberta (pode ficar atrás do TOM).
+## Uso no dia do evento
+
+Área do ADM no notebook do TOM, no **Chrome ou no Edge** (pensada para 1280×720 ou mais, sem rolar a página). Menu lateral com as abas **Evento**, **Rodada**, **Inscritos**, **Equipe** e **Jogadores**; no topo, o status da pasta do TOM e **Abrir TV**.
+
+1. **Evento:** crie o evento (nome, data, tempo de rodada, juízes) e clique em **"Conectar pasta do TOM"** (a pasta `reports` do TOM). A TV mostra o QR; quem escaneia se cadastra e fica inscrito.
+2. Na faixa de etapas, **"Pedir confirmação"** fecha o QR. Os inscritos confirmam no celular; o ADM digita no TOM os confirmados (tabela de inscritos com "copiar ID/nome" e "lançado no TOM").
+3. **Rodada:** imprima o pareamento e as guias no TOM; a pasta envia sozinha e aparece **"Iniciar rodada"**. As mesas ficam numa tabela por ordem de ação; a mesa escolhida abre ao lado com os reportes, a key do TOM, **Ajustar resultado** (botões por vencedor e placar, ID, DGL, ausência, com motivo), acréscimo e reporte por jogador sem celular. As abas R1, R2… mostram e ajustam rodadas anteriores; keys pendentes só geram aviso, não travam a próxima rodada.
+4. Os standings da última rodada do TOM mostram na TV a classificação final (pontos e desempates) e, no celular, a colocação de cada jogador. Aí o ADM encerra o evento.
+
+**Pasta do TOM.** O site lê a pasta (só leitura) a cada 3 s e envia sozinho os relatórios novos para o evento ativo, com o login do ADM: sem token e sem comando. Continua enviando em qualquer aba; num dia novo, o navegador pede um clique em "Permitir". A página precisa ficar aberta (pode ficar atrás do TOM). Arquivos gravados antes da criação do evento (o torneio anterior que ficou na pasta) são ignorados: o primeiro arquivo novo amarra o torneio ao evento.
 
 **Plano B: enviador por comando**, no notebook do TOM (somente leitura da pasta). O token é gerado na criação do evento (resposta de `POST /events`); ele vai pela variável de ambiente para não ficar no histórico do terminal:
 
@@ -92,12 +102,14 @@ Rotas da API (as de conta e ADM exigem `Authorization: Bearer <token de acesso d
 | `POST /staff/accounts/{id}/judge` | ADM | Marca ou tira o juiz da equipe (`{"judge": true}`); o juiz precisa de Player ID |
 | `GET /round/me` | qualquer conta | Rodada atual do ponto de vista do jogador: mesa, oponente, prazo, cor e o próprio reporte (sem o placar do oponente) |
 | `POST /round/report` | jogador com Player ID | Reporta placar ou ID na própria mesa |
-| `POST /round/start` | ADM | Inicia a rodada publicada pelo TOM (melhor de 1 ou 3, tempo) |
-| `GET /panel` | juiz escalado no evento atual, ADM | Painel: todas as mesas com Player IDs, os dois reportes, cor e motivo, override, acréscimo e a key do TOM |
+| `POST /round/start` | ADM | Inicia a rodada publicada pelo TOM (melhor de 1 ou 3, tempo); a rodada 1 exige todos os inscritos confirmados |
+| `GET /panel` | juiz escalado no evento atual, ADM | Painel: todas as mesas com Player IDs, os dois reportes, cor e motivo, override, acréscimo e a key do TOM; a rodada mais recente e as keys pendentes de rodadas anteriores |
+| `GET /panel/rounds/{r}` | juiz, ADM | O mesmo painel para uma rodada anterior do torneio atual |
 | `POST /panel/tables/{n}/override` | juiz, ADM | Override (placar, ID, DGL, vitória por ausência) com motivo; avisa se a key já foi lançada |
 | `POST /panel/tables/{n}/extend` | juiz, ADM | Acréscimo de tempo na mesa |
 | `POST /panel/tables/{n}/key-launched` | ADM | Marca a key como lançada no TOM (só mesa verde) |
 | `POST /panel/tables/{n}/report` | ADM | Reporte em nome de jogador sem celular |
+| `POST /panel/rounds/{r}/tables/{n}/…` | juiz, ADM | As mesmas ações numa rodada anterior |
 | `POST /events` | ADM | Cria o evento do dia (nome, `date`, `roundMinutes` = 30, `judges`); um ativo por vez; devolve o token do enviador uma única vez |
 | `GET /events/active` | ADM | Evento ativo, com o código do QR |
 | `PATCH /events/{id}` | ADM | Muda o tempo de rodada e os juízes enquanto o evento não acabou |
@@ -108,15 +120,15 @@ Rotas da API (as de conta e ADM exigem `Authorization: Bearer <token de acesso d
 | `POST /events/{id}/registrations` | ADM | Inscreve à mão (`{"accountId"}`); depois da confirmação, já entra confirmado |
 | `POST /events/{id}/registrations/{conta}/confirm`, `/remove`, `/launched` | ADM | Confirmar por ele, remover, marcar lançado no TOM |
 | `POST /join/{código}` | qualquer conta | Fim do caminho do QR: inscreve (de novo, só devolve a inscrição) |
-| `GET /me/event` | qualquer conta | Evento ativo e a própria inscrição |
+| `GET /me/event` | qualquer conta | Evento ativo, a própria inscrição e, no fim, a própria colocação |
 | `POST /me/event/confirm` | qualquer conta | Confirma a própria presença quando o ADM pede |
 | `PUT /events/{id}/judges` | ADM | Troca os juízes escalados no evento (só juízes da equipe) |
 | `POST /events/{id}/revoke` | ADM | Revoga o token do enviador |
 | `POST /uploads` | enviador (`x-upload-token`) | Recebe um HTML do TOM; com pareamento e guias da rodada, publica a rodada |
-| `POST /events/active/uploads` | ADM | O mesmo envio, pelo navegador do ADM (pasta do TOM conectada no painel), sempre para o evento ativo |
+| `POST /events/active/uploads` | ADM | O mesmo envio, pelo navegador do ADM (pasta do TOM conectada), sempre para o evento ativo; arquivo de antes do evento é ignorado |
 | `GET /board` | público | TV por fase do evento (espera, QR com inscritos, confirmação, rodada, classificação final), só nomes, guardada 5 s no CloudFront |
 
-O ADM vem do grupo `admin` do Cognito; o juiz é marcado pelo ADM no cartão "Equipe" do site e só age no evento em que for escalado (até o plano 4, o evento atual é o da rodada publicada pelo TOM). Para dar o papel de ADM a uma conta já criada; vale no próximo token, em até 15 min:
+O ADM vem do grupo `admin` do Cognito; o juiz é marcado pelo ADM na aba "Equipe" e só age no evento em que for escalado (vê só a aba Rodada). Para dar o papel de ADM a uma conta já criada (vale no próximo token, em até 15 min):
 
 ```bash
 aws cognito-idp admin-add-user-to-group --profile tom --user-pool-id <TomAuth.UserPoolId> --username <e-mail> --group-name admin
@@ -147,18 +159,3 @@ npm run cdk -- bootstrap aws://<conta>/us-east-2 --profile tom --cloudformation-
 ```
 
 Para mudar a policy: edite o JSON e rode `aws iam create-policy-version --profile tom --policy-arn <arn> --policy-document file://infra/bootstrap/execution-policy.json --set-as-default`.
-
-## Status
-
-| Fase | Entrega | Status |
-| --- | --- | --- |
-| 0 | Repositório, TypeScript, lint, testes | ✅ |
-| 1 | Parser dos HTMLs do TOM | ✅ |
-| 2 | Regras de resultado e termômetro | ✅ |
-| 3 | Modelo de eventos e recálculo do estado | ✅ |
-| 4 | Enviador (observa a pasta do TOM) | ✅ |
-| 5 | Infraestrutura AWS, EventStore no DynamoDB, fotografias no S3 | ✅ |
-| 6 | Login (e-mail e senha, Google), sessão única, papéis, Player ID que vale no cadastro (SES pendente, ver spec) | ✅ |
-| 7 | Celular: site e login, ingestão do TOM e TV ao vivo, rodada e reporte (histórico do jogador fica para outra spec) | ✅ |
-| 8–9 | TV do salão e painel do ADM/juiz (estética pendente) | ✅ |
-| 10 | Upload do enviador para a API | |
