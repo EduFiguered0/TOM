@@ -157,7 +157,7 @@ const toRegistration = (r: Registration, inRound: boolean | null): RegistrationD
   birthYear: r.birthYear,
   at: r.at.toISOString(),
   by: r.by,
-  confirmed: r.confirmed,
+  awaitingApproval: r.awaitingApproval,
   launched: r.launched,
   removed: r.removed,
   inRound,
@@ -295,15 +295,6 @@ export const createApi = ({ tokens, emails, accounts, events, ingest, board, rou
       },
     },
     {
-      method: 'POST', path: /^\/me\/event\/confirm$/,
-      handle: async ({ identity }) => {
-        const principal = await accounts.authenticate(identity);
-        const active = await events.active();
-        if (!active) throw new CommandRejected('event_not_found', 'Evento não encontrado');
-        return { status: 200, body: await registrationOf(await registrations.confirm(principal, active.id), active) };
-      },
-    },
-    {
       method: 'POST', path: /^\/me\/player-id$/,
       handle: async ({ request, identity }) => {
         const { playerId } = parsePlayerIdRequest(jsonBody(request));
@@ -370,7 +361,6 @@ export const createApi = ({ tokens, emails, accounts, events, ingest, board, rou
       },
     },
     ...([
-      ['confirmation', (actor, id) => events.requestConfirmation(actor, id)],
       ['close', (actor, id) => events.close(actor, id)],
       ['cancel', (actor, id) => events.cancel(actor, id)],
     ] as const satisfies readonly (readonly [string, (actor: Principal['actor'], id: string) => Promise<TournamentEvent>])[]).map(([action, run]): Route => ({
@@ -388,12 +378,13 @@ export const createApi = ({ tokens, emails, accounts, events, ingest, board, rou
         const players = await roundPlayers(event);
         const list = await registrations.list(actor, id);
         const kept = list.filter((r) => !r.removed);
+        const playing = kept.filter((r) => !r.awaitingApproval);
         const body: RegistrationsResponse = {
           // Removidos no fim: a lista que interessa é a de quem vai jogar.
           registrations: [...kept, ...list.filter((r) => r.removed)].map((r) => toRegistration(r, players ? players.has(r.playerId) : null)),
-          total: kept.length,
-          confirmed: kept.filter((r) => r.confirmed).length,
-          launched: kept.filter((r) => r.launched).length,
+          total: playing.length,
+          awaiting: kept.length - playing.length,
+          launched: playing.filter((r) => r.launched).length,
         };
         return { status: 200, body };
       },
@@ -408,11 +399,11 @@ export const createApi = ({ tokens, emails, accounts, events, ingest, board, rou
       },
     },
     {
-      method: 'POST', path: new RegExp(`^/events/${EVENT_ID}/registrations/${ACCOUNT_ID}/(confirm|remove|launched)$`),
+      method: 'POST', path: new RegExp(`^/events/${EVENT_ID}/registrations/${ACCOUNT_ID}/(approve|remove|launched)$`),
       handle: async ({ request, identity, params: [id = '', accountId = '', action = ''] }) => {
         const { actor } = await accounts.authenticate(identity);
-        const registration = action === 'confirm'
-          ? await registrations.confirmFor(actor, id, accountId)
+        const registration = action === 'approve'
+          ? await registrations.approve(actor, id, accountId)
           : action === 'remove'
             ? await registrations.remove(actor, id, accountId)
             : await registrations.setLaunched(actor, id, accountId, parseSetLaunchedRequest(jsonBody(request)).launched);
@@ -530,14 +521,9 @@ export const createApi = ({ tokens, emails, accounts, events, ingest, board, rou
         if (!active || current?.eventId !== active.id) {
           throw new CommandRejected('event_state', 'Nenhuma rodada do evento ativo publicada pelo TOM');
         }
-        // Rodada 1: só depois de pedir a confirmação e com ninguém pendente.
-        if (active.status === 'open') throw new CommandRejected('event_state', 'Peça a confirmação de presença antes de iniciar a rodada 1');
-        if (active.status === 'confirming') {
-          const pending = await registrations.pending(active.id);
-          if (pending > 0) throw new CommandRejected('event_state', `Ainda há ${String(pending)} inscrito(s) sem confirmar presença`);
-        }
         reader.remember(await rounds.startRound(actor, current.ref, { bestOf, roundMinutes: roundMinutes ?? active.roundMinutes }));
-        if (active.status === 'confirming') await events.markRunning(active.id);
+        // Rodada 1: o evento passa a em andamento; quem escanear daqui em diante espera o ADM aprovar.
+        if (active.status === 'open') await events.markRunning(active.id);
         return { status: 200, body: await board() };
       },
     },

@@ -18,7 +18,7 @@ describe('ingestão: TOM → enviador → API', () => {
   });
 
   it('pareamento sozinho espera as guias; com as guias a rodada é publicada e a TV mostra ao iniciar', async () => {
-    const { send, call, eventId } = await withEvent();
+    const { send, call } = await withEvent();
     expect(await send(upload('pairings'))).toMatchObject({ status: 200, body: { stored: true, published: [], note: expect.stringMatching(/Aguardando/) as unknown } });
 
     const done = await send(upload('match_slips'));
@@ -27,7 +27,6 @@ describe('ingestão: TOM → enviador → API', () => {
 
     // Inscrições abertas: a TV mostra o QR até a rodada 1 começar.
     expect((await call('GET', '/board', null)).body).toMatchObject({ state: 'open' });
-    await call('POST', `/events/${eventId}/confirmation`, 'adm:a1:admin');
     await call('POST', '/round/start', 'adm:a1:admin', { bestOf: 3, roundMinutes: null });
     const board = await call('GET', '/board', null);
     expect(board).toMatchObject({ status: 200, cacheControl: 'public, max-age=5' });
@@ -81,11 +80,10 @@ describe('envio pelo navegador do ADM', () => {
   const ADM = 'adm:a1:admin';
 
   it('ADM envia pelo navegador: pareamento + guias publicam a rodada do evento ativo', async () => {
-    const { call, eventId } = await withEvent();
+    const { call } = await withEvent();
     expect((await call('POST', '/events/active/uploads', ADM, upload('pairings'))).status).toBe(200);
     const done = await call('POST', '/events/active/uploads', ADM, upload('match_slips'));
     expect(done).toMatchObject({ status: 200, body: { stored: true, published: [{ round: 3 }] } });
-    await call('POST', `/events/${eventId}/confirmation`, ADM);
     expect((await call('POST', '/round/start', ADM, { bestOf: 3, roundMinutes: null })).status).toBe(200);
   });
 
