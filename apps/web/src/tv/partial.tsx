@@ -1,5 +1,5 @@
 import type { BoardResponse } from '@tom/contracts';
-import { StandingsTable } from './final.js';
+import { hasTiebreakers, StandingsTable } from './final.js';
 import { LateJoin } from './tv.js';
 import { eventTitle, screen } from './styles.js';
 
@@ -8,7 +8,10 @@ export const PartialTv = ({ board }: { board: Extract<BoardResponse, { state: 's
   <div class={screen}>
     <header>
       <div class={eventTitle}>{board.event.label}</div>
-      <div class="text-[1.6vw] text-muted">Classificação após a rodada {board.round} · {board.division}</div>
+      <div class="text-[1.6vw] text-muted">
+        {/* Registro de partida: sem desempates, não é a classificação oficial. */}
+        {hasTiebreakers(board.standings) ? 'Classificação' : 'Resultados'} após a rodada {board.round} · {board.division}
+      </div>
     </header>
     <div class="grid min-h-0 flex-1 grid-cols-[1fr_17vw] gap-[1.5vw]">
       <StandingsTable standings={board.standings} />

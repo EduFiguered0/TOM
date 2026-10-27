@@ -19,7 +19,7 @@ describe('etapas do evento', () => {
 
   it('próximo passo diz onde agir', () => {
     expect(nextStep('open')).toBe('Próximo passo: lance os inscritos no TOM e gere o pareamento da rodada 1. O botão Iniciar rodada aparece na aba Rodada.');
-    expect(nextStep('running')).toBe('Entre rodadas: imprima a Classificação no TOM (não o Registro de partida) para ela aparecer na TV. O pareamento seguinte volta às mesas.');
+    expect(nextStep('running')).toBe('Entre rodadas: imprima a Classificação (ou o Registro de partida) no TOM para os resultados aparecerem na TV. O pareamento seguinte volta às mesas.');
     expect(nextStep('final')).toBe('Resultado final recebido: confira e encerre o evento.');
     expect(nextStep('closed')).toBeNull();
     expect(nextStep('cancelled')).toBeNull();
