@@ -65,7 +65,10 @@ export const createIngest = ({ events, registry, snapshots, rounds, clock }: Ing
     return true;
   };
 
-  /** Standings da última rodada prevista: o TOM terminou o torneio e o ADM pode encerrar o evento. */
+  /**
+   * Standings da última rodada prevista: o TOM terminou o torneio e o ADM pode encerrar o evento.
+   * De rodada intermediária (ou sem o total de rodadas): classificação parcial para a TV.
+   */
   const finalResult = async (eventId: string, content: string): Promise<UploadResponse> => {
     let report;
     try {
@@ -74,11 +77,15 @@ export const createIngest = ({ events, registry, snapshots, rounds, clock }: Ing
       if (e instanceof TomParseError) return nothing(true, e.message);
       throw e;
     }
-    if (report.totalRounds === null || report.round < report.totalRounds) return nothing(true, null);
-    const event = await events.markFinal(eventId, report.standings.map((s) => ({
+    const standings = report.standings.map((s) => ({
       division: s.division, rank: s.rank, name: s.name, wins: s.record.wins, losses: s.record.losses, ties: s.record.ties,
       points: s.points, opponentWinPct: s.opponentWinPct, opponentsOpponentWinPct: s.opponentsOpponentWinPct,
-    })));
+    }));
+    if (report.totalRounds === null || report.round < report.totalRounds) {
+      await events.markPartial(eventId, report.round, standings);
+      return nothing(true, null);
+    }
+    const event = await events.markFinal(eventId, standings);
     // Antes de o evento começar (ex.: torneio de teste no TOM), os standings só ficam guardados.
     return nothing(true, event.status === 'final' ? 'Resultado final recebido' : null);
   };

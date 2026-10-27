@@ -138,7 +138,8 @@ export interface RoundBoard {
   startedAt: string | null;
   /** Fim do tempo da rodada (sem acréscimos de mesa). */
   endsAt: string | null;
-  tables: { table: number; player1: string; player2: string; color: TableColor }[];
+  /** `result`: só com a mesa verde (vencedor, empate ou derrota dupla); nunca o placar. */
+  tables: { table: number; player1: string; player2: string; color: TableColor; result: 'player1' | 'player2' | 'tie' | 'double_loss' | null }[];
   byes: string[];
   /** Momento em que o servidor montou a resposta; a TV corrige o relógio local por ele. */
   serverTime: string;
@@ -168,6 +169,8 @@ export type BoardResponse =
   | { state: 'open'; event: BoardEvent; code: string; registered: number; serverTime: string }
   /** `code`: o QR continua no canto da TV para quem chega depois da rodada 1. */
   | ({ state: 'running'; code: string } & RoundBoard)
+  /** Entre rodadas: o standings intermediário do TOM, até o pareamento seguinte chegar. */
+  | { state: 'standings'; event: BoardEvent; round: number; standings: FinalStandingDto[]; serverTime: string }
   | { state: 'final'; event: BoardEvent; standings: FinalStandingDto[]; serverTime: string };
 
 /** Uma versão completa de um HTML do TOM, enviada pelo enviador com o token do evento (cabeçalho `x-upload-token`). */
@@ -250,6 +253,12 @@ export interface CreateEventResponse {
 /** Evento ativo para o painel do ADM; null sem evento ativo. */
 export interface ActiveEventResponse {
   event: EventDto | null;
+  /** Sem evento ativo: o último evento, para reexibir a classificação final na TV. */
+  last: { id: string; label: string; date: string; onTv: boolean; canShow: boolean } | null;
+}
+
+export interface ShowOnTvRequest {
+  on: boolean;
 }
 
 export interface RegistrationDto {
@@ -332,6 +341,8 @@ export const parseUpdateEventRequest = (body: unknown): UpdateEventRequest => {
 export const parseAddRegistrationRequest = (body: unknown): AddRegistrationRequest => ({ accountId: field(object(body, 'Corpo'), 'accountId', 'string') });
 
 export const parseSetLaunchedRequest = (body: unknown): SetLaunchedRequest => ({ launched: field(object(body, 'Corpo'), 'launched', 'boolean') });
+
+export const parseShowOnTvRequest = (body: unknown): ShowOnTvRequest => ({ on: field(object(body, 'Corpo'), 'on', 'boolean') });
 
 export const parseJudgesRequest = (body: unknown): JudgesRequest => ({ judges: judgeList(object(body, 'Corpo')) });
 

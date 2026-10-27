@@ -1,5 +1,5 @@
 import type { BoardResponse, RoundBoard } from '@tom/contracts';
-import { DEFAULT_ROUND_MINUTES, type CurrentRound, type EventRegistry, type RegistrationRepository, type RoundRef, type RoundState } from '@tom/core';
+import { DEFAULT_ROUND_MINUTES, tvResult, type CurrentRound, type EventRegistry, type RegistrationRepository, type RoundRef, type RoundState } from '@tom/core';
 
 export interface BoardDeps {
   registry: EventRegistry;
@@ -24,13 +24,18 @@ export const createBoard = ({ registry, rounds, registrations, clock }: BoardDep
       return { state: 'open', event: summary, code: event.code ?? '', registered: (await kept()).length, serverTime };
     case 'running': {
       const current = await registry.current();
-      return current?.eventId === event.id
-        ? { state: 'running', ...(await round(current, rounds, serverTime)), code: event.code ?? '' }
-        : { state: 'idle', serverTime };
+      if (current?.eventId !== event.id) return { state: 'idle', serverTime };
+      // Standings da rodada atual (ou posterior) chegou: classificação parcial até o pareamento seguinte.
+      if (event.partial && event.partial.round >= current.ref.round) {
+        return { state: 'standings', event: summary, round: event.partial.round, standings: event.partial.standings, serverTime };
+      }
+      return { state: 'running', ...(await round(current, rounds, serverTime)), code: event.code ?? '' };
     }
     case 'final':
-    case 'closed':
       return event.standings ? { state: 'final', event: summary, standings: event.standings, serverTime } : { state: 'idle', serverTime };
+    case 'closed':
+      // Encerrar limpa a TV; a classificação só volta se o ADM reexibir.
+      return event.onTv && event.standings ? { state: 'final', event: summary, standings: event.standings, serverTime } : { state: 'idle', serverTime };
     case 'cancelled':
       return { state: 'idle', serverTime };
   }
@@ -45,7 +50,9 @@ const round = async (current: CurrentRound, rounds: BoardDeps['rounds'], serverT
     round: current.ref.round,
     startedAt: state.startedAt?.toISOString() ?? null,
     endsAt: state.startedAt ? new Date(state.startedAt.getTime() + minutes * 60_000).toISOString() : null,
-    tables: state.tables.map((t) => ({ table: t.table, player1: t.player1.name, player2: t.player2.name, color: t.status.color })),
+    tables: state.tables.map((t) => ({
+      table: t.table, player1: t.player1.name, player2: t.player2.name, color: t.status.color, result: tvResult(t.status),
+    })),
     byes: state.byes,
     serverTime,
   };

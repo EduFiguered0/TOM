@@ -43,9 +43,47 @@ describe('quadro da TV por fase do evento', () => {
     });
     expect(final.standings).toHaveLength(5);
     await ctx.call('POST', `/events/${ctx.eventId}/close`, ADM);
+    expect((await board(ctx.call)).state).toBe('idle');
+  });
+
+  it('o ADM reexibe e tira da TV a classificação do último evento; evento novo tira sozinho', async () => {
+    const ctx = await setupRound();
+    await ctx.start();
+    await ctx.send(upload('standings'));
+    await ctx.call('POST', `/events/${ctx.eventId}/close`, ADM);
+    expect((await ctx.call('GET', '/events/active', ADM)).body).toMatchObject({ event: null, last: { id: ctx.eventId, canShow: true, onTv: false } });
+    expect((await ctx.call('POST', `/events/${ctx.eventId}/tv`, 'p1:c1', { on: true })).status).toBe(403);
+    expect(await ctx.call('POST', `/events/${ctx.eventId}/tv`, ADM, { on: true })).toMatchObject({ status: 200, body: { last: { onTv: true } } });
     expect((await board(ctx.call)).state).toBe('final');
+    await ctx.call('POST', `/events/${ctx.eventId}/tv`, ADM, { on: false });
+    expect((await board(ctx.call)).state).toBe('idle');
+    await ctx.call('POST', `/events/${ctx.eventId}/tv`, ADM, { on: true });
     await ctx.call('POST', '/events', ADM, { label: 'Próximo' });
     expect((await board(ctx.call)).state).toBe('open');
+    expect((await ctx.call('GET', '/events/active', ADM)).body).toMatchObject({ last: null });
+  });
+
+  it('standings intermediário: classificação parcial até o pareamento seguinte; o de rodada anterior não cobre as mesas', async () => {
+    const ctx = await setupRound();
+    await ctx.start();
+    const partial = (round: string, at: string) => upload('standings', upload('standings').content.replace('Rodada 3/3', `Rodada ${round}/4`), at);
+    await ctx.send(partial('2', '2026-10-24T15:00:00Z'));
+    expect((await board(ctx.call)).state).toBe('running');
+    await ctx.send(partial('3', '2026-10-24T15:10:00Z'));
+    const shown = (await board(ctx.call)) as Extract<BoardResponse, { state: 'standings' }>;
+    expect(shown).toMatchObject({ state: 'standings', round: 3, event: { label: 'Liga de Outubro' } });
+    expect(shown.standings).toHaveLength(5);
+    expect(((await ctx.call('GET', '/events/active', ADM)).body as ActiveEventResponse).event?.status).toBe('running');
+  });
+
+  it('mesa verde leva o vencedor; antes, nada', async () => {
+    const ctx = await setupRound();
+    await ctx.start();
+    const table1 = async () => ((await board(ctx.call)) as Extract<BoardResponse, { state: 'running' }>).tables[0];
+    await ctx.report('p1:c1', { kind: 'score', own: 2, opponent: 1 });
+    expect(await table1()).toMatchObject({ table: 1, color: 'orange', result: null });
+    await ctx.report('p2:c2', { kind: 'score', own: 1, opponent: 2 });
+    expect(await table1()).toMatchObject({ table: 1, color: 'green', result: 'player1' });
   });
 
   it('resultado final: o jogador vê a própria colocação, achada pelo Player ID das guias', async () => {
