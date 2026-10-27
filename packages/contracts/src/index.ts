@@ -231,7 +231,7 @@ export interface CreateEventRequest {
   label: string;
   /** `YYYY-MM-DD`; ausente = hoje. */
   date?: string;
-  /** Ausente = 30 minutos. */
+  /** Ausente = 50 minutos. */
   roundMinutes?: number;
   /** Juízes escalados (ids de conta); ausente = nenhum. */
   judges: string[];
@@ -393,7 +393,7 @@ export interface ReportRequest {
 
 export interface StartRoundRequest {
   bestOf: 1 | 3;
-  /** null = 30 minutos (padrão da spec). */
+  /** null = tempo do evento (padrão: 50 minutos). */
   roundMinutes: number | null;
 }
 
