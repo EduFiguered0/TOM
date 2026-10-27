@@ -309,6 +309,13 @@ export interface PlayerRowDto {
 /** Conta na guia Equipe (busca, juízes, escala): mascarada como na guia Jogadores, com a marca de juiz. */
 export type TeamMemberDto = PlayerRowDto & { judge: boolean };
 
+/** Convite de juiz aberto (o QR leva a `/juiz/<código>`). */
+export interface InviteDto {
+  code: string;
+  /** ISO 8601. */
+  expiresAt: string;
+}
+
 /** Um evento no cadastro do jogador (só o ADM vê). */
 export interface PlayerEventDto {
   eventId: string;
