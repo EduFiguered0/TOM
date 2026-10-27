@@ -95,8 +95,9 @@ A cada merge na `main`, o GitHub Actions (`.github/workflows/deploy.yml`) roda `
 
 A função `tom-github-deploy` só aceita o branch `main` deste repositório e só aciona os papéis do bootstrap do CDK, o bucket do site, a limpeza de cache e a leitura das saídas das stacks. Configuração, uma vez:
 
-1. `npm run cdk -- deploy TomCi --exclusively --profile tom`
-2. No GitHub, *Settings → Secrets and variables → Actions*, segredo `AWS_DEPLOY_ROLE` = `arn:aws:iam::<conta>:role/tom-github-deploy`.
+1. Provedor OIDC do GitHub (o papel de execução do CloudFormation não pode criá-lo): `aws iam create-open-id-connect-provider --url https://token.actions.githubusercontent.com --client-id-list sts.amazonaws.com --profile tom`
+2. `npm run cdk -- deploy TomCi --exclusively --profile tom`
+3. No GitHub, *Settings → Secrets and variables → Actions*, segredo `AWS_DEPLOY_ROLE` = `arn:aws:iam::<conta>:role/tom-github-deploy`.
 
 Rotas da API (as de conta e ADM exigem `Authorization: Bearer <token de acesso do Cognito>`):
 

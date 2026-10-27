@@ -11,12 +11,16 @@ const template = Template.fromStack(ci);
 const statements = () => JSON.stringify(template.findResources('AWS::IAM::Policy'));
 
 describe('CiStack', () => {
-  it('GitHub entra por OIDC, sem chave guardada', () => {
-    template.hasResourceProperties('AWS::IAM::OIDCProvider', {
-      Url: 'https://token.actions.githubusercontent.com',
-      ClientIdList: ['sts.amazonaws.com'],
-    });
+  it('GitHub entra por OIDC, sem chave guardada; o provedor já existe na conta (criado à mão, README)', () => {
+    template.resourceCountIs('AWS::IAM::OIDCProvider', 0);
     template.resourceCountIs('AWS::IAM::AccessKey', 0);
+    template.hasResourceProperties('AWS::IAM::Role', {
+      AssumeRolePolicyDocument: Match.objectLike({
+        Statement: [Match.objectLike({
+          Principal: { Federated: 'arn:aws:iam::123456789012:oidc-provider/token.actions.githubusercontent.com' },
+        })],
+      }),
+    });
   });
 
   it('só o branch main deste repositório assume a função', () => {

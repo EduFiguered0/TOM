@@ -1,5 +1,5 @@
 import { CfnOutput, Stack, Validations, type StackProps } from 'aws-cdk-lib';
-import { OidcProviderNative, PolicyStatement, Role, WebIdentityPrincipal } from 'aws-cdk-lib/aws-iam';
+import { PolicyStatement, Role, WebIdentityPrincipal } from 'aws-cdk-lib/aws-iam';
 import type { Construct } from 'constructs';
 
 export interface CiStackProps extends StackProps {
@@ -20,12 +20,13 @@ export class CiStack extends Stack {
     super(scope, id, props);
     const { account, region } = this;
 
-    const provider = new OidcProviderNative(this, 'GitHub', { url: `https://${GITHUB}`, clientIds: ['sts.amazonaws.com'] });
+    // O provedor do GitHub é criado uma vez à mão (README): o papel de execução do CloudFormation não cria provedores OIDC.
+    const provider = `arn:aws:iam::${account}:oidc-provider/${GITHUB}`;
     const role = new Role(this, 'Deploy', {
       // Nome fixo: o workflow monta o ARN sem depender de saída da stack.
       roleName: DEPLOY_ROLE,
       description: `Deploy do ${repository} (${branch}) pelo GitHub Actions`,
-      assumedBy: new WebIdentityPrincipal(provider.oidcProviderArn, {
+      assumedBy: new WebIdentityPrincipal(provider, {
         StringEquals: { [`${GITHUB}:aud`]: 'sts.amazonaws.com', [`${GITHUB}:sub`]: `repo:${repository}:ref:refs/heads/${branch}` },
       }),
     });
