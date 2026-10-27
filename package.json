@@ -21,6 +21,7 @@
     "uploader": "npm run build && node apps/uploader/dist/main.js",
     "cdk": "npm run cdk -w @tom/infra --",
     "test:aws": "vitest run -c vitest.aws.config.ts",
+    "deploy": "tsx infra/scripts/deploy.ts",
     "web:deploy": "tsx infra/scripts/deploy-web.ts",
     "web:dev": "npm run dev -w @tom/web"
   },

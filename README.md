@@ -44,7 +44,7 @@ Site (desenvolvimento local com o pool e a API de testes; publicação em produ�
 
 ```bash
 npm run web:dev      # http://localhost:5173 e http://localhost:5173/tv
-npm run web:deploy   # build, envio ao S3 e limpeza do cache do CloudFront
+npm run web:deploy   # só o site: build, envio ao S3 e limpeza do cache do CloudFront
 ```
 
 ## Releases
@@ -54,12 +54,10 @@ Versão única para o projeto todo (`package.json` da raiz), em [versionamento s
 1. Os PRs entram na `main` com commits `feat:` (novidade), `fix:` (correção) ou `docs:`/`test:`/`ci:`/`chore:` (não aparecem nas notas).
 2. Quando quiser lançar: *Actions → Release → Run workflow*. Ele roda o Check e, se passar, abre (ou atualiza) o PR **"Release vX.Y.Z"** com as mudanças desde a última versão (`feat` sobe a versão do meio; `fix`, a última).
 3. Faça o merge desse PR: a tag, a release no GitHub e o `CHANGELOG.md` saem sozinhos.
-4. Deploy da versão lançada (manual):
+4. Deploy da versão lançada, num comando (confere branch, alterações locais, GitHub e login da AWS; avisa se há mudança fora de release):
 
 ```bash
-git switch main && git pull
-cd infra && npx cdk deploy TomApi TomWeb --exclusively --profile tom   # TomWeb só se o CloudFront mudou
-cd .. && npm run web:deploy
+npm run deploy   # TomApi + TomWeb + site; mudança de IAM pede confirmação: rode num terminal normal
 ```
 
 ## Uso no dia do evento
