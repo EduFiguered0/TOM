@@ -324,6 +324,19 @@ describe('equipe', () => {
     await expect(short).rejects.toThrow('Digite pelo menos 2 caracteres');
   });
 
+  it('lista de jogadores: todos em ordem alfabética; busca por Player ID, nome ou e-mail; só o ADM', async () => {
+    const { service } = await team();
+    await service.register(identity({ login: 'l-sem', session: 'ss' }), 'zeca@outro.com', { profile: { ...adult, firstName: 'Zeca', lastName: 'Sem' }, playerId: null });
+    const names = async (q: string) => (await service.players(admin, q)).map((a) => fullName(a.profile));
+    expect(await names('')).toEqual(['João Silva', 'Maria Joana', 'Zeca Sem']);
+    expect(await names('1000')).toEqual(['João Silva', 'Maria Joana']);
+    expect(await names('100002')).toEqual(['Maria Joana']);
+    expect(await names('silva')).toEqual(['João Silva']);
+    expect(await names('outro.com')).toEqual(['Zeca Sem']);
+    const player = { role: 'player', accountId: 'x', playerId: toPlayerId('100001') } as const;
+    await rejects(service.players(player, ''), 'forbidden');
+  });
+
   it('lista os juízes da equipe', async () => {
     const { service, j } = await team();
     expect(await service.listJudges(admin)).toEqual([]);
