@@ -1,6 +1,8 @@
 import type { RoundBoard, TableColor } from '@tom/contracts';
 import { useEffect, useMemo, useState } from 'preact/hooks';
 import { clockSkew, joinUrl, pages, roundClock, tvColumns } from './board.js';
+import { Avatar } from '../photo/avatar.js';
+import type { PhotoCache } from '../photo/photo-cache.js';
 import { Qr } from './qr.js';
 import { DOT, EDGE, eventTitle, screen, tile } from './styles.js';
 
@@ -43,7 +45,7 @@ const sides = (result: Table['result']): [string, string] => {
 };
 
 /** TV do salão: todas as mesas numa página, em ordem, com o vencedor de cada uma; byes e o QR para quem chega tarde. */
-export const Tv = ({ board, receivedAt }: { board: RoundBoard & { code?: string }; receivedAt?: number }) => {
+export const Tv = ({ board, receivedAt, photos = null }: { board: RoundBoard & { code?: string }; receivedAt?: number; photos?: PhotoCache | null }) => {
   const [now, setNow] = useState(Date.now());
   const [page, setPage] = useState(0);
   // Medida uma vez por resposta (não a cada segundo): senão o cronômetro congela entre as consultas.
@@ -88,15 +90,22 @@ export const Tv = ({ board, receivedAt }: { board: RoundBoard & { code?: string 
                   ? (
                     // Três colunas: um jogador por linha, para o nome inteiro caber.
                     <span class={`flex min-w-0 flex-1 flex-col justify-center gap-[.3vh] leading-none ${size.name}`}>
-                      <span class={`truncate ${one}`}>{t.player1}</span>
-                      <span class={`truncate ${two}`}>{t.result === 'tie' ? <b class="text-orange">= </b> : null}{t.player2}</span>
+                      <span class={`flex min-w-0 items-center gap-[.4vw] ${one}`}>
+                        <Avatar photo={t.photo1} name={t.player1} cache={photos} class="size-[1.4vw] text-[1.4vw]" /><span class="truncate">{t.player1}</span>
+                      </span>
+                      <span class={`flex min-w-0 items-center gap-[.4vw] ${two}`}>
+                        <Avatar photo={t.photo2} name={t.player2} cache={photos} class="size-[1.4vw] text-[1.4vw]" />
+                        <span class="truncate">{t.result === 'tie' ? <b class="text-orange">= </b> : null}{t.player2}</span>
+                      </span>
                     </span>
                   )
                   : (
                     <span class={`flex min-w-0 flex-1 items-baseline gap-[.8vw] leading-none ${size.name}`}>
+                      <Avatar photo={t.photo1} name={t.player1} cache={photos} class="size-[1.15em] text-[1.15em]" />
                       <span class={`flex-1 truncate ${one}`}>{t.player1}</span>
                       <span class={`text-[.8em] ${t.result === 'tie' ? 'font-bold text-orange' : 'text-muted'}`}>{t.result === 'tie' ? '=' : 'x'}</span>
                       <span class={`flex-1 truncate text-right ${two}`}>{t.player2}</span>
+                      <Avatar photo={t.photo2} name={t.player2} cache={photos} class="size-[1.15em] text-[1.15em]" />
                     </span>
                   )}
                 <span class={`size-[1vw] shrink-0 rounded-full ${DOT[t.color]}`} aria-label={LABEL[t.color]} />

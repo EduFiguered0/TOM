@@ -28,6 +28,8 @@ export const demoBoard = (now = Date.now()): RoundBoard & { code: string } => {
       player2: NAMES[i * 2 + 1] ?? '',
       color: COLORS[i % COLORS.length] ?? 'gray',
       result: COLORS[i % COLORS.length] === 'green' ? RESULTS[i % RESULTS.length] ?? null : null,
+      photo1: null,
+      photo2: null,
     })),
     byes: [NAMES[50] ?? '', 'Rui Matos'],
     serverTime: new Date(now).toISOString(),

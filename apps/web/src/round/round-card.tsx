@@ -1,7 +1,9 @@
 import type { MyRoundResponse } from '@tom/contracts';
-import { useEffect, useState } from 'preact/hooks';
+import { useEffect, useMemo, useState } from 'preact/hooks';
 import type { Api } from '../api.js';
 import { bigPrimary, card, Feedback, muted, textButton, TONE } from '../ui.js';
+import { Avatar } from '../photo/avatar.js';
+import { createPhotoCache } from '../photo/photo-cache.js';
 import { roundClock } from '../tv/board.js';
 import { describeReport, reportOptions, seatMessage, type ReportOption } from './round.js';
 
@@ -15,6 +17,7 @@ const REPORT = { win: 'bg-accent text-accent-text', loss: 'bg-slate-600 text-whi
 /** Mesa, oponente, cronômetro e reporte do jogador. Sucesso só aparece depois do "ok" da API. */
 export const RoundCard = ({ api }: { api: Api }) => {
   const [data, setData] = useState<MyRoundResponse | null>(null);
+  const photos = useMemo(() => createPhotoCache(async (id) => { const r = await api.photo(id); return r.ok ? r.body.photo : null; }), [api]);
   const [skew, setSkew] = useState(0);
   const [now, setNow] = useState(Date.now());
   const [choice, setChoice] = useState<ReportOption | null>(null);
@@ -83,7 +86,10 @@ export const RoundCard = ({ api }: { api: Api }) => {
         {clock.state === 'running' && <span class={`text-2xl font-bold tabular-nums ${clock.warning ? 'text-warn' : ''}`}>{clock.text}</span>}
         {clock.state === 'over' && seat.color !== 'green' && <span class="text-lg font-bold text-error">Tempo esgotado</span>}
       </div>
-      <div class="text-lg">você <span class="text-muted">x</span> {seat.opponent}</div>
+      <div class="flex items-center gap-2 text-lg">
+        você <span class="text-muted">x</span>
+        <Avatar photo={seat.opponentPhoto} name={seat.opponent} cache={photos} class="size-8 text-[2rem]" />{seat.opponent}
+      </div>
       <div class="flex items-center gap-2">
         <span class={`size-3 shrink-0 rounded-full ${DOT[seat.color]}`} aria-hidden="true" />
         <span class={`font-medium ${TONE[message.tone]}`}>{message.text}</span>

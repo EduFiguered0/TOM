@@ -1,6 +1,7 @@
 import type { BoardResponse } from '@tom/contracts';
 import { useEffect, useState } from 'preact/hooks';
 import type { ApiResult } from '../api.js';
+import type { PhotoCache } from '../photo/photo-cache.js';
 import { Tv } from './tv.js';
 import { centered } from './styles.js';
 import { WaitingTv } from './waiting.js';
@@ -18,7 +19,7 @@ type State =
  * TV ao vivo: consulta o quadro com a sessão do ADM (a mesma do painel, aberto em "Abrir TV ↗");
  * sem conexão, continua mostrando a última rodada.
  */
-export const LiveTv = ({ load }: { load: () => Promise<ApiResult<BoardResponse>> }) => {
+export const LiveTv = ({ load, photos = null }: { load: () => Promise<ApiResult<BoardResponse>>; photos?: PhotoCache | null }) => {
   const [state, setState] = useState<State>({ kind: 'loading' });
   const [offline, setOffline] = useState(false);
   /** Sessão caiu no meio do evento: o último quadro fica, com aviso; volta sozinho quando o ADM entrar de novo. */
@@ -51,7 +52,7 @@ export const LiveTv = ({ load }: { load: () => Promise<ApiResult<BoardResponse>>
       {state.kind === 'loading' && <div class={`${centered} text-[2.4vw] text-muted`}><p class="m-0">Carregando…</p></div>}
       {state.kind === 'denied' && <TvDenied />}
       {state.kind === 'board' && (state.board.state === 'running'
-        ? <Tv board={state.board} receivedAt={state.receivedAt} />
+        ? <Tv board={state.board} receivedAt={state.receivedAt} photos={photos} />
         : <WaitingTv board={state.board} />)}
       {sessionLost && state.kind === 'board' && (
         <div class="fixed bottom-[1.5vh] left-[2vw] rounded-[.6vw] bg-red px-[1vw] py-[.4vh] text-[1.1vw] font-semibold text-white" role="alert">

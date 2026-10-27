@@ -3,6 +3,7 @@ import type { Api } from '../api.js';
 import { card, cardWarn, Feedback, muted, textButton, title } from '../ui.js';
 import { MyEventCard } from './my-event.js';
 import { NameReviewCard } from './name-review.js';
+import { PhotoCard } from './photo-card.js';
 import { PlayerIdCard } from './player-id.js';
 import { RoundCard } from '../round/round-card.js';
 
@@ -36,6 +37,7 @@ export const Home = ({ me, api, onSignOut, onChanged, joinError, eventRefresh, n
     {me.role === 'player' && (me.playerId
       ? <p class="m-0 font-medium text-ok">Player ID {me.playerId}. {me.judging ? 'Você é juiz deste evento.' : 'Você já pode reportar resultados.'}</p>
       : <PlayerIdCard api={api} onSaved={onChanged} />)}
+    {me.role === 'player' && <PhotoCard me={me} api={api} onSaved={onChanged} />}
     {me.judge && <p class={muted}>Juiz da equipe. Você não está escalado no evento atual.</p>}
     <button type="button" class={textButton} onClick={onSignOut}>Sair deste dispositivo</button>
   </section>

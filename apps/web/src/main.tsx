@@ -9,6 +9,7 @@ import { PrivacyPage } from './public/privacy-page.js';
 import { createPendingJoin, inviteCodeOf, joinCodeOf } from './pending-join.js';
 import { pageFor } from './routes.js';
 import { demoBoard } from './tv/demo-board.js';
+import { createPhotoCache } from './photo/photo-cache.js';
 import { LiveTv } from './tv/live.js';
 import { Tv } from './tv/tv.js';
 import './theme.css';
@@ -61,7 +62,9 @@ const start = async () => {
   // TV do salão: extensão do painel do ADM, com a mesma sessão (aberta em "Abrir TV ↗").
   if (pageFor(location.pathname) === 'tv') {
     // Sem login, a TV mostra o aviso e segue consultando: entra sozinha quando o ADM fizer login em outra aba.
-    render(<LiveTv load={createApi(session).board} />, root);
+    const tvApi = createApi(session);
+    const photos = createPhotoCache(async (id) => { const r = await tvApi.photo(id); return r.ok ? r.body.photo : null; });
+    render(<LiveTv load={tvApi.board} photos={photos} />, root);
     return;
   }
   const google = createGoogle(

@@ -1,6 +1,8 @@
 import type { PlayerEventDto, PlayerRowDto } from '@tom/contracts';
-import { useEffect, useRef, useState } from 'preact/hooks';
+import { useEffect, useMemo, useRef, useState } from 'preact/hooks';
 import type { Api } from '../api.js';
+import { Avatar } from '../photo/avatar.js';
+import { createPhotoCache } from '../photo/photo-cache.js';
 import { box, Feedback, field, ghost } from '../ui.js';
 
 const cell = 'py-1.5 pr-3';
@@ -44,6 +46,24 @@ export const PlayersTab = ({ api }: { api: Api }) => {
         if (result.ok) setEvents(result.body); else setMessage({ ok: false, text: result.error.message });
       })
       .catch((e: unknown) => { setMessage({ ok: false, text: (e as Error).message }); });
+  };
+
+  const photos = useMemo(() => createPhotoCache(async (id) => { const r = await api.photo(id); return r.ok ? r.body.photo : null; }), [api]);
+
+  /** Foto inadequada: o ADM tira. */
+  const removePhoto = () => {
+    if (!open || !confirm(`Remover a foto de ${open.firstName}?`)) return;
+    setBusy(true);
+    setMessage(null);
+    void api.removePlayerPhoto(open.id)
+      .then((result) => {
+        if (!result.ok) { setMessage({ ok: false, text: result.error.message }); return; }
+        setOpen(result.body);
+        setRows((list) => list?.map((r) => (r.id === result.body.id ? result.body : r)) ?? null);
+        setMessage({ ok: true, text: 'Foto removida.' });
+      })
+      .catch((e: unknown) => { setMessage({ ok: false, text: (e as Error).message }); })
+      .finally(() => { setBusy(false); });
   };
 
   const unlink = () => {
@@ -101,7 +121,13 @@ export const PlayersTab = ({ api }: { api: Api }) => {
         {!open && <p class="m-0 text-sm text-muted">Escolha um jogador na lista.</p>}
         {open && (
           <>
-            <h2 class="m-0 text-base font-bold">{open.firstName}</h2>
+            <div class="flex items-center gap-3">
+              <Avatar photo={open.photo} name={open.firstName} cache={photos} class="size-14 text-[2rem]" />
+              <h2 class="m-0 text-base font-bold">{open.firstName}</h2>
+            </div>
+            {open.photo && (
+              <button type="button" class={`${ghost} self-start text-error`} disabled={busy} onClick={removePhoto}>Remover foto</button>
+            )}
             <p class="m-0 text-sm text-muted">{open.playerId ?? 'sem Player ID'} · {open.email}{open.phone ? ` · ${open.phone}` : ''}</p>
             <h3 class="m-0 mt-2 text-sm font-bold">Eventos</h3>
             {events === null && <p class="m-0 text-sm text-muted">Carregando…</p>}
