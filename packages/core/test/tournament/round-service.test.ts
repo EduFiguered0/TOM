@@ -34,12 +34,12 @@ describe('pareamento e início da rodada', () => {
     expect(state.startedAt).toBeNull();
   });
 
-  it('só o ADM inicia; prazo de 30 min a partir do clique', async () => {
+  it('só o ADM inicia; prazo de 50 min a partir do clique', async () => {
     const { service } = setup();
     await service.publishPairing(actors.uploader, pairing());
     await rejects(service.startRound(actors.judge, ref, { bestOf: 3 }), 'forbidden');
     const state = await service.startRound(actors.admin, ref, { bestOf: 3 });
-    expect(state.tables[0]?.deadline).toEqual(new Date('2026-10-23T14:30:00Z'));
+    expect(state.tables[0]?.deadline).toEqual(new Date('2026-10-23T14:50:00Z'));
   });
 
   it('não inicia sem pareamento, nem duas vezes, nem com tempo inválido', async () => {
@@ -86,12 +86,15 @@ describe('reportes', () => {
     expect(state.tables[0]?.status).toMatchObject({ color: 'green', result: { player1: 2, player2: 1 } });
   });
 
-  it('correção: o último reporte do jogador vale enquanto a mesa não está verde', async () => {
+  it('jogador reporta uma vez só; divergência é com o juiz; o ADM ainda corrige o lado', async () => {
     const { service } = await startedRound();
     await service.submitReport(actors.p1, ref, { table: 1, report: score(2, 0) });
     await service.submitReport(actors.p2, ref, { table: 1, report: score(1, 2) });
     expect((await service.state(ref)).tables[0]?.status).toEqual({ color: 'red', reason: 'score_mismatch' });
-    const state = await service.submitReport(actors.p1, ref, { table: 1, report: score(2, 1) });
+    const again = service.submitReport(actors.p1, ref, { table: 1, report: score(2, 1) });
+    await rejects(again, 'table_locked');
+    await expect(again).rejects.toThrow('Você já reportou esta mesa. Para corrigir, chame o juiz.');
+    const state = await service.submitReport(actors.admin, ref, { table: 1, report: score(2, 1), side: 'player1' });
     expect(state.tables[0]?.status.color).toBe('green');
   });
 
@@ -135,7 +138,7 @@ describe('tempo, override e key', () => {
   it('fim do tempo deixa vermelho; acréscimo dá prazo próprio à mesa', async () => {
     const { service, clock } = await startedRound();
     await service.extendTime(actors.judge, ref, { table: 2, minutes: 5 });
-    clock.advance(31);
+    clock.advance(51);
     const state = await service.state(ref);
     expect(state.tables.map((t) => t.status.color)).toEqual(['red', 'gray']);
     clock.advance(5);
@@ -158,11 +161,11 @@ describe('tempo, override e key', () => {
     expect(state.tables[0]?.override).toMatchObject({ reason: 'atraso dos dois', by: actors.judge });
   });
 
-  it('override recusa jogador, motivo vazio e placar inválido', async () => {
+  it('override recusa jogador e placar inválido; motivo é opcional', async () => {
     const { service } = await startedRound();
     const input = { table: 1, override: { kind: 'intentional_draw' } as const, reason: 'x' };
     await rejects(service.applyOverride(actors.p1, ref, input), 'forbidden');
-    await rejects(service.applyOverride(actors.judge, ref, { ...input, reason: '  ' }), 'invalid_input');
+    expect((await service.applyOverride(actors.judge, ref, { ...input, reason: '  ' })).state.tables[0]?.override?.reason).toBe('');
     await rejects(
       service.applyOverride(actors.judge, ref, { ...input, override: { kind: 'score', player1: 3, player2: 0 } }),
       'invalid_input',

@@ -43,7 +43,8 @@ const seatOf = (state: RoundState, actor: Actor | null): SeatDto => {
     redReason: table.status.color === 'red' ? table.status.reason : null,
     myReport: table.reports[side] ?? null,
     opponentReported: table.reports[other] !== undefined,
-    locked: table.keyLaunched || table.status.color === 'green',
+    // Um reporte por jogador: depois do próprio, a tela trava (correção é com o juiz).
+    locked: table.keyLaunched || table.status.color === 'green' || table.reports[side] !== undefined,
   };
 };
 

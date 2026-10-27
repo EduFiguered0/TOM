@@ -88,7 +88,7 @@ export const RoundCard = ({ api }: { api: Api }) => {
         <span class={`size-3 shrink-0 rounded-full ${DOT[seat.color]}`} aria-hidden="true" />
         <span class={`font-medium ${TONE[message.tone]}`}>{message.text}</span>
       </div>
-      {seat.myReport && <p class={muted}>Seu reporte: <b class="text-text">{describeReport(seat.myReport)}</b>{seat.locked ? '' : ' (pode corrigir até a mesa ficar verde)'}</p>}
+      {seat.myReport && <p class={muted}>Resultado enviado: <b class="text-text">{describeReport(seat.myReport)}</b>. Para corrigir, chame o juiz.</p>}
 
       {canReport && !choice && round.bestOf && (
         <div class="grid grid-cols-2 gap-2">

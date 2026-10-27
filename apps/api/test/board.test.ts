@@ -20,7 +20,8 @@ describe('quadro da TV por fase do evento', () => {
     const ctx = await setupRound();
     const active = ((await ctx.call('GET', '/events/active', ADM)).body as ActiveEventResponse).event;
     await ctx.call('POST', `/join/${active?.code ?? ''}`, 'p1:c1');
-    expect(await board(ctx.call)).toMatchObject({ state: 'open', event: { label: 'Liga de Outubro' }, code: active?.code, registered: 1 });
+    // O pareamento do TOM já chegou: o nome do evento passa a ser o do torneio.
+    expect(await board(ctx.call)).toMatchObject({ state: 'open', event: { label: 'FODASE' }, code: active?.code, registered: 1 });
   });
 
   it('em andamento: pareamentos, cronômetro e o código do QR para quem chega tarde', async () => {
@@ -71,7 +72,8 @@ describe('quadro da TV por fase do evento', () => {
     expect((await board(ctx.call)).state).toBe('running');
     await ctx.send(partial('3', '2026-10-24T15:10:00Z'));
     const shown = (await board(ctx.call)) as Extract<BoardResponse, { state: 'standings' }>;
-    expect(shown).toMatchObject({ state: 'standings', round: 3, event: { label: 'Liga de Outubro' } });
+    // O nome do evento passa a ser o do torneio no TOM.
+    expect(shown).toMatchObject({ state: 'standings', round: 3, event: { label: 'FODASE' } });
     expect(shown.standings).toHaveLength(5);
     expect(((await ctx.call('GET', '/events/active', ADM)).body as ActiveEventResponse).event?.status).toBe('running');
   });

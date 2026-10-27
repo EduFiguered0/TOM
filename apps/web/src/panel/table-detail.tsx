@@ -16,7 +16,6 @@ interface Props {
   onUpdate: (panel: PanelResponse) => void;
 }
 
-const REASONS = ['Reportes errados', 'Não reportaram', 'Jogador sem celular', 'Decisão do juiz'];
 
 const sameOverride = (a: OverrideDto, b: OverrideDto): boolean => JSON.stringify(a) === JSON.stringify(b);
 
@@ -53,13 +52,12 @@ export const TableDetail = ({ api, table: t, admin, started, round, bestOf, onUp
   const [message, setMessage] = useState<{ ok: boolean; text: string } | null>(null);
   const [busy, setBusy] = useState(false);
   const [choice, setChoice] = useState<OverrideDto | null>(null);
-  const [reason, setReason] = useState('');
   const [minutes, setMinutes] = useState('5');
   const [side, setSide] = useState<'player1' | 'player2'>('player1');
   const [pending, setPending] = useState<ReportOption | null>(null);
 
   // Outra mesa: o formulário começa limpo.
-  useEffect(() => { setMessage(null); setPending(null); setChoice(null); setReason(''); }, [t.table, round]);
+  useEffect(() => { setMessage(null); setPending(null); setChoice(null); }, [t.table, round]);
 
   const run = async (action: () => Promise<ApiResult<PanelResponse & { requiresTomFix?: boolean }>>, done: string) => {
     setBusy(true);
@@ -71,7 +69,6 @@ export const TableDetail = ({ api, table: t, admin, started, round, bestOf, onUp
       setMessage({ ok: true, text: result.body.requiresTomFix ? `${done} A key já tinha sido lançada: corrija também no TOM.` : done });
       setPending(null);
       setChoice(null);
-      setReason('');
     } catch (e) {
       setMessage({ ok: false, text: (e as Error).message });
     } finally {
@@ -95,7 +92,7 @@ export const TableDetail = ({ api, table: t, admin, started, round, bestOf, onUp
       <div class="flex flex-col gap-1">
         {row(`${t.player1.name} (${t.player1.playerId})`, describePlayerReport(t.reports.player1))}
         {row(`${t.player2.name} (${t.player2.playerId})`, describePlayerReport(t.reports.player2))}
-        {t.override && row('Override', `${describeOverride(t.override.override, t)} · “${t.override.reason}”`)}
+        {t.override && row('Override', `${describeOverride(t.override.override, t)}${t.override.reason ? ` · “${t.override.reason}”` : ''}`)}
         {t.extraMinutes > 0 && row('Acréscimo', `${String(t.extraMinutes)} min`)}
       </div>
 
@@ -114,7 +111,7 @@ export const TableDetail = ({ api, table: t, admin, started, round, bestOf, onUp
       {started && (
         <form class={`m-0 ${section}`} onSubmit={(e) => {
           e.preventDefault();
-          if (choice) void run(() => api.override(t.table, choice, reason, round), 'Resultado ajustado.');
+          if (choice) void run(() => api.override(t.table, choice, round), 'Resultado ajustado.');
         }}>
           <h3 class="m-0 text-sm font-bold">Ajustar resultado</h3>
           {overrideGroups(t, bestOf ?? 3).map((g) => (
@@ -133,15 +130,7 @@ export const TableDetail = ({ api, table: t, admin, started, round, bestOf, onUp
               </div>
             </div>
           ))}
-          <label class="flex flex-col gap-1 text-xs text-muted">Motivo
-            <input class={small} required value={reason} onInput={(e) => { setReason(e.currentTarget.value); }} placeholder="Por que o resultado mudou" />
-          </label>
-          <div class="flex flex-wrap gap-1.5">
-            {REASONS.map((r) => (
-              <button key={r} type="button" class={`${linkButton} text-xs`} onClick={() => { setReason(r); }}>{r}</button>
-            ))}
-          </div>
-          <button type="submit" class={primary} disabled={busy || !choice || !reason.trim()}>
+          <button type="submit" class={primary} disabled={busy || !choice}>
             {choice ? `Aplicar: ${describeOverride(choice, t)}` : 'Escolha o resultado'}
           </button>
         </form>

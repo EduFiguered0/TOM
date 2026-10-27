@@ -47,10 +47,10 @@ export const seatMessage = (seat: TableSeat, started: boolean): { tone: 'muted' 
     case 'red':
       return seat.redReason === 'timeout'
         ? { tone: 'error', text: 'Tempo esgotado: o juiz vai até a mesa.' }
-        : { tone: 'error', text: 'Os reportes não batem. Confiram juntos e corrijam, ou chamem o juiz.' };
+        : { tone: 'error', text: 'Os reportes não batem. Chamem o juiz.' };
     case 'orange':
       return seat.myReport
-        ? { tone: 'warn', text: 'Seu reporte foi registrado. Aguardando o oponente.' }
+        ? { tone: 'warn', text: 'Resultado enviado. Aguardando o oponente.' }
         : { tone: 'warn', text: 'Seu oponente já reportou. Falta o seu.' };
     case 'gray':
       return started

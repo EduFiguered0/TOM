@@ -149,7 +149,7 @@ const toStored = (event: TournamentEvent) => ({ ...event, createdAt: event.creat
 const localDate = (at: Date) => new Date(at.getTime() + LOCAL_OFFSET_MS).toISOString().slice(0, 10);
 
 /**
- * Evento antigo: sem escala, 30 min, sem código, e encerrado (não bloqueia a criação do próximo).
+ * Evento antigo: sem escala, tempo padrão, sem código, e encerrado (não bloqueia a criação do próximo).
  * "Confirmando presença" (fase extinta) volta a inscrições abertas.
  */
 export const eventFromStored = (stored: StoredEvent): TournamentEvent => {

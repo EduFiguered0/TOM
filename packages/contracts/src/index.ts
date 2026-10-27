@@ -231,7 +231,7 @@ export interface CreateEventRequest {
   label: string;
   /** `YYYY-MM-DD`; ausente = hoje. */
   date?: string;
-  /** Ausente = 30 minutos. */
+  /** Ausente = 50 minutos. */
   roundMinutes?: number;
   /** Juízes escalados (ids de conta); ausente = nenhum. */
   judges: string[];
@@ -393,7 +393,7 @@ export interface ReportRequest {
 
 export interface StartRoundRequest {
   bestOf: 1 | 3;
-  /** null = 30 minutos (padrão da spec). */
+  /** null = tempo do evento (padrão: 50 minutos). */
   roundMinutes: number | null;
 }
 
@@ -470,7 +470,8 @@ export const parseOverrideRequest = (body: unknown): OverrideRequest => {
   const root = object(body, 'Corpo');
   const o = object(root['override'], 'override');
   const kind = field(o, 'kind', 'string');
-  const reason = field(root, 'reason', 'string');
+  // Motivo opcional: ausente vira vazio.
+  const reason = root['reason'] === undefined ? '' : field(root, 'reason', 'string');
   switch (kind) {
     case 'score': return { reason, override: { kind, player1: field(o, 'player1', 'number'), player2: field(o, 'player2', 'number') } };
     case 'intentional_draw':
