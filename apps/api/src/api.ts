@@ -16,6 +16,7 @@ import {
   parseReportRequest,
   parseStartRoundRequest,
   parseSessionRequest,
+  parseSetPaidRequest,
   parseShowOnTvRequest,
   parseUploadRequest,
   type AccountResponse,
@@ -23,6 +24,8 @@ import {
   type EventDto,
   type JoinResponse,
   type MyEventResponse,
+  type MyRegistrationDto,
+  type PlayerEventDto,
   type RegistrationDto,
   type RegistrationsResponse,
   type BoardResponse,
@@ -172,8 +175,16 @@ const toRegistration = (r: Registration, inRound: boolean | null): RegistrationD
   awaitingApproval: r.awaitingApproval,
   launched: r.launched,
   removed: r.removed,
+  paid: r.paid,
   inRound,
 });
+
+/** O jogador vê a própria inscrição sem o pagamento. */
+const ownRegistration = (dto: RegistrationDto): MyRegistrationDto => {
+  const own: Partial<RegistrationDto> = { ...dto };
+  delete own.paid;
+  return own as MyRegistrationDto;
+};
 
 const jsonBody = (request: HttpRequest): unknown => {
   try {
@@ -303,7 +314,7 @@ export const createApi = ({ tokens, emails, accounts, events, ingest, board, rou
       handle: async ({ identity, params: [code = ''] }) => {
         const principal = await accounts.authenticate(identity);
         const { event, registration } = await registrations.join(principal, code);
-        return { status: 200, body: { event: toEvent(event), registration: await registrationOf(registration, event) } satisfies JoinResponse };
+        return { status: 200, body: { event: toEvent(event), registration: ownRegistration(await registrationOf(registration, event)) } satisfies JoinResponse };
       },
     },
     {
@@ -312,7 +323,7 @@ export const createApi = ({ tokens, emails, accounts, events, ingest, board, rou
         const mine = await registrations.mine(await accounts.authenticate(identity));
         const body: MyEventResponse = {
           event: mine ? toEvent(mine.event) : null,
-          registration: mine?.registration ? await registrationOf(mine.registration, mine.event) : null,
+          registration: mine?.registration ? ownRegistration(await registrationOf(mine.registration, mine.event)) : null,
           placement: mine?.registration && !mine.registration.removed ? await placementOf(mine.event, mine.registration.playerId) : null,
         };
         return { status: 200, body };
@@ -426,6 +437,7 @@ export const createApi = ({ tokens, emails, accounts, events, ingest, board, rou
           total: playing.length,
           awaiting: kept.length - playing.length,
           launched: playing.filter((r) => r.launched).length,
+          paid: playing.filter((r) => r.paid).length,
         };
         return { status: 200, body };
       },
@@ -440,15 +452,24 @@ export const createApi = ({ tokens, emails, accounts, events, ingest, board, rou
       },
     },
     {
-      method: 'POST', path: new RegExp(`^/events/${EVENT_ID}/registrations/${ACCOUNT_ID}/(approve|remove|launched)$`),
+      method: 'POST', path: new RegExp(`^/events/${EVENT_ID}/registrations/${ACCOUNT_ID}/(approve|remove|launched|paid)$`),
       handle: async ({ request, identity, params: [id = '', accountId = '', action = ''] }) => {
         const { actor } = await accounts.authenticate(identity);
         const registration = action === 'approve'
           ? await registrations.approve(actor, id, accountId)
           : action === 'remove'
             ? await registrations.remove(actor, id, accountId)
-            : await registrations.setLaunched(actor, id, accountId, parseSetLaunchedRequest(jsonBody(request)).launched);
+            : action === 'paid'
+              ? await registrations.setPaid(actor, id, accountId, parseSetPaidRequest(jsonBody(request)).paid)
+              : await registrations.setLaunched(actor, id, accountId, parseSetLaunchedRequest(jsonBody(request)).launched);
         return { status: 200, body: await registrationOf(registration, await eventById(id)) };
+      },
+    },
+    {
+      method: 'GET', path: new RegExp(`^/accounts/${ACCOUNT_ID}/events$`),
+      handle: async ({ identity, params: [accountId = ''] }) => {
+        const { actor } = await accounts.authenticate(identity);
+        return { status: 200, body: (await registrations.history(actor, accountId)) satisfies PlayerEventDto[] };
       },
     },
     {
