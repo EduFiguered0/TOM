@@ -104,6 +104,13 @@ describe('nome e sobrenome', () => {
     expect(accounts.events.at(-1)).toMatchObject({ type: 'name_confirmed', actor: { role: 'system', source: 'login:login-email' } });
   });
 
+  it('conferir o nome vale uma vez só: depois, recusa', async () => {
+    const { service } = await legacy();
+    await service.confirmName(identity(), { firstName: 'Madonna', lastName: 'Ciccone' });
+    await rejects(service.confirmName(identity(), { firstName: 'Outra', lastName: 'Pessoa' }), 'name_reviewed');
+    await rejects(setup().service.confirmName(identity(), { firstName: 'A', lastName: 'B' }), 'account_not_found');
+  });
+
   it('ativar a sessão não marca o nome como conferido', async () => {
     const { service } = await legacy();
     await service.activateSession(identity({ session: 'celular-2' }), true);

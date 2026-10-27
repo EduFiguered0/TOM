@@ -101,6 +101,7 @@ const STATUS: Record<RejectCode, number> = {
   session_conflict: 409,
   player_id_taken: 409,
   player_id_set: 409,
+  name_reviewed: 409,
   concurrency: 409,
   round_not_paired: 409,
   round_already_started: 409,

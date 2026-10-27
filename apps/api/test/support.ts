@@ -63,7 +63,7 @@ export const setup = () => {
       headers: { ...(token ? { authorization: `Bearer ${token}` } : {}), ...headers },
       body: body === undefined ? null : JSON.stringify(body),
     } satisfies HttpRequest);
-  return { call, accounts, rounds, errors };
+  return { call, accounts, accountRepository, rounds, errors };
 };
 
 export const profile = { firstName: 'Ana', lastName: 'Souza', birthYear: 1990, phone: null, guardianConsent: false };

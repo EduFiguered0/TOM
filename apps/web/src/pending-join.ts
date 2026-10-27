@@ -20,9 +20,12 @@ export const createPendingJoin = (storage: Storage) => ({
       return null;
     }
   },
-  /** Sem Player ID a inscrição seria recusada: o código fica guardado até o jogador informar. */
-  takeIfReady(me: { playerId: string | null }): string | null {
-    return me.playerId ? this.take() : null;
+  /**
+   * Sem Player ID a inscrição seria recusada, e sem conferir o nome ela copiaria o nome separado automaticamente:
+   * o código fica guardado até o jogador resolver os dois.
+   */
+  takeIfReady(me: { playerId: string | null; nameReviewed: boolean }): string | null {
+    return me.playerId && me.nameReviewed ? this.take() : null;
   },
 });
 

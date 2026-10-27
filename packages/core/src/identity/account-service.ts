@@ -167,15 +167,18 @@ export class AccountService {
     return { account, actor: actorFor(account, identity.groups) };
   }
 
-  /** Conta antiga confere o nome separado automaticamente (ou corrige nome e sobrenome). */
+  /** Conta antiga confere o nome separado automaticamente (ou corrige nome e sobrenome), uma vez só. */
   async confirmName(identity: Identity, input: { firstName: string; lastName: string }): Promise<Account> {
     const name = validated(() => validName(input));
     const { account } = await this.resolve(identity);
-    return this.execute(account.id, (current) => ({
-      actor: self(identity),
-      account: { ...current, profile: { ...current.profile, ...name }, nameReviewed: true },
-      data: { type: 'name_confirmed' },
-    }));
+    return this.execute(account.id, (current) => {
+      if (current.nameReviewed) throw new CommandRejected('name_reviewed', 'Seu nome já foi conferido. Para corrigir, procure o ADM.');
+      return {
+        actor: self(identity),
+        account: { ...current, profile: { ...current.profile, ...name }, nameReviewed: true },
+        data: { type: 'name_confirmed' },
+      };
+    });
   }
 
   /** Conta sem Player ID informa depois. Para trocar um Player ID já cadastrado, só pelo ADM. */

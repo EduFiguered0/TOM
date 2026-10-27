@@ -21,14 +21,18 @@ describe('API', () => {
     expect((await call('GET', '/me', 'ana-email:s1')).status).toBe(200);
   });
 
-  it('POST /me/name grava o nome conferido; sem sobrenome dá 400; sem login, 401', async () => {
-    const { call } = setup();
-    await register(call, 'ana-email:s1');
+  it('POST /me/name: conta antiga confere uma vez (sem sobrenome, 400; de novo, 409; sem login, 401)', async () => {
+    const { call, accountRepository: accounts } = setup();
+    const id = await register(call, 'ana-email:s1');
+    const record = await accounts.get(id);
+    if (!record) throw new Error('conta não gravada');
+    await accounts.save({ ...record.account, nameReviewed: false }, [], record.version);
+    expect((await call('POST', '/me/name', 'ana-email:s1', { firstName: 'Ana', lastName: '' })).status).toBe(400);
+    expect((await call('POST', '/me/name', 'ana-email:s1', { firstName: 'Ana' })).status).toBe(400);
     expect(await call('POST', '/me/name', 'ana-email:s1', { firstName: 'Ana', lastName: 'Lima' })).toMatchObject({
       status: 200, body: { profile: { firstName: 'Ana', lastName: 'Lima' }, nameReviewed: true },
     });
-    expect((await call('POST', '/me/name', 'ana-email:s1', { firstName: 'Ana', lastName: '' })).status).toBe(400);
-    expect((await call('POST', '/me/name', 'ana-email:s1', { firstName: 'Ana' })).status).toBe(400);
+    expect(await call('POST', '/me/name', 'ana-email:s1', { firstName: 'Outra', lastName: 'Pessoa' })).toMatchObject({ status: 409, body: { error: 'name_reviewed' } });
     expect((await call('POST', '/me/name', null, { firstName: 'Ana', lastName: 'Lima' })).status).toBe(401);
   });
 
