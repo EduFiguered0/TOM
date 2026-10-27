@@ -4,6 +4,8 @@ export type RejectCode =
   | 'round_not_paired'
   | 'round_already_started'
   | 'round_not_started'
+  | 'round_running'
+  | 'nothing_to_extend'
   | 'table_not_found'
   | 'not_your_table'
   | 'side_required'

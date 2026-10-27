@@ -135,20 +135,40 @@ describe('reportes', () => {
 });
 
 describe('tempo, override e key', () => {
-  it('fim do tempo deixa vermelho; acréscimo dá prazo próprio à mesa', async () => {
+  it('acréscimo da rodada: só depois do tempo, só nas mesas sem resultado, e soma a cada clique', async () => {
     const { service, clock } = await startedRound();
-    await service.extendTime(actors.judge, ref, { table: 2, minutes: 5 });
+    await rejects(service.extendRound(actors.judge, ref, { minutes: 5 }), 'round_running');
+    await service.applyOverride(actors.judge, ref, { table: 1, override: { kind: 'double_game_loss' } });
     clock.advance(51);
-    const state = await service.state(ref);
-    expect(state.tables.map((t) => t.status.color)).toEqual(['red', 'gray']);
-    clock.advance(5);
+    expect((await service.state(ref)).tables.map((t) => t.status.color)).toEqual(['green', 'red']);
+    let state = await service.extendRound(actors.judge, ref, { minutes: 5 });
+    expect(state.tables.map((t) => [t.table, t.extraMinutes, t.status.color])).toEqual([[1, 0, 'green'], [2, 5, 'gray']]);
+    state = await service.extendRound(actors.admin, ref, { minutes: 3 });
+    expect(state.tables[1]?.deadline).toEqual(new Date('2026-10-23T14:58:00Z'));
+    clock.advance(8);
     expect((await service.state(ref)).tables[1]?.status).toEqual({ color: 'red', reason: 'timeout' });
+    expect((await service.state(ref)).extension).toEqual({ minutes: 8, turns: null });
   });
 
-  it('acréscimo só por juiz/ADM e com minutos válidos', async () => {
-    const { service } = await startedRound();
-    await rejects(service.extendTime(actors.p1, ref, { table: 1, minutes: 5 }), 'forbidden');
-    await rejects(service.extendTime(actors.judge, ref, { table: 1, minutes: 0 }), 'invalid_input');
+  it('turnos extras: sem relógio, a mesa não fica vermelha por tempo e espera o reporte', async () => {
+    const { service, clock } = await startedRound();
+    clock.advance(51);
+    const state = await service.extendRound(actors.judge, ref, { turns: 5 });
+    expect(state.tables.map((t) => [t.extraTurns, t.deadline, t.status.color])).toEqual([[5, null, 'gray'], [5, null, 'gray']]);
+    expect(state.extension).toEqual({ minutes: 0, turns: 5 });
+    clock.advance(60);
+    expect((await service.state(ref)).tables.map((t) => t.status.color)).toEqual(['gray', 'gray']);
+  });
+
+  it('acréscimo só por juiz/ADM, com valor válido e com alguma mesa sem resultado', async () => {
+    const { service, clock } = await startedRound();
+    clock.advance(51);
+    await rejects(service.extendRound(actors.p1, ref, { minutes: 5 }), 'forbidden');
+    await rejects(service.extendRound(actors.judge, ref, { minutes: 0 }), 'invalid_input');
+    await rejects(service.extendRound(actors.judge, ref, { turns: 1.5 }), 'invalid_input');
+    await service.applyOverride(actors.judge, ref, { table: 1, override: { kind: 'double_game_loss' } });
+    await service.applyOverride(actors.judge, ref, { table: 2, override: { kind: 'double_game_loss' } });
+    await rejects(service.extendRound(actors.judge, ref, { minutes: 5 }), 'nothing_to_extend');
   });
 
   it('override do juiz deixa verde e grava autor e motivo', async () => {

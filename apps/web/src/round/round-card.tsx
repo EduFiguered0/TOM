@@ -85,6 +85,9 @@ export const RoundCard = ({ api, me }: { api: Api; me: { photo: string | null; n
         <span class="text-3xl font-extrabold">Mesa {seat.table}</span>
         {clock.state === 'running' && <span class={`text-2xl font-bold tabular-nums ${clock.warning ? 'text-warn' : ''}`}>{clock.text}</span>}
         {clock.state === 'over' && seat.color !== 'green' && <span class="text-lg font-bold text-error">Tempo esgotado</span>}
+        {seat.extraTurns !== null && seat.color !== 'green' && (
+          <span class="text-lg font-bold text-warn">Tempo esgotado · {seat.extraTurns} turnos extras</span>
+        )}
       </div>
       <div class="flex items-center gap-2 text-lg">
         <Avatar photo={me.photo} name={me.name} cache={photos} class="size-8 text-[2rem]" />você <span class="text-muted">x</span>

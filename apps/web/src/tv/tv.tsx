@@ -1,6 +1,6 @@
 import type { RoundBoard, TableColor } from '@tom/contracts';
 import { useEffect, useMemo, useState } from 'preact/hooks';
-import { clockSkew, joinUrl, pages, roundClock, tvColumns } from './board.js';
+import { clockSkew, extensionClock, joinUrl, pages, roundClock, tvColumns } from './board.js';
 import { Avatar } from '../photo/avatar.js';
 import type { PhotoCache } from '../photo/photo-cache.js';
 import { Qr } from './qr.js';
@@ -64,6 +64,14 @@ export const Tv = ({ board, receivedAt, photos = null }: { board: RoundBoard & {
   const rows = layout.columns === 1 ? Math.min(layout.perColumn, Math.max(current.length, 8)) : layout.perColumn;
   const size = SIZE[layout.columns];
   const clock = roundClock(board, now, skew);
+  const extension = clock.state === 'over' ? extensionClock(board, now, skew) : { kind: 'none' as const };
+  /** Mesa em acréscimo ainda sem resultado: o próprio prazo, ou os turnos. */
+  const extra = (t: Table): string | null => {
+    if (clock.state !== 'over' || t.color === 'green') return null;
+    if (t.extraTurns !== null) return `${String(t.extraTurns)} turnos`;
+    const own = roundClock({ endsAt: t.deadline }, now, skew);
+    return own.state === 'running' ? own.text : null;
+  };
 
   useEffect(() => {
     const tick = setInterval(() => { setNow(Date.now()); }, 1000);
@@ -78,10 +86,12 @@ export const Tv = ({ board, receivedAt, photos = null }: { board: RoundBoard & {
           <div class={eventTitle}>{board.tournament}</div>
           <div class="text-[1.6vw] text-muted">Rodada {board.round} · {board.division}</div>
         </div>
-        <div class={`font-extrabold tracking-wider tabular-nums ${CLOCK[clock.state === 'running' && clock.warning ? 'warning' : clock.state]}`}>
+        <div class={`font-extrabold tracking-wider tabular-nums ${extension.kind === 'none' ? CLOCK[clock.state === 'running' && clock.warning ? 'warning' : clock.state] : CLOCK.warning}`}>
           {clock.state === 'waiting' && 'Aguardando início'}
           {clock.state === 'running' && clock.text}
-          {clock.state === 'over' && 'Tempo esgotado'}
+          {extension.kind === 'minutes' && <><span class="text-[2.6vw]">Acréscimo </span>{extension.text}</>}
+          {extension.kind === 'turns' && <span class="text-[2.6vw]">Turnos extras</span>}
+          {clock.state === 'over' && extension.kind === 'none' && 'Tempo esgotado'}
         </div>
       </header>
 
@@ -116,6 +126,7 @@ export const Tv = ({ board, receivedAt, photos = null }: { board: RoundBoard & {
                       <Avatar photo={t.photo2} name={t.player2} cache={photos} class="size-[1.15em] text-[1.15em]" />
                     </span>
                   )}
+                {extra(t) && <span class="shrink-0 text-[1.1vw] font-bold tabular-nums text-orange">{extra(t)}</span>}
                 <span class={`size-[1vw] shrink-0 rounded-full ${DOT[t.color]}`} aria-label={LABEL[t.color]} />
               </li>
             );

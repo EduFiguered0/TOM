@@ -47,12 +47,11 @@ const overrideGroups = (t: PanelTable, bestOf: 1 | 3): { title: string; options:
 const section = 'flex flex-col gap-2 border-t border-line pt-3';
 const small = `${field} py-1.5`;
 
-/** Mesa escolhida: reportes, override vigente e as ações (override, key lançada, acréscimo, reporte por jogador). */
+/** Mesa escolhida: reportes, override vigente e as ações (override, key lançada, reporte por jogador). O acréscimo é da rodada. */
 export const TableDetail = ({ api, table: t, admin, started, round, bestOf, onUpdate }: Props) => {
   const [message, setMessage] = useState<{ ok: boolean; text: string } | null>(null);
   const [busy, setBusy] = useState(false);
   const [choice, setChoice] = useState<OverrideDto | null>(null);
-  const [minutes, setMinutes] = useState('5');
   const [side, setSide] = useState<'player1' | 'player2'>('player1');
   const [pending, setPending] = useState<ReportOption | null>(null);
 
@@ -94,6 +93,7 @@ export const TableDetail = ({ api, table: t, admin, started, round, bestOf, onUp
         {row(`${t.player2.name} (${t.player2.playerId})`, describePlayerReport(t.reports.player2))}
         {t.override && row('Override', `${describeOverride(t.override.override, t)}${t.override.reason ? ` · “${t.override.reason}”` : ''}`)}
         {t.extraMinutes > 0 && row('Acréscimo', `${String(t.extraMinutes)} min`)}
+        {t.extraTurns !== null && row('Turnos extras', String(t.extraTurns))}
       </div>
 
       {t.tomKey && (
@@ -133,16 +133,6 @@ export const TableDetail = ({ api, table: t, admin, started, round, bestOf, onUp
           <button type="submit" class={primary} disabled={busy || !choice}>
             {choice ? `Aplicar: ${describeOverride(choice, t)}` : 'Escolha o resultado'}
           </button>
-        </form>
-      )}
-
-      {started && !t.keyLaunched && (
-        <form class={`m-0 ${section}`} onSubmit={(e) => { e.preventDefault(); void run(() => api.extend(t.table, Number(minutes), round), 'Acréscimo lançado.'); }}>
-          <h3 class="m-0 text-sm font-bold">Acréscimo de tempo</h3>
-          <div class="flex items-center gap-2">
-            <input class={`${small} w-20`} aria-label="Minutos" inputmode="numeric" value={minutes} onInput={(e) => { setMinutes(e.currentTarget.value); }} />
-            <button type="submit" class={`${ghost} whitespace-nowrap`} disabled={busy}>Somar minutos</button>
-          </div>
         </form>
       )}
 

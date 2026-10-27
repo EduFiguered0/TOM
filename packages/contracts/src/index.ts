@@ -149,13 +149,17 @@ export interface RoundBoard {
   round: number;
   /** null antes de o ADM iniciar a rodada. */
   startedAt: string | null;
-  /** Fim do tempo da rodada (sem acréscimos de mesa). */
+  /** Fim do tempo da rodada (sem acréscimos). */
   endsAt: string | null;
+  /** Acréscimo da rodada (null: nenhum): a TV conta o prazo das mesas em acréscimo ou mostra os turnos. */
+  extension: RoundExtensionDto | null;
   /** `result`: só com a mesa verde (vencedor, empate ou derrota dupla); nunca o placar. */
   /** `photo1`/`photo2`: chave da foto visível (null = avatar genérico). */
   tables: {
     table: number; player1: string; player2: string; color: TableColor; result: 'player1' | 'player2' | 'tie' | 'double_loss' | null;
     photo1: string | null; photo2: string | null;
+    /** Prazo da mesa (com acréscimo); null antes do início ou em turnos extras. */
+    deadline: string | null; extraTurns: number | null;
   }[];
   byes: string[];
   /** Momento em que o servidor montou a resposta; a TV corrige o relógio local por ele. */
@@ -434,8 +438,10 @@ export type SeatDto =
       kind: 'table';
       table: number;
       opponent: string;
-      /** Prazo desta mesa (rodada + acréscimo); null antes de a rodada começar. */
+      /** Prazo desta mesa (rodada + acréscimo); null antes de a rodada começar ou em turnos extras. */
       deadline: string | null;
+      /** Turnos extras depois do tempo (null: mesa no relógio). */
+      extraTurns: number | null;
       color: TableColor;
       redReason: RedReasonDto | null;
       myReport: ReportDto | null;
@@ -500,6 +506,8 @@ export interface PanelTable {
   reports: { player1: ReportDto | null; player2: ReportDto | null };
   override: { override: OverrideDto; reason: string; by: string; at: string } | null;
   extraMinutes: number;
+  /** Turnos extras em vez de relógio (null: mesa no relógio). */
+  extraTurns: number | null;
   deadline: string | null;
   /** Key a lançar no TOM (mesa verde). null: sem resultado ainda, ou DGL (lançado à mão no TOM). */
   tomKey: { label: string; code: string } | null;
@@ -518,6 +526,8 @@ export interface PanelResponse {
     tables: PanelTable[];
     byes: string[];
     counts: Record<TableColor, number>;
+    /** Acréscimo da rodada: minutos somados e turnos em vigor (null: nenhum). */
+    extension: RoundExtensionDto | null;
     allGreen: boolean;
     /** Todas as keys lançadas: a próxima rodada pode começar. */
     closed: boolean;
@@ -530,7 +540,9 @@ export interface PanelResponse {
 }
 
 export interface OverrideRequest { override: OverrideDto; reason: string }
-export interface ExtendRequest { minutes: number }
+/** Acréscimo da rodada: minutos (padrão 5) ou turnos extras (padrão 5) para as mesas sem resultado. */
+export type ExtendRequest = { minutes: number } | { turns: number };
+export interface RoundExtensionDto { minutes: number; turns: number | null }
 export interface StaffReportRequest { side: 'player1' | 'player2'; report: ReportDto }
 
 const side = (value: string): 'player1' | 'player2' => {
@@ -553,7 +565,10 @@ export const parseOverrideRequest = (body: unknown): OverrideRequest => {
   }
 };
 
-export const parseExtendRequest = (body: unknown): ExtendRequest => ({ minutes: field(object(body, 'Corpo'), 'minutes', 'number') });
+export const parseExtendRequest = (body: unknown): ExtendRequest => {
+  const root = object(body, 'Corpo');
+  return root['turns'] === undefined ? { minutes: field(root, 'minutes', 'number') } : { turns: field(root, 'turns', 'number') };
+};
 
 export const parseStaffReportRequest = (body: unknown): StaffReportRequest => ({
   side: side(field(object(body, 'Corpo'), 'side', 'string')),

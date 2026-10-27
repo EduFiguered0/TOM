@@ -136,12 +136,25 @@ describe('painel do ADM e do juiz', () => {
     expect((await call('GET', '/panel/rounds/0', ADM)).body).toMatchObject({ error: 'round_not_paired' });
   });
 
-  it('acréscimo de tempo e reporte em nome do jogador sem celular (só ADM)', async () => {
+  it('acréscimo da rodada (juiz ou ADM): só depois do tempo, para as mesas sem resultado', async () => {
+    const { start, table1, call, panel, advance, me } = await withPanel();
+    await start();
+    expect((await call('POST', '/panel/extend', JUIZ, { minutes: 5 })).body).toMatchObject({ error: 'round_running' });
+    advance(51);
+    expect((await call('POST', '/panel/extend', JUIZ, { minutes: 5 })).status).toBe(200);
+    expect((await table1())?.extraMinutes).toBe(5);
+    expect((await panel()).round?.extension).toEqual({ minutes: 5, turns: null });
+    expect((await call('POST', '/panel/extend', ADM, { minutes: 0 })).status).toBe(400);
+    expect((await call('POST', '/panel/extend', ADM, { turns: 5 })).status).toBe(200);
+    expect(await table1()).toMatchObject({ extraTurns: 5, deadline: null });
+    // O jogador vê os turnos extras no lugar do relógio.
+    expect((await me('p1:c1')).round?.seat).toMatchObject({ kind: 'table', table: 1, extraTurns: 5, deadline: null });
+    expect((await call('POST', '/panel/extend', 'p1:c1', { minutes: 5 })).status).toBe(403);
+  });
+
+  it('reporte em nome do jogador sem celular (só ADM)', async () => {
     const { start, table1, act } = await withPanel();
     await start();
-    expect((await act('extend', { minutes: 5 }, JUIZ)).status).toBe(200);
-    expect((await table1())?.extraMinutes).toBe(5);
-    expect((await act('extend', { minutes: 0 })).status).toBe(400);
     expect((await act('report', { side: 'player2', report: { kind: 'score', own: 0, opponent: 2 } }, JUIZ)).status).toBe(403);
     expect((await act('report', { side: 'player2', report: { kind: 'score', own: 0, opponent: 2 } })).status).toBe(200);
     expect((await table1())?.reports.player2).toEqual({ kind: 'score', own: 0, opponent: 2 });

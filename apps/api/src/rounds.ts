@@ -47,6 +47,7 @@ const seatOf = (state: RoundState, actor: Actor | null, opponentPhoto: string | 
     table: table.table,
     opponent: table[other].name,
     deadline: table.deadline?.toISOString() ?? null,
+    extraTurns: table.extraTurns,
     color: table.status.color,
     redReason: table.status.color === 'red' ? table.status.reason : null,
     myReport: table.reports[side] ?? null,

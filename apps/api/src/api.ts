@@ -126,6 +126,8 @@ const STATUS: Record<RejectCode, number> = {
   round_not_paired: 409,
   round_already_started: 409,
   round_not_started: 409,
+  round_running: 409,
+  nothing_to_extend: 409,
   side_required: 400,
   table_locked: 409,
   not_green: 409,
@@ -757,11 +759,11 @@ export const createApi = ({ tokens, emails, accounts, events, ingest, board, rou
       },
     },
     {
-      method: 'POST', path: tableRoute('extend'),
-      handle: async ({ request, identity, params: [round, table = ''] }) => {
-        const { minutes } = parseExtendRequest(jsonBody(request));
+      method: 'POST', path: new RegExp(String.raw`${ROUND}\/extend$`),
+      handle: async ({ request, identity, params: [round] }) => {
+        const extra = parseExtendRequest(jsonBody(request));
         const actor = await staff(identity);
-        return respond(await rounds.extendTime(actor, await roundRef(round), { table: Number(table), minutes }));
+        return respond(await rounds.extendRound(actor, await roundRef(round), extra));
       },
     },
     {

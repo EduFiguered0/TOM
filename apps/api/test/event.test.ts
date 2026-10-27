@@ -165,6 +165,6 @@ describe('rodada de evento encerrado ou cancelado', () => {
     expect((await ctx.me('p1:c1')).round).toBeNull();
     expect(await ctx.report('p1:c1', { kind: 'score', own: 2, opponent: 1 })).toMatchObject({ status: 409, body: { error: 'round_not_paired' } });
     expect((await ctx.call('GET', '/panel', ADM)).body).toMatchObject({ round: null });
-    expect((await ctx.call('POST', '/panel/tables/1/extend', ADM, { minutes: 5 })).status).toBe(409);
+    expect((await ctx.call('POST', '/panel/extend', ADM, { minutes: 5 })).status).toBe(409);
   });
 });

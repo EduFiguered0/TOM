@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { clockSkew, joinUrl, pages, qrPath, roundClock, tvColumns } from '../src/tv/board.js';
+import { clockSkew, extensionClock, joinUrl, pages, qrPath, roundClock, tvColumns } from '../src/tv/board.js';
 
 const endsAt = '2026-10-24T15:30:00.000Z';
 const at = (iso: string) => Date.parse(iso);
@@ -21,6 +21,28 @@ describe('cronômetro da TV', () => {
 
   it('tempo esgotado', () => {
     expect(roundClock({ endsAt }, at('2026-10-24T15:30:00Z'), 0)).toEqual({ state: 'over' });
+  });
+});
+
+describe('acréscimo na TV', () => {
+  const table = (over: Partial<{ color: 'gray' | 'green' | 'red' | 'orange'; deadline: string | null; extraTurns: number | null }>) =>
+    ({ color: 'gray' as const, deadline: endsAt, extraTurns: null, ...over });
+
+  it('sem acréscimo, ou com todas as mesas em acréscimo já resolvidas: nada', () => {
+    expect(extensionClock({ extension: null, tables: [table({})] }, at('2026-10-24T15:31:00Z'), 0)).toEqual({ kind: 'none' });
+    const done = { extension: { minutes: 5, turns: null }, tables: [table({ color: 'green', deadline: '2026-10-24T15:35:00.000Z' })] };
+    expect(extensionClock(done, at('2026-10-24T15:31:00Z'), 0)).toEqual({ kind: 'none' });
+  });
+
+  it('minutos: conta até o prazo mais distante entre as mesas sem resultado', () => {
+    const board = { extension: { minutes: 5, turns: null }, tables: [table({ deadline: '2026-10-24T15:35:00.000Z' }), table({ color: 'green' })] };
+    expect(extensionClock(board, at('2026-10-24T15:31:00Z'), 0)).toEqual({ kind: 'minutes', text: '04:00' });
+    expect(extensionClock(board, at('2026-10-24T15:35:00Z'), 0)).toEqual({ kind: 'none' });
+  });
+
+  it('turnos: mesas sem resultado jogando por turnos', () => {
+    const board = { extension: { minutes: 0, turns: 5 }, tables: [table({ deadline: null, extraTurns: 5 })] };
+    expect(extensionClock(board, at('2026-10-24T15:40:00Z'), 0)).toEqual({ kind: 'turns', turns: 5 });
   });
 });
 
