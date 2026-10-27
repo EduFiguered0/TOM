@@ -1,4 +1,4 @@
-import { displayName, type AccountResponse } from '@tom/contracts';
+import type { TeamMemberDto } from '@tom/contracts';
 import { useEffect, useState } from 'preact/hooks';
 import type { Api } from '../api.js';
 import { box, Feedback, field, ghost, linkButton } from '../ui.js';
@@ -6,8 +6,8 @@ import { box, Feedback, field, ghost, linkButton } from '../ui.js';
 /** Equipe do ADM: busca a conta por nome ou Player ID e marca ou tira o juiz. */
 export const TeamCard = ({ api }: { api: Api }) => {
   const [query, setQuery] = useState('');
-  const [results, setResults] = useState<AccountResponse[] | null>(null);
-  const [judges, setJudges] = useState<AccountResponse[]>([]);
+  const [results, setResults] = useState<TeamMemberDto[] | null>(null);
+  const [judges, setJudges] = useState<TeamMemberDto[]>([]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -34,7 +34,7 @@ export const TeamCard = ({ api }: { api: Api }) => {
     });
   };
 
-  const toggle = (account: AccountResponse) => {
+  const toggle = (account: TeamMemberDto) => {
     void run(async () => {
       const result = await api.setJudge(account.id, !account.judge);
       if (!result.ok) { setError(result.error.message); return; }
@@ -43,9 +43,9 @@ export const TeamCard = ({ api }: { api: Api }) => {
     });
   };
 
-  const row = (account: AccountResponse) => (
+  const row = (account: TeamMemberDto) => (
     <tr key={account.id} class="border-b border-line">
-      <td class="py-2 pr-2 font-semibold">{displayName(account.profile)}</td>
+      <td class="py-2 pr-2 font-semibold">{account.firstName}</td>
       <td class="py-2 pr-2 text-muted">{account.playerId ?? 'sem Player ID'}</td>
       <td class="py-2 pr-2 text-muted">{account.email}</td>
       <td class="py-2 text-right">

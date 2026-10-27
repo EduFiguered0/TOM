@@ -41,6 +41,7 @@ export interface AccountServiceDeps {
 
 const MAX_ATTEMPTS = 3;
 const SEARCH_LIMIT = 20;
+const PLAYERS_LIMIT = 200;
 
 /** Sem acento e em minúsculas, para comparar nomes. */
 const fold = (text: string) => text.normalize('NFD').replace(/\p{M}/gu, '').toLowerCase();
@@ -232,6 +233,22 @@ export class AccountService {
     const wanted = fold(text);
     const match = /^\d+$/.test(text) ? (a: Account) => a.playerId === text : (a: Account) => fold(fullName(a.profile)).includes(wanted);
     return byName((await this.deps.accounts.all()).filter(match)).slice(0, SEARCH_LIMIT);
+  }
+
+  /**
+   * Guia Jogadores: todos em ordem alfabética, ou a busca sobre os dados completos (a API mascara a resposta).
+   * Só dígitos = Player ID que começa com o texto; senão parte do nome completo ou do e-mail.
+   */
+  async players(actor: Actor | null, query: string): Promise<Account[]> {
+    requireAdmin(actor);
+    const text = query.trim();
+    const wanted = fold(text);
+    const match = !text
+      ? () => true
+      : /^\d+$/.test(text)
+        ? (a: Account) => a.playerId?.startsWith(text) === true
+        : (a: Account) => fold(fullName(a.profile)).includes(wanted) || a.email.includes(text.toLowerCase());
+    return byName((await this.deps.accounts.all()).filter(match)).slice(0, PLAYERS_LIMIT);
   }
 
   /** Juízes da equipe, para o ADM escalar no evento. */

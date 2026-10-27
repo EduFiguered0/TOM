@@ -1,4 +1,4 @@
-import { displayName, type AccountResponse, type EventDto } from '@tom/contracts';
+import type { EventDto, TeamMemberDto } from '@tom/contracts';
 import { useEffect, useState } from 'preact/hooks';
 import type { Api } from '../api.js';
 import { field, ghost, ok, primary } from '../ui.js';
@@ -9,7 +9,7 @@ const label = 'flex flex-col gap-1 text-xs text-muted';
 
 /** Caixas dos juízes da equipe: na criação e na edição do evento. */
 const JudgesField = ({ team, chosen, onChange, disabled = false }: {
-  team: AccountResponse[]; chosen: string[]; onChange: (ids: string[]) => void; disabled?: boolean;
+  team: TeamMemberDto[]; chosen: string[]; onChange: (ids: string[]) => void; disabled?: boolean;
 }) => (
   <fieldset class="m-0 flex flex-col gap-1 border-0 p-0">
     <legend class="mb-1 text-xs text-muted">Juízes escalados</legend>
@@ -19,7 +19,7 @@ const JudgesField = ({ team, chosen, onChange, disabled = false }: {
         <label class="flex items-center gap-2 text-sm text-text" key={j.id}>
           <input type="checkbox" class="size-4 accent-accent" checked={chosen.includes(j.id)} disabled={disabled}
             onChange={(e) => { onChange(e.currentTarget.checked ? [...chosen, j.id] : chosen.filter((x) => x !== j.id)); }} />
-          {displayName(j.profile)}
+          {j.firstName} <span class="text-muted">{j.playerId}</span>
         </label>
       ))}
   </fieldset>
@@ -34,7 +34,7 @@ interface Props {
 
 /** Bloco Configuração da aba Evento: cria o evento, ou edita tempo e juízes e cancela. */
 export const EventConfig = ({ api, event, reload }: Props) => {
-  const [team, setTeam] = useState<AccountResponse[]>([]);
+  const [team, setTeam] = useState<TeamMemberDto[]>([]);
   const [name, setName] = useState('');
   const [date, setDate] = useState(today());
   const [minutes, setMinutes] = useState('50');

@@ -7,7 +7,7 @@ import { usePanel } from '../panel/use-panel.js';
 import { STORE } from '../public/store.js';
 import { RegistrationsTable, useRegistrations } from '../screens/registrations.js';
 import { TeamCard } from '../screens/team.js';
-import { UnlinkCard } from '../screens/unlink.js';
+import { PlayersTab } from '../screens/players.js';
 import { useTomFolder } from '../tom-folder/use-tom-folder.js';
 import { EventTab } from './event-tab.js';
 import { FolderDot } from './folder-box.js';
@@ -101,7 +101,7 @@ export const AdminShell = ({ api, me, onSignOut }: Props) => {
             ? <section class={`${box} flex-1`} aria-label="Inscritos"><RegistrationsTable api={api} event={event} registrations={registrations} /></section>
             : <p class="m-0 text-sm text-muted">Sem evento ativo.</p>)}
           {tab === 'equipe' && <TeamCard api={api} />}
-          {tab === 'jogadores' && <UnlinkCard api={api} />}
+          {tab === 'jogadores' && <PlayersTab api={api} />}
         </main>
       </div>
     </div>

@@ -127,7 +127,7 @@ describe('API real (TomApiTest)', () => {
     expect(await call('POST', '/me', other, { profile, playerId })).toMatchObject({ status: 409, body: { error: 'player_id_taken' } });
     expect((await call('POST', '/me', other, { profile, playerId: null })).status).toBe(201);
     expect((await call('GET', `/player-ids/${playerId}`, player)).status).toBe(403);
-    expect(await call('GET', `/player-ids/${playerId}`, adm)).toMatchObject({ status: 200, body: { email, playerId } });
+    expect(await call('GET', `/player-ids/${playerId}`, adm)).toMatchObject({ status: 200, body: { email: `${email.slice(0, 3)}•••${email.slice(email.indexOf('@'))}`, playerId } });
     expect(await call('POST', `/player-ids/${playerId}/unlink`, adm)).toMatchObject({ status: 200, body: { playerId: null } });
     expect(await call('GET', '/me', player)).toMatchObject({ status: 200, body: { canAct: false, playerId: null } });
     // A trava saiu de verdade no DynamoDB: o dono cadastra o mesmo Player ID.

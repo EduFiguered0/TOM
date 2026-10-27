@@ -294,6 +294,21 @@ export interface RegistrationsResponse {
 /** A própria inscrição, como o jogador vê: sem o pagamento (só o ADM vê). */
 export type MyRegistrationDto = Omit<RegistrationDto, 'paid'>;
 
+/** Linha da guia Jogadores, mascarada no servidor: o ADM reconhece a pessoa sem receber e-mail, telefone ou sobrenome. */
+export interface PlayerRowDto {
+  id: string;
+  playerId: string | null;
+  /** Só o primeiro nome. */
+  firstName: string;
+  /** `duk•••@gmail.com`. */
+  email: string;
+  /** `•••• 1234`; null sem telefone. */
+  phone: string | null;
+}
+
+/** Conta na guia Equipe (busca, juízes, escala): mascarada como na guia Jogadores, com a marca de juiz. */
+export type TeamMemberDto = PlayerRowDto & { judge: boolean };
+
 /** Um evento no cadastro do jogador (só o ADM vê). */
 export interface PlayerEventDto {
   eventId: string;
