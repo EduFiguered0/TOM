@@ -12,7 +12,7 @@ import {
 const event = (): TournamentEvent => ({
   id: randomUUID(), label: 'Liga', tournament: null, tokenHash: randomUUID().replace(/-/g, ''), revoked: false,
   createdAt: new Date('2026-10-24T13:00:00Z'), createdBy: 'adm', judges: [], date: '2026-10-24', roundMinutes: 30,
-  status: 'open', code: null, standings: null,
+  status: 'open', code: null, standings: null, partial: null, onTv: false,
 });
 
 const registration = (eventId: string, at: string, accountId = randomUUID()): Registration => ({

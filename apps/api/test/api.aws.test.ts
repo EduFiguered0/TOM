@@ -200,8 +200,9 @@ describe('API real (TomApiTest)', () => {
       return {
         tournament: 'FODASE', report, fileName: `FODASE${report}.html`, content,
         sha256: createHash('sha256').update(content).digest('hex'),
-        // Versão nova a cada execução: o S3 de teste guarda as anteriores por 1 dia.
-        modifiedAt: new Date().toISOString(),
+        // Versão nova a cada execução (o S3 de teste guarda as anteriores por 1 dia), um minuto à frente: o servidor
+        // ignora arquivo de antes da criação do evento, e o relógio local pode estar uma fração de segundo atrás do dele.
+        modifiedAt: new Date(Date.now() + 60_000).toISOString(),
       };
     };
     expect((await call('POST', '/events/active/uploads', player, body('pairings'))).status).toBe(403);

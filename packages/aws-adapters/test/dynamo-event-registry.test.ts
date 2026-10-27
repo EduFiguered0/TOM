@@ -18,4 +18,9 @@ describe('evento lido do DynamoDB', () => {
     const stored = { id: 'ev', label: 'Liga', tournament: null, tokenHash: 'h', revoked: false, createdAt: '2026-10-24T13:00:00.000Z', createdBy: 'adm' };
     expect(fromStored({ ...stored, status: 'confirming' } as never).status).toBe('open');
   });
+
+  it('evento de antes da TV nova: sem classificação parcial e fora da TV', () => {
+    const stored = { id: 'ev', label: 'Liga', tournament: null, tokenHash: 'h', revoked: false, createdAt: '2026-10-24T13:00:00.000Z', createdBy: 'adm' };
+    expect(fromStored(stored as never)).toMatchObject({ partial: null, onTv: false });
+  });
 });

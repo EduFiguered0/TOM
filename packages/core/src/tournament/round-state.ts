@@ -93,6 +93,8 @@ export const projectRound = (ref: RoundRef, events: readonly RoundEvent[], now: 
     );
     return { ...t, deadline, status };
   });
+  // Ordem crescente pelo número da mesa, seja qual for a ordem do arquivo do TOM: painel e TV nunca embaralham.
+  projected.sort((a, b) => a.table - b.table);
 
   return {
     ref,

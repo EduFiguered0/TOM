@@ -88,7 +88,7 @@ describe('ciclo do evento pela API', () => {
     expect(await call('PATCH', `/events/${event.id}`, ADM, { roundMinutes: 50 })).toMatchObject({ status: 200, body: { roundMinutes: 50 } });
     expect(await call('POST', `/events/${event.id}/close`, ADM)).toMatchObject({ status: 409, body: { message: 'O evento só encerra depois do resultado final do TOM' } });
     expect(await call('POST', `/events/${event.id}/cancel`, ADM)).toMatchObject({ status: 200, body: { status: 'cancelled' } });
-    expect((await call('GET', '/events/active', ADM)).body).toEqual({ event: null });
+    expect((await call('GET', '/events/active', ADM)).body).toMatchObject({ event: null, last: { label: 'Liga de Outubro', canShow: false, onTv: false } });
     expect((await call('POST', '/events', ADM, { label: 'Próximo' })).status).toBe(201);
   });
 });

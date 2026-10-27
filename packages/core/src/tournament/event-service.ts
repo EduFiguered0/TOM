@@ -103,6 +103,8 @@ export class EventService {
         status: 'open',
         code: newEventCode(),
         standings: null,
+        partial: null,
+        onTv: false,
       };
       try {
         await this.deps.events.create(event, latest?.event.id ?? null);
@@ -152,9 +154,27 @@ export class EventService {
     return this.change(eventId, (event) => (event.status === 'running' || event.status === 'final' ? { ...event, status: 'final', standings } : null));
   }
 
+  /** O TOM mandou os standings de uma rodada intermediária: a TV mostra até o próximo pareamento. */
+  markPartial(eventId: string, round: number, standings: FinalStanding[]): Promise<TournamentEvent> {
+    return this.change(eventId, (event) => (event.status === 'running' ? { ...event, partial: { round, standings } } : null));
+  }
+
+  /** Encerrar limpa a TV: a classificação só volta se o ADM reexibir. */
   async close(actor: Actor | null, eventId: string): Promise<TournamentEvent> {
     requireAdmin(actor);
-    return this.move(eventId, ['final'], 'closed', 'O evento só encerra depois do resultado final do TOM');
+    await this.move(eventId, ['final'], 'closed', 'O evento só encerra depois do resultado final do TOM');
+    return this.change(eventId, (event) => (event.onTv ? { ...event, onTv: false } : null));
+  }
+
+  /** Reexibe (ou tira) da TV a classificação final do último evento, já encerrado. */
+  async showOnTv(actor: Actor | null, eventId: string, on: boolean): Promise<TournamentEvent> {
+    requireAdmin(actor);
+    const latest = await this.deps.events.latest();
+    const event = latest?.event;
+    if (event?.id !== eventId || event.status !== 'closed' || !event.standings) {
+      throw new CommandRejected('event_state', 'Só a classificação final do último evento encerrado vai para a TV');
+    }
+    return this.change(eventId, (current) => (current.onTv === on ? null : { ...current, onTv: on }));
   }
 
   /** Evento criado por engano ou que nunca recebeu o resultado: não entra no histórico. */

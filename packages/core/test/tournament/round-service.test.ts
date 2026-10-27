@@ -19,6 +19,13 @@ const rejects = async (promise: Promise<unknown>, code: RejectCode) => {
 };
 
 describe('pareamento e início da rodada', () => {
+  it('mesas sempre em ordem crescente, mesmo com o pareamento fora de ordem', async () => {
+    const { service } = setup();
+    const p = pairing();
+    const state = await service.publishPairing(actors.uploader, { ...p, tables: [...p.tables].reverse() });
+    expect(state.tables.map((t) => t.table)).toEqual([1, 2]);
+  });
+
   it('pareamento publicado: mesas cinza, bye à parte, rodada sem prazo', async () => {
     const { service } = setup();
     const state = await service.publishPairing(actors.uploader, pairing());

@@ -16,6 +16,7 @@ import {
   parseReportRequest,
   parseStartRoundRequest,
   parseSessionRequest,
+  parseShowOnTvRequest,
   parseUploadRequest,
   type AccountResponse,
   type ActiveEventResponse,
@@ -260,6 +261,18 @@ export const createApi = ({ tokens, emails, accounts, events, ingest, board, rou
   };
   const isJudging = async (principal: Principal) => staffActor(principal, await currentEvent())?.role === 'judge';
   const me = async (principal: Principal) => toMe(principal, await isJudging(principal));
+  /** Evento ativo para o painel; sem ele, o último evento (para reexibir a classificação na TV). */
+  const activeResponse = async (): Promise<ActiveEventResponse> => {
+    const event = await events.active();
+    if (event) return { event: toEvent(event, true), last: null };
+    const last = (await registry.latest())?.event;
+    return {
+      event: null,
+      last: last
+        ? { id: last.id, label: last.label, date: last.date, onTv: last.onTv, canShow: last.status === 'closed' && last.standings !== null }
+        : null,
+    };
+  };
 
   const routes: Route[] = [
     {
@@ -365,11 +378,19 @@ export const createApi = ({ tokens, emails, accounts, events, ingest, board, rou
       },
     },
     {
+      method: 'POST', path: new RegExp(`^/events/${EVENT_ID}/tv$`),
+      handle: async ({ request, identity, params: [id = ''] }) => {
+        const { on } = parseShowOnTvRequest(jsonBody(request));
+        const { actor } = await accounts.authenticate(identity);
+        await events.showOnTv(actor, id, on);
+        return { status: 200, body: await activeResponse() };
+      },
+    },
+    {
       method: 'GET', path: /^\/events\/active$/,
       handle: async ({ identity }) => {
         await requireAdmin(identity);
-        const event = await events.active();
-        return { status: 200, body: { event: event ? toEvent(event, true) : null } satisfies ActiveEventResponse };
+        return { status: 200, body: await activeResponse() };
       },
     },
     {

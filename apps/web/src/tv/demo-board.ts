@@ -12,6 +12,7 @@ const NAMES = [
 ];
 
 const COLORS: TableColor[] = ['green', 'green', 'orange', 'gray', 'green', 'red', 'orange', 'green', 'gray', 'green'];
+const RESULTS = ['player1', 'player2', 'tie', 'player1', 'double_loss'] as const;
 
 export const demoBoard = (now = Date.now()): RoundBoard & { code: string } => {
   const startedAt = now - 18 * 60_000;
@@ -26,8 +27,9 @@ export const demoBoard = (now = Date.now()): RoundBoard & { code: string } => {
       player1: NAMES[i * 2] ?? '',
       player2: NAMES[i * 2 + 1] ?? '',
       color: COLORS[i % COLORS.length] ?? 'gray',
+      result: COLORS[i % COLORS.length] === 'green' ? RESULTS[i % RESULTS.length] ?? null : null,
     })),
-    byes: [NAMES[50] ?? ''],
+    byes: [NAMES[50] ?? '', 'Rui Matos'],
     serverTime: new Date(now).toISOString(),
     code: 'DEMOQR23',
   };

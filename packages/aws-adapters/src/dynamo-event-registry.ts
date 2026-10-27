@@ -17,8 +17,8 @@ type Stored<T, K extends keyof T> = Omit<T, K> & Record<K, string>;
 type Tiebreaks = 'points' | 'opponentWinPct' | 'opponentsOpponentWinPct';
 /** Eventos gravados antes dos desempates não têm esses campos. */
 type StoredStanding = Omit<FinalStanding, Tiebreaks> & Partial<Pick<FinalStanding, Tiebreaks>>;
-type StoredEvent = Omit<Stored<TournamentEvent, 'createdAt'>, 'judges' | 'date' | 'roundMinutes' | 'status' | 'code' | 'standings'>
-  & Partial<Pick<TournamentEvent, 'judges' | 'date' | 'roundMinutes' | 'code'>>
+type StoredEvent = Omit<Stored<TournamentEvent, 'createdAt'>, 'judges' | 'date' | 'roundMinutes' | 'status' | 'code' | 'standings' | 'partial' | 'onTv'>
+  & Partial<Pick<TournamentEvent, 'judges' | 'date' | 'roundMinutes' | 'code' | 'partial' | 'onTv'>>
   & { status?: TournamentEvent['status'] | 'confirming'; standings?: StoredStanding[] | null };
 type StoredCurrent = Stored<CurrentRound, 'updatedAt'>;
 
@@ -162,6 +162,8 @@ export const eventFromStored = (stored: StoredEvent): TournamentEvent => {
     roundMinutes: stored.roundMinutes ?? DEFAULT_ROUND_MINUTES,
     status: stored.status === 'confirming' ? 'open' : stored.status ?? 'closed',
     code: stored.code ?? null,
+    partial: stored.partial ?? null,
+    onTv: stored.onTv ?? false,
     standings: stored.standings?.map((s) => ({
       ...s, points: s.points ?? null, opponentWinPct: s.opponentWinPct ?? null, opponentsOpponentWinPct: s.opponentsOpponentWinPct ?? null,
     })) ?? null,

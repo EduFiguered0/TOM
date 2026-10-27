@@ -28,7 +28,7 @@ interface Props {
 export const AdminShell = ({ api, me, onSignOut }: Props) => {
   const role: StaffRole = me.role === 'admin' ? 'admin' : 'judge';
   const [tab, setTab] = useState<AdminTab>(tabFor(location.pathname, role));
-  const { event, reload } = useActiveEvent(api, role === 'admin');
+  const { event, last, reload } = useActiveEvent(api, role === 'admin');
   const panel = usePanel(api);
   const folder = useTomFolder(api, event ?? null);
   const registrations = useRegistrations(api, event?.id ?? null);
@@ -94,7 +94,7 @@ export const AdminShell = ({ api, me, onSignOut }: Props) => {
         <main class="flex min-h-0 flex-1 flex-col p-5">
           {event === undefined && tab !== 'rodada' && <p class="m-0 text-sm text-muted">Carregando…</p>}
           {event !== undefined && tab === 'evento' && (
-            <EventTab api={api} event={event} reload={reload} folder={folder} registrations={registrations} onTeam={() => { go('equipe'); }} />
+            <EventTab api={api} event={event} last={last} reload={reload} folder={folder} registrations={registrations} onTeam={() => { go('equipe'); }} />
           )}
           {tab === 'rodada' && <RoundTab api={api} admin={role === 'admin'} panel={panel} />}
           {event !== undefined && tab === 'inscritos' && (event

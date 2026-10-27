@@ -107,6 +107,32 @@ describe('evento e token do enviador', () => {
     await rejects(service.update(actors.admin, event.id, { roundMinutes: 40 }), 'event_state', 'Evento encerrado ou cancelado não muda');
   });
 
+  it('classificação parcial só com o evento em andamento', async () => {
+    const { service } = setup();
+    const { event } = await service.createEvent(actors.admin, { label: 'Liga' });
+    expect(event).toMatchObject({ partial: null, onTv: false });
+    expect((await service.markPartial(event.id, 1, standings)).partial).toBeNull();
+    await service.markRunning(event.id);
+    expect((await service.markPartial(event.id, 2, standings)).partial).toEqual({ round: 2, standings });
+  });
+
+  it('reexibir: só o último evento encerrado com classificação final; encerrar tira da TV', async () => {
+    const { service } = setup();
+    const refusal = 'Só a classificação final do último evento encerrado vai para a TV';
+    const { event } = await service.createEvent(actors.admin, { label: 'Liga' });
+    await service.markRunning(event.id);
+    await service.markFinal(event.id, standings);
+    await rejects(service.showOnTv(actors.admin, event.id, true), 'event_state', refusal);
+    expect((await service.close(actors.admin, event.id)).onTv).toBe(false);
+    await rejects(service.showOnTv(actors.p1, event.id, true), 'forbidden');
+    expect((await service.showOnTv(actors.admin, event.id, true)).onTv).toBe(true);
+    expect((await service.showOnTv(actors.admin, event.id, false)).onTv).toBe(false);
+    const { event: next } = await service.createEvent(actors.admin, { label: 'Outra' });
+    await rejects(service.showOnTv(actors.admin, event.id, true), 'event_state', refusal);
+    await service.cancel(actors.admin, next.id);
+    await rejects(service.showOnTv(actors.admin, next.id, true), 'event_state', refusal);
+  });
+
   it('standings antes de iniciar não marcam final', async () => {
     const { service } = setup();
     const { event } = await service.createEvent(actors.admin, { label: 'Liga' });

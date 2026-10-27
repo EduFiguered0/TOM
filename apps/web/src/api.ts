@@ -68,6 +68,7 @@ export const createApi = (session: Session, base = '/api', fetchFn: typeof fetch
     unlinkPlayerId: (playerId: string) => call<AccountResponse>('POST', `/player-ids/${encodeURIComponent(playerId)}/unlink`),
     createEvent: (request: CreateEventRequest) => call<CreateEventResponse>('POST', '/events', request),
     activeEvent: () => call<ActiveEventResponse>('GET', '/events/active'),
+    showOnTv: (eventId: string, on: boolean) => call<ActiveEventResponse>('POST', `/events/${encodeURIComponent(eventId)}/tv`, { on }),
     uploadAsAdmin: (request: UploadRequest) => call<UploadResponse>('POST', '/events/active/uploads', request),
     updateEvent: (eventId: string, change: UpdateEventRequest) => call<EventDto>('PATCH', `/events/${encodeURIComponent(eventId)}`, change),
     eventAction: (eventId: string, action: 'close' | 'cancel') =>
