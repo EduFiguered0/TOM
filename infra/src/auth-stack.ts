@@ -23,7 +23,7 @@ export interface AuthStackProps extends StackProps {
   ephemeral: boolean;
   /** Prefixo do domínio de login (`<prefixo>.auth.us-east-2.amazoncognito.com`), usado no retorno do Google. */
   domainPrefix: string;
-  /** Liga o Google no cliente do app; só depois de o provedor ser criado no pool (README). */
+  /** Liga o Google no cliente do app; só depois de o provedor ser criado no pool (guia de operação). */
   google: boolean;
   /** Endereços do site para onde o login do Google volta. */
   callbackUrls: string[];

@@ -1,6 +1,6 @@
 # Release manual: você decide quando lançar.
 # 1. Actions → Release → "Run workflow": roda o Check e, se passar, abre (ou atualiza) o PR "Release vX.Y.Z".
-# 2. O merge desse PR cria a tag, a release no GitHub e o CHANGELOG. O deploy continua manual (README, "Releases").
+# 2. O merge desse PR cria a tag, a release no GitHub e o CHANGELOG. O deploy continua manual (guia de operação, "Releases").
 name: Release
 
 on:
