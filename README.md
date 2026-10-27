@@ -130,7 +130,7 @@ Rotas da API (as de conta e ADM exigem `Authorization: Bearer <token de acesso d
 | `POST /events/{id}/revoke` | ADM | Revoga o token do enviador |
 | `POST /uploads` | enviador (`x-upload-token`) | Recebe um HTML do TOM; com pareamento e guias da rodada, publica a rodada |
 | `POST /events/active/uploads` | ADM | O mesmo envio, pelo navegador do ADM (pasta do TOM conectada), sempre para o evento ativo; arquivo de antes do evento é ignorado |
-| `GET /board` | público | TV por fase do evento (espera, QR com inscritos, rodada com vencedores e o QR no canto, classificação parcial, classificação final), só nomes, guardada 5 s no CloudFront |
+| `GET /board` | ADM | TV por fase do evento (espera, QR com inscritos, rodada com vencedores e o QR no canto, classificação parcial, classificação final), só nomes; sem cache compartilhado. A TV (`/tv`) abre com a sessão do ADM, pelo "Abrir TV" do painel; `/tv?demo` mostra dados fictícios sem login |
 | `POST /events/{id}/tv` | ADM | Mostra (`{"on": true}`) ou tira da TV a classificação final do último evento encerrado |
 
 O ADM vem do grupo `admin` do Cognito; o juiz é marcado pelo ADM na aba "Equipe" e só age no evento em que for escalado (vê só a aba Rodada). Para dar o papel de ADM a uma conta já criada (vale no próximo token, em até 15 min):

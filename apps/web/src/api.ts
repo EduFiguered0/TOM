@@ -96,6 +96,7 @@ export const createApi = (session: Session, base = '/api', fetchFn: typeof fetch
       call<TeamMemberDto>('POST', `/staff/accounts/${encodeURIComponent(accountId)}/judge`, { judge }),
     myRound: () => call<MyRoundResponse>('GET', '/round/me'),
     report: (report: ReportDto) => call<MyRoundResponse>('POST', '/round/report', { report }),
+    board: () => call<BoardResponse>('GET', '/board'),
     startRound: (bestOf: 1 | 3, roundMinutes: number | null) => call<BoardResponse>('POST', '/round/start', { bestOf, roundMinutes }),
     panel: (round?: number) => call<PanelResponse>('GET', panelPath(round)),
     override: (table: number, override: OverrideDto, round?: number) =>
