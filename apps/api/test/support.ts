@@ -5,8 +5,10 @@ import {
   InMemoryAccountRepository,
   InMemoryEventRegistry,
   InMemoryEventStore,
+  InMemoryJudgeInviteRepository,
   InMemoryRegistrationRepository,
   InMemorySnapshotStore,
+  JudgeInviteService,
   RegistrationService,
   RoundService,
   type Identity,
@@ -53,6 +55,7 @@ export const setup = () => {
     reader,
     registry,
     registrations: new RegistrationService({ registry, registrations, accounts: accountRepository, clock }),
+    invites: new JudgeInviteService({ invites: new InMemoryJudgeInviteRepository(), accounts, clock }),
     clock,
     logError: (e) => errors.push(e),
   });

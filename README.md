@@ -97,6 +97,8 @@ Rotas da API (as de conta e ADM exigem `Authorization: Bearer <token de acesso d
 | `POST /me/name` | qualquer conta | Confere ou corrige nome e sobrenome (contas antigas tiveram o nome separado no primeiro espaço) |
 | `POST /session` | qualquer conta | Ativa este dispositivo; com outro ativo, exige `{"replace": true}` e revoga o anterior |
 | `POST /me/player-id` | qualquer conta | Conta sem Player ID informa depois; para trocar, só o ADM (409) |
+| `POST /staff/invites`, `GET /staff/invites`, `POST /staff/invites/{código}/cancel` | ADM | Convite de juiz: QR só no painel, vale 15 minutos e uma única vez; lista e cancela os abertos |
+| `POST /invites/{código}/accept` | qualquer conta | Quem escaneou `/juiz/<código>` vira juiz da equipe (precisa de Player ID); usado ou vencido: 410 |
 | `POST /players/search` | ADM | Guia Jogadores: todos os cadastrados ou a busca (`{"query"}`: Player ID, nome ou e-mail), mascarados no servidor (primeiro nome, `duk•••@gmail.com`, `•••• 1234`) |
 | `GET /player-ids/{pid}` | ADM | Quem cadastrou esse Player ID (mascarado) |
 | `POST /player-ids/{pid}/unlink` | ADM | Desfaz o vínculo errado; o dono verdadeiro pode cadastrar o Player ID |

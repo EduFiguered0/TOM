@@ -22,6 +22,7 @@ import {
   type AccountResponse,
   type ActiveEventResponse,
   type EventDto,
+  type InviteDto,
   type JoinResponse,
   type MyEventResponse,
   type MyRegistrationDto,
@@ -45,6 +46,7 @@ import {
   type EventRegistry,
   type EventService,
   type Identity,
+  type JudgeInviteService,
   type Principal,
   type Registration,
   type RegistrationService,
@@ -94,6 +96,7 @@ export interface ApiDeps {
   reader: RoundReader;
   registry: EventRegistry;
   registrations: RegistrationService;
+  invites: JudgeInviteService;
   clock: { now(): Date };
   logError: (error: unknown) => void;
 }
@@ -110,6 +113,7 @@ const STATUS: Record<RejectCode, number> = {
   player_id_taken: 409,
   player_id_set: 409,
   name_reviewed: 409,
+  invite_invalid: 410,
   concurrency: 409,
   round_not_paired: 409,
   round_already_started: 409,
@@ -242,11 +246,12 @@ const EVENT_ID = '([0-9a-f-]{36})';
 const ACCOUNT_ID = EVENT_ID;
 /** Código do QR no caminho: 8 letras maiúsculas e dígitos. */
 const EVENT_CODE = '([A-Z0-9]{8})';
+const INVITE_CODE = '([A-Z0-9]{10})';
 /** Player ID no caminho: só dígitos. */
 const PLAYER_ID = '([0-9]{1,20})';
 
 /** Roteador da API: uma Lambda atende todas as rotas. Todas exigem token de acesso válido. */
-export const createApi = ({ tokens, emails, accounts, events, ingest, board, rounds, reader, registry, registrations, clock, logError }: ApiDeps) => {
+export const createApi = ({ tokens, emails, accounts, events, ingest, board, rounds, reader, registry, registrations, invites, clock, logError }: ApiDeps) => {
   /**
    * Primeiro acesso por um login novo (ex.: Google de quem já tinha conta pelo código por e-mail):
    * liga o login à conta do mesmo e-mail verificado e repete. Sem conta com esse e-mail, segue o 404.
@@ -345,6 +350,13 @@ export const createApi = ({ tokens, emails, accounts, events, ingest, board, rou
       },
     },
     {
+      method: 'POST', path: new RegExp(`^/invites/${INVITE_CODE}/accept$`),
+      handle: async ({ identity, params: [code = ''] }) => {
+        await invites.accept(await accounts.authenticate(identity), code);
+        return { status: 200, body: await me(await accounts.authenticate(identity)) };
+      },
+    },
+    {
       method: 'POST', path: /^\/me\/name$/,
       handle: async ({ request, identity }) => {
         const name = parseNameRequest(jsonBody(request));
@@ -370,6 +382,29 @@ export const createApi = ({ tokens, emails, accounts, events, ingest, board, rou
       handle: async ({ identity, params: [pid = ''] }) => {
         const { actor } = await accounts.authenticate(identity);
         return { status: 200, body: toPlayerRow(await accounts.findByPlayerId(actor, pid)) };
+      },
+    },
+    {
+      method: 'POST', path: /^\/staff\/invites$/,
+      handle: async ({ identity }) => {
+        const { actor } = await accounts.authenticate(identity);
+        const invite = await invites.create(actor);
+        return { status: 201, body: { code: invite.code, expiresAt: invite.expiresAt.toISOString() } satisfies InviteDto };
+      },
+    },
+    {
+      method: 'GET', path: /^\/staff\/invites$/,
+      handle: async ({ identity }) => {
+        const { actor } = await accounts.authenticate(identity);
+        return { status: 200, body: (await invites.open(actor)).map((i): InviteDto => ({ code: i.code, expiresAt: i.expiresAt.toISOString() })) };
+      },
+    },
+    {
+      method: 'POST', path: new RegExp(`^/staff/invites/${INVITE_CODE}/cancel$`),
+      handle: async ({ identity, params: [code = ''] }) => {
+        const { actor } = await accounts.authenticate(identity);
+        await invites.cancel(actor, code);
+        return { status: 204, body: null };
       },
     },
     {

@@ -1,6 +1,6 @@
 import type { MeResponse } from '@tom/contracts';
 import type { Api } from '../api.js';
-import { card, cardWarn, muted, textButton, title } from '../ui.js';
+import { card, cardWarn, Feedback, muted, textButton, title } from '../ui.js';
 import { MyEventCard } from './my-event.js';
 import { NameReviewCard } from './name-review.js';
 import { PlayerIdCard } from './player-id.js';
@@ -14,15 +14,18 @@ interface Props {
   onChanged: (me: MeResponse) => void;
   /** Falha ao inscrever pelo QR (inscrições encerradas, juiz do evento...). */
   joinError: string | null;
+  /** Resultado do convite de juiz escaneado. */
+  notice?: { ok: boolean; text: string } | null;
   /** Muda quando a inscrição pelo QR terminou: o evento do dia recarrega. */
   eventRefresh: number;
 }
 
 const ROLE: Record<MeResponse['role'], string> = { player: 'Jogador', admin: 'ADM' };
 
-export const Home = ({ me, api, onSignOut, onChanged, joinError, eventRefresh }: Props) => (
+export const Home = ({ me, api, onSignOut, onChanged, joinError, eventRefresh, notice = null }: Props) => (
   <>
   {joinError && <section class={cardWarn}><p class="m-0 font-medium text-error" role="alert">{joinError}</p></section>}
+  {notice && <section class={notice.ok ? card : cardWarn}><Feedback message={notice} /></section>}
   {me.role === 'player' && <MyEventCard api={api} refresh={eventRefresh} />}
   {/* No salão o que importa é a mesa: a rodada vem primeiro. */}
   {me.role === 'player' && me.canAct && <RoundCard api={api} />}

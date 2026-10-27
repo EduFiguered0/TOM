@@ -225,6 +225,16 @@ export class AccountService {
     });
   }
 
+  /** Convite de juiz aceito: a conta entra na equipe (o ator é o próprio convite). */
+  async grantJudge(accountId: string, source: string): Promise<Account> {
+    const actor: Actor = { role: 'system', source };
+    return this.execute(accountId, (account) => {
+      if (account.judge === true) return null;
+      if (!account.playerId) throw new CommandRejected('invalid_input', 'O juiz precisa ter Player ID cadastrado');
+      return { actor, account: { ...account, judge: true }, data: { type: 'judge_set', judge: true } };
+    });
+  }
+
   /** Busca da Equipe: só dígitos = Player ID exato; senão parte do nome, sem acento nem maiúsculas. */
   async search(actor: Actor | null, query: string): Promise<Account[]> {
     requireAdmin(actor);

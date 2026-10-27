@@ -2,6 +2,7 @@ import type { TeamMemberDto } from '@tom/contracts';
 import { useEffect, useState } from 'preact/hooks';
 import type { Api } from '../api.js';
 import { box, Feedback, field, ghost, linkButton } from '../ui.js';
+import { JudgeInvites } from './judge-invites.js';
 
 /** Equipe do ADM: busca a conta por nome ou Player ID e marca ou tira o juiz. */
 export const TeamCard = ({ api }: { api: Api }) => {
@@ -57,7 +58,7 @@ export const TeamCard = ({ api }: { api: Api }) => {
   );
 
   return (
-    <div class="grid min-h-0 flex-1 grid-cols-2 gap-4">
+    <div class="grid min-h-0 flex-1 grid-cols-3 gap-4">
       <section class={box} aria-label="Buscar conta">
         <h2 class="m-0 text-sm font-bold">Buscar conta</h2>
         <form class="m-0 flex gap-2" onSubmit={search}>
@@ -80,6 +81,7 @@ export const TeamCard = ({ api }: { api: Api }) => {
         </div>
         <Feedback message={error ? { ok: false, text: error } : null} />
       </section>
+      <JudgeInvites api={api} />
     </div>
   );
 };

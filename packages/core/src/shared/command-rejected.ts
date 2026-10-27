@@ -18,6 +18,7 @@ export type RejectCode =
   | 'player_id_taken'
   | 'player_id_set'
   | 'name_reviewed'
+  | 'invite_invalid'
   | 'invalid_token'
   | 'tournament_mismatch'
   | 'event_not_found'
