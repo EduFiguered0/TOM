@@ -79,8 +79,7 @@ Região us-east-2, perfil `tom`. Cada stack de produção tem um gêmeo descart�
 | `TomData` | `TomTest` | DynamoDB `Events`, `Accounts` e `Tournaments` (sob demanda, TTL 24 meses), S3 `Snapshots` (privado, expira em 24 meses) |
 | `TomAuth` | `TomAuthTest` | Cognito user pool (Essentials, e-mail e senha; Google só em produção), gatilho de pré-cadastro (Lambda 128 MB), grupo `admin` |
 | `TomApi` | `TomApiTest` | Lambda Node 22 Arm 256 MB + Function URL (sem API Gateway), logs por 14 dias |
-| `TomWeb` | — | Site no S3 + CloudFront, `/api` no mesmo endereço, CSP rígida |
-| `TomCi` | — | Acesso do GitHub Actions por OIDC (função `tom-github-deploy`, sem chave guardada) |
+| `TomWeb` | — | Site no S3 + CloudFront, `/api` no mesmo endereço, `/api/board` guardado 5 s, CSP rígida |
 
 Custo projetado: **menos de US$ 0,20/mês** com 100 jogadores e 1 evento por mês. Preços, franquias e escolhas feitas por custo estão em [Recursos AWS e custos](docs/spec-tom.md#recursos-aws-e-custos-r3).
 
@@ -88,16 +87,6 @@ Custo projetado: **menos de US$ 0,20/mês** com 100 jogadores e 1 evento por mê
 npm run cdk -- diff --profile tom
 npm run cdk -- deploy --all --profile tom   # num terminal interativo: mudanças de IAM pedem confirmação
 ```
-
-### Deploy automático
-
-A cada merge na `main`, o GitHub Actions (`.github/workflows/deploy.yml`) roda `npm run check` e, se passar, faz o deploy do `TomApi` e do `TomWeb` e publica o site. Em PR, só roda o `check`. Acompanhe na aba Actions; falha chega por e-mail. `TomData` e `TomAuth` (dados e contas) continuam manuais, assim como mudanças na própria `TomCi`.
-
-A função `tom-github-deploy` só aceita o branch `main` deste repositório e só aciona os papéis do bootstrap do CDK, o bucket do site, a limpeza de cache e a leitura das saídas das stacks. Configuração, uma vez:
-
-1. Provedor OIDC do GitHub (o papel de execução do CloudFormation não pode criá-lo): `aws iam create-open-id-connect-provider --url https://token.actions.githubusercontent.com --client-id-list sts.amazonaws.com --profile tom`
-2. `npm run cdk -- deploy TomCi --exclusively --profile tom`
-3. No GitHub, *Settings → Secrets and variables → Actions*, segredo `AWS_DEPLOY_ROLE` = `arn:aws:iam::<conta>:role/tom-github-deploy`.
 
 Rotas da API (as de conta e ADM exigem `Authorization: Bearer <token de acesso do Cognito>`):
 

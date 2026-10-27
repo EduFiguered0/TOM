@@ -2,7 +2,6 @@ import { App, Validations } from 'aws-cdk-lib';
 import { AwsSolutionsChecks } from 'cdk-nag';
 import { ApiStack } from './api-stack.js';
 import { AuthStack } from './auth-stack.js';
-import { CiStack } from './ci-stack.js';
 import { DataStack, snapshotsBucketName } from './data-stack.js';
 import { WebStack } from './web-stack.js';
 
@@ -37,8 +36,6 @@ export const buildApp = (account: string | undefined, app = new App()) => {
   const web = new WebStack(app, 'TomWeb', {
     env, api: api.functionUrl, region: REGION, loginDomain: `https://${LOGIN_PREFIX}.auth.${REGION}.amazoncognito.com`,
   });
-  // Deploy automático pelo GitHub Actions a cada merge na main (README, "Deploy automático").
-  const ci = new CiStack(app, 'TomCi', { env, repository: 'EduFiguered0/TOM', branch: 'main' });
   Validations.of(app).addPlugins(new AwsSolutionsChecks(app, { verbose: true }));
-  return { app, data, test, auth, authTest, api, apiTest, web, ci };
+  return { app, data, test, auth, authTest, api, apiTest, web };
 };
