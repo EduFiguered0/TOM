@@ -71,11 +71,14 @@ describe('quadro da TV por fase do evento', () => {
     await ctx.start();
     const partial = (round: string, at: string) => upload('standings', upload('standings').content.replace('Rodada 3/3', `Rodada ${round}/4`), at);
     await ctx.send(partial('2', '2026-10-24T15:00:00Z'));
-    expect((await board(ctx.call)).state).toBe('running');
+    const running = (await board(ctx.call)) as Extract<BoardResponse, { state: 'running' }>;
+    expect(running.state).toBe('running');
     await ctx.send(partial('3', '2026-10-24T15:10:00Z'));
     const shown = (await board(ctx.call)) as Extract<BoardResponse, { state: 'standings' }>;
     // O nome do evento passa a ser o do torneio no TOM.
-    expect(shown).toMatchObject({ state: 'standings', round: 3, event: { label: 'FODASE' } });
+    // Mesma tela da rodada: a classificação no lugar das mesas, com a divisão e o QR para quem chega tarde.
+    expect(shown).toMatchObject({ state: 'standings', round: 3, division: 'Divisão Mestre', code: running.code, event: { label: 'FODASE' } });
+    expect(running.code).not.toBe('');
     expect(shown.standings).toHaveLength(5);
     expect(((await ctx.call('GET', '/events/active', ADM)).body as ActiveEventResponse).event?.status).toBe('running');
   });

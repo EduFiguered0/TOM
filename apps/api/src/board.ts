@@ -29,7 +29,10 @@ export const createBoard = ({ registry, rounds, registrations, clock, photoOf = 
       if (current?.eventId !== event.id) return { state: 'idle', serverTime };
       // Standings da rodada atual (ou posterior) chegou: classificação parcial até o pareamento seguinte.
       if (event.partial && event.partial.round >= current.ref.round) {
-        return { state: 'standings', event: summary, round: event.partial.round, standings: event.partial.standings, serverTime };
+        return {
+          state: 'standings', event: summary, round: event.partial.round, division: current.ref.division, code: event.code ?? '',
+          standings: event.partial.standings, serverTime,
+        };
       }
       return { state: 'running', ...(await round(current, rounds, serverTime, photoOf)), code: event.code ?? '' };
     }

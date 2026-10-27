@@ -1,4 +1,4 @@
-import type { RoundBoard, TableColor } from '@tom/contracts';
+import type { BoardResponse, RoundBoard, TableColor } from '@tom/contracts';
 
 /** Dados fictícios para aprovar o layout da TV; somem quando a ingestão do TOM (7.2) chegar. */
 const NAMES = [
@@ -36,3 +36,19 @@ export const demoBoard = (now = Date.now()): RoundBoard & { code: string } => {
     code: 'DEMOQR23',
   };
 };
+
+export const demoStandings = (now = Date.now()): Extract<BoardResponse, { state: 'standings' }> => ({
+  state: 'standings',
+  event: { label: 'Liga Local de Outubro', date: '2026-10-27' },
+  round: 2,
+  division: 'Divisão Mestre',
+  code: 'DEMOQR23',
+  standings: NAMES.slice(0, 16).map((name, i) => {
+    const wins = Math.max(0, 2 - Math.floor(i / 5));
+    return {
+      division: 'Divisão Mestre', rank: i + 1, name, wins, losses: 2 - wins, ties: 0, points: wins * 3,
+      opponentWinPct: 62.5 - i, opponentsOpponentWinPct: 55 - i / 2,
+    };
+  }),
+  serverTime: new Date(now).toISOString(),
+});

@@ -186,8 +186,8 @@ export type BoardResponse =
   | { state: 'open'; event: BoardEvent; code: string; registered: number; serverTime: string }
   /** `code`: o QR continua no canto da TV para quem chega depois da rodada 1. */
   | ({ state: 'running'; code: string } & RoundBoard)
-  /** Entre rodadas: o standings intermediário do TOM, até o pareamento seguinte chegar. */
-  | { state: 'standings'; event: BoardEvent; round: number; standings: FinalStandingDto[]; serverTime: string }
+  /** Entre rodadas: o standings intermediário do TOM no lugar das mesas (sem cronômetro, com o QR), até o pareamento seguinte. */
+  | { state: 'standings'; event: BoardEvent; round: number; division: string; code: string; standings: FinalStandingDto[]; serverTime: string }
   | { state: 'final'; event: BoardEvent; standings: FinalStandingDto[]; serverTime: string };
 
 /** Uma versão completa de um HTML do TOM, enviada pelo enviador com o token do evento (cabeçalho `x-upload-token`). */
