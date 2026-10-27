@@ -88,6 +88,9 @@ export class DynamoEventRegistry implements EventRegistry {
 
   async create(event: TournamentEvent, previousLatest: string | null): Promise<void> {
     const expiresAt = this.expiresAt();
+    // Sem evento anterior, mas o ponteiro ficou: o evento apontado expirou (TTL). Troca o ponteiro órfão.
+    const orphan = previousLatest === null ? ((await this.item(LATEST))?.['eventId'] as string | undefined) ?? null : null;
+    const expected = previousLatest ?? orphan;
     const items = [
       {
         Put: {
@@ -101,8 +104,8 @@ export class DynamoEventRegistry implements EventRegistry {
         Put: {
           TableName: this.tableName,
           Item: { ...LATEST, eventId: event.id },
-          ConditionExpression: previousLatest === null ? 'attribute_not_exists(pk)' : 'eventId = :prev',
-          ...(previousLatest === null ? {} : { ExpressionAttributeValues: { ':prev': previousLatest } }),
+          ConditionExpression: expected === null ? 'attribute_not_exists(pk)' : 'eventId = :prev',
+          ...(expected === null ? {} : { ExpressionAttributeValues: { ':prev': expected } }),
         },
       },
       this.lockPut(tokenKey(event.tokenHash), event.id, expiresAt),
