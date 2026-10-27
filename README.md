@@ -52,8 +52,8 @@ npm run web:deploy   # build, envio ao S3 e limpeza do cache do CloudFront
 Versão única para o projeto todo (`package.json` da raiz), em [versionamento semântico](https://semver.org/lang/pt-BR/); enquanto for 0.x, o sistema ainda muda bastante. Os testes rodam no GitHub a cada PR e na `main` (`.github/workflows/check.yml`).
 
 1. Os PRs entram na `main` com commits `feat:` (novidade), `fix:` (correção) ou `docs:`/`test:`/`ci:`/`chore:` (não aparecem nas notas).
-2. A cada merge, o GitHub atualiza o PR **"Release vX.Y.Z"** com as mudanças acumuladas (`feat` sobe a versão do meio; `fix`, a última).
-3. Para lançar, faça o merge desse PR: ele cria a tag, a release no GitHub e o `CHANGELOG.md`.
+2. Quando quiser lançar: *Actions → Release → Run workflow*. Ele roda o Check e, se passar, abre (ou atualiza) o PR **"Release vX.Y.Z"** com as mudanças desde a última versão (`feat` sobe a versão do meio; `fix`, a última).
+3. Faça o merge desse PR: a tag, a release no GitHub e o `CHANGELOG.md` saem sozinhos.
 4. Deploy da versão lançada (manual):
 
 ```bash

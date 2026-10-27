@@ -1,19 +1,29 @@
-# Cada merge na main atualiza o PR "Release vX.Y.Z" com as mudanças desde a última versão.
-# O merge desse PR cria a tag, a release no GitHub e o CHANGELOG. O deploy continua manual (README, "Releases").
+# Release manual: você decide quando lançar.
+# 1. Actions → Release → "Run workflow": roda o Check e, se passar, abre (ou atualiza) o PR "Release vX.Y.Z".
+# 2. O merge desse PR cria a tag, a release no GitHub e o CHANGELOG. O deploy continua manual (README, "Releases").
 name: Release
 
 on:
+  workflow_dispatch:
   push:
     branches: [main]
 
 permissions:
-  contents: write
-  pull-requests: write
+  contents: read
 
 jobs:
+  # Merge comum na main não faz nada aqui: só o botão ou o merge do PR de release.
+  check:
+    if: github.event_name == 'workflow_dispatch' || contains(github.event.head_commit.message, 'release-please--')
+    uses: ./.github/workflows/check.yml
+
   release-please:
+    needs: check
     runs-on: ubuntu-latest
     timeout-minutes: 5
+    permissions:
+      contents: write
+      pull-requests: write
     steps:
       - uses: googleapis/release-please-action@45996ed1f6d02564a971a2fa1b5860e934307cf7 # v5.0.0
         with:
