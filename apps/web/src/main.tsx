@@ -13,6 +13,7 @@ import { createPhotoCache } from './photo/photo-cache.js';
 import { LiveTv } from './tv/live.js';
 import { PartialTv } from './tv/partial.js';
 import { Tv } from './tv/tv.js';
+import { WaitingTv } from './tv/waiting.js';
 import './theme.css';
 
 interface Config {
@@ -34,10 +35,13 @@ const googleStore = {
 const start = async () => {
   const root = document.getElementById('app');
   if (!root) return;
-  // /tv?demo mostra dados fictícios para conferir o layout, sem login (?demo=classificacao: entre rodadas).
+  // /tv?demo mostra dados fictícios para conferir o layout, sem login (?demo=classificacao: entre rodadas; ?demo=espera: sem evento).
   const demo = new URLSearchParams(location.search).get('demo');
   if (pageFor(location.pathname) === 'tv' && demo !== null) {
-    render(demo === 'classificacao' ? <PartialTv board={demoStandings()} /> : <Tv board={demoBoard()} />, root);
+    const screen = demo === 'classificacao' ? <PartialTv board={demoStandings()} />
+      : demo === 'espera' ? <WaitingTv board={{ state: 'idle', serverTime: new Date().toISOString() }} />
+      : <Tv board={demoBoard()} />;
+    render(screen, root);
     return;
   }
   if (pageFor(location.pathname) === 'privacy') {

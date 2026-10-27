@@ -51,7 +51,9 @@ export const AdminShell = ({ api, me, onSignOut }: Props) => {
   return (
     <div class="grid h-dvh grid-cols-[210px_1fr] overflow-hidden bg-bg text-text">
       <nav class="flex min-h-0 flex-col gap-1 border-r border-line bg-panel p-3" aria-label="Área do ADM">
-        <a href="/" class="px-2 pb-3 text-base font-bold text-text no-underline">{STORE.name}</a>
+        <a href="/" class="flex items-center gap-2 px-2 pb-3 text-base font-bold text-text no-underline">
+          <img src={STORE.logo} alt="" class="size-8 rounded" />{STORE.name}
+        </a>
         {tabsFor(role).map((t) => {
           const info = ADMIN_TABS.find((x) => x.tab === t);
           return (

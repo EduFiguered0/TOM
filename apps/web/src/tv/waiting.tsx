@@ -12,7 +12,7 @@ const count = 'm-0 text-[4vw] font-extrabold tabular-nums';
 /** TV fora da rodada: espera da loja, QR de inscrição ou classificação final. */
 export const WaitingTv = ({ board }: { board: Waiting }) => {
   if (board.state === 'idle') {
-    return <div class={centered}><p class="m-0 text-[6vw] font-extrabold">{STORE.name}</p></div>;
+    return <div class={centered}><img src={STORE.logo} alt={STORE.name} class="h-[70vh] rounded-[2vw]" /></div>;
   }
   if (board.state === 'open') {
     const url = joinUrl(location.origin, board.code);

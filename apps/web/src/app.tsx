@@ -82,7 +82,7 @@ export const App = ({ cognito, session, api, google, loginError, pendingJoin, pe
 
   return (
     <main class={page}>
-      <header><a class="font-bold text-text no-underline" href="/">{STORE.name}</a></header>
+      <header><a class="flex items-center gap-2 font-bold text-text no-underline" href="/"><img src={STORE.logo} alt="" class="size-8 rounded" />{STORE.name}</a></header>
       {screen.name === 'loading' && <p class={`${muted} text-center`}>Carregando…</p>}
       {screen.name === 'login' && (
         <Login cognito={cognito} google={google} initialError={screen.message ?? loginError} onSignedIn={(tokens) => { session.signedIn(tokens); void check(); }} />
