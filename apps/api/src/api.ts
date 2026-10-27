@@ -9,7 +9,9 @@ import {
   parseSetJudgeRequest,
   parseExtendRequest,
   parseOverrideRequest,
+  parseImageConsentRequest,
   parseNameRequest,
+  parsePhotoRequest,
   parsePlayerIdRequest,
   parseStaffReportRequest,
   parseRegisterRequest,
@@ -27,6 +29,7 @@ import {
   type MyEventResponse,
   type MyRegistrationDto,
   type PlayerEventDto,
+  type PhotoResponse,
   type PlayerRowDto,
   type TeamMemberDto,
   type RegistrationDto,
@@ -41,12 +44,14 @@ import {
   CommandRejected,
   maskEmail,
   maskPhone,
+  visiblePhoto,
   type Account,
   type AccountService,
   type EventRegistry,
   type EventService,
   type Identity,
   type JudgeInviteService,
+  type PhotoService,
   type Principal,
   type Registration,
   type RegistrationService,
@@ -58,7 +63,7 @@ import {
 } from '@tom/core';
 import type { Ingest } from './ingest.js';
 import { panel } from './panel.js';
-import { myRound, type RoundReader } from './rounds.js';
+import { myRound, opponentOf, type RoundReader } from './rounds.js';
 
 export interface HttpRequest {
   method: string;
@@ -97,6 +102,9 @@ export interface ApiDeps {
   registry: EventRegistry;
   registrations: RegistrationService;
   invites: JudgeInviteService;
+  photos: PhotoService;
+  /** Chave da foto visível por Player ID (assento do oponente). */
+  photoOf: (playerId: string) => Promise<string | null>;
   clock: { now(): Date };
   logError: (error: unknown) => void;
 }
@@ -159,6 +167,7 @@ const toPlayerRow = (account: Account): PlayerRowDto => ({
   firstName: account.profile.firstName,
   email: maskEmail(account.email),
   phone: maskPhone(account.profile.phone),
+  photo: visiblePhoto(account, new Date()),
 });
 
 const toTeamMember = (account: Account): TeamMemberDto => ({ ...toPlayerRow(account), judge: account.judge === true });
@@ -170,6 +179,8 @@ const toMe = ({ account, actor }: Principal, judging: boolean): MeResponse => ({
   judge: account.judge === true,
   judging,
   nameReviewed: account.nameReviewed,
+  photo: account.photoId ?? null,
+  imageConsent: account.imageConsent === true,
 });
 
 /** `withCode`: só o ADM recebe o código do QR (a TV mostra no QR; o resto não precisa). */
@@ -251,7 +262,7 @@ const INVITE_CODE = '([A-Z0-9]{10})';
 const PLAYER_ID = '([0-9]{1,20})';
 
 /** Roteador da API: uma Lambda atende todas as rotas. Todas exigem token de acesso válido. */
-export const createApi = ({ tokens, emails, accounts, events, ingest, board, rounds, reader, registry, registrations, invites, clock, logError }: ApiDeps) => {
+export const createApi = ({ tokens, emails, accounts, events, ingest, board, rounds, reader, registry, registrations, invites, photos, photoOf, clock, logError }: ApiDeps) => {
   /**
    * Primeiro acesso por um login novo (ex.: Google de quem já tinha conta pelo código por e-mail):
    * liga o login à conta do mesmo e-mail verificado e repete. Sem conta com esse e-mail, segue o 404.
@@ -357,6 +368,32 @@ export const createApi = ({ tokens, emails, accounts, events, ingest, board, rou
       },
     },
     {
+      method: 'POST', path: /^\/me\/photo$/,
+      handle: async ({ request, identity }) => {
+        const { photo } = parsePhotoRequest(jsonBody(request));
+        await accounts.authenticate(identity);
+        if (photo === null) await photos.remove(identity); else await photos.upload(identity, photo);
+        return { status: 200, body: await me(await accounts.authenticate(identity)) };
+      },
+    },
+    {
+      method: 'POST', path: /^\/me\/image-consent$/,
+      handle: async ({ request, identity }) => {
+        const { consent } = parseImageConsentRequest(jsonBody(request));
+        await accounts.authenticate(identity);
+        await accounts.setImageConsent(identity, consent);
+        return { status: 200, body: await me(await accounts.authenticate(identity)) };
+      },
+    },
+    {
+      method: 'GET', path: /^\/photos\/([A-Za-z0-9-]{1,64})$/,
+      handle: async ({ identity, params: [id = ''] }) => {
+        // Quem tem a chave vê: ela só sai do servidor para quem pode ver (ADM no quadro, oponente na mesa).
+        await accounts.authenticate(identity);
+        return { status: 200, body: { photo: await photos.read(id) } satisfies PhotoResponse };
+      },
+    },
+    {
       method: 'POST', path: /^\/me\/name$/,
       handle: async ({ request, identity }) => {
         const name = parseNameRequest(jsonBody(request));
@@ -405,6 +442,13 @@ export const createApi = ({ tokens, emails, accounts, events, ingest, board, rou
         const { actor } = await accounts.authenticate(identity);
         await invites.cancel(actor, code);
         return { status: 204, body: null };
+      },
+    },
+    {
+      method: 'POST', path: new RegExp(`^/players/${ACCOUNT_ID}/photo/remove$`),
+      handle: async ({ identity, params: [accountId = ''] }) => {
+        const { actor } = await accounts.authenticate(identity);
+        return { status: 200, body: toPlayerRow(await photos.removeByAdmin(actor, accountId)) };
       },
     },
     {
@@ -610,7 +654,8 @@ export const createApi = ({ tokens, emails, accounts, events, ingest, board, rou
         const { actor } = await accounts.authenticate(identity);
         const current = await activeRound();
         const state = current ? await reader.state(current.ref) : null;
-        return { status: 200, body: myRound(state, actor, clock.now()) };
+        const opponent = opponentOf(state, actor);
+        return { status: 200, body: myRound(state, actor, clock.now(), opponent ? await photoOf(opponent) : null) };
       },
     },
     {
@@ -627,7 +672,8 @@ export const createApi = ({ tokens, emails, accounts, events, ingest, board, rou
         const table = (await reader.state(ref)).tables.find((t) => t.player1.playerId === actor.playerId || t.player2.playerId === actor.playerId);
         if (!table) throw new CommandRejected('not_your_table', 'Você não está em nenhuma mesa desta rodada');
         const state = reader.remember(await rounds.submitReport(actor, ref, { table: table.table, report }));
-        return { status: 200, body: myRound(state, actor, clock.now()) };
+        const opponent = opponentOf(state, actor);
+        return { status: 200, body: myRound(state, actor, clock.now(), opponent ? await photoOf(opponent) : null) };
       },
     },
     {

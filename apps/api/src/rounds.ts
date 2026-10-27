@@ -27,7 +27,15 @@ export const createRoundReader = (rounds: RoundService, now: () => number = Date
 
 export type RoundReader = ReturnType<typeof createRoundReader>;
 
-const seatOf = (state: RoundState, actor: Actor | null): SeatDto => {
+/** Player ID do oponente de quem chama (para a foto do assento); null fora de mesa. */
+export const opponentOf = (state: RoundState | null, actor: Actor | null): string | null => {
+  if (!state || actor?.role !== 'player') return null;
+  const table = state.tables.find((t) => t.player1.playerId === actor.playerId || t.player2.playerId === actor.playerId);
+  if (!table) return null;
+  return table.player1.playerId === actor.playerId ? table.player2.playerId : table.player1.playerId;
+};
+
+const seatOf = (state: RoundState, actor: Actor | null, opponentPhoto: string | null): SeatDto => {
   if (!actor) return { kind: 'not_checked_in' };
   if (actor.role !== 'player') return { kind: 'not_paired' };
   const table = state.tables.find((t) => t.player1.playerId === actor.playerId || t.player2.playerId === actor.playerId);
@@ -45,11 +53,12 @@ const seatOf = (state: RoundState, actor: Actor | null): SeatDto => {
     opponentReported: table.reports[other] !== undefined,
     // Um reporte por jogador: depois do próprio, a tela trava (correção é com o juiz).
     locked: table.keyLaunched || table.status.color === 'green' || table.reports[side] !== undefined,
+    opponentPhoto,
   };
 };
 
 /** Rodada do ponto de vista de quem chama: a própria mesa, sem o placar do oponente. */
-export const myRound = (state: RoundState | null, actor: Actor | null, serverTime: Date): MyRoundResponse => ({
+export const myRound = (state: RoundState | null, actor: Actor | null, serverTime: Date, opponentPhoto: string | null = null): MyRoundResponse => ({
   round: state?.pairing
     ? {
         tournament: state.ref.tournament,
@@ -57,7 +66,7 @@ export const myRound = (state: RoundState | null, actor: Actor | null, serverTim
         round: state.ref.round,
         bestOf: state.bestOf,
         startedAt: state.startedAt?.toISOString() ?? null,
-        seat: seatOf(state, actor),
+        seat: seatOf(state, actor, opponentPhoto),
       }
     : null,
   serverTime: serverTime.toISOString(),

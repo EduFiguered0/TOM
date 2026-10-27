@@ -6,9 +6,11 @@ import {
   InMemoryEventRegistry,
   InMemoryEventStore,
   InMemoryJudgeInviteRepository,
+  InMemoryPhotoStore,
   InMemoryRegistrationRepository,
   InMemorySnapshotStore,
   JudgeInviteService,
+  PhotoService,
   RegistrationService,
   RoundService,
   type Identity,
@@ -18,6 +20,7 @@ import { createHash, randomUUID } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { createBoard } from '../src/board.js';
 import { createIngest } from '../src/ingest.js';
+import { createPhotoLookup } from '../src/photos.js';
 import { createRoundReader } from '../src/rounds.js';
 import { createApi, type HttpRequest } from '../src/index.js';
 
@@ -44,18 +47,22 @@ export const setup = () => {
   const events = new EventService({ events: registry, accounts: accountRepository, registrations, clock, ids });
   const accounts = new AccountService({ accounts: accountRepository, clock, ids });
   const reader = createRoundReader(rounds);
+  // Sem cache nos testes: a foto trocada aparece na hora.
+  const photoOf = createPhotoLookup(accountRepository, () => clock.now(), 0);
   const api = createApi({
     tokens,
     emails: { verifiedEmail: (token) => Promise.resolve(EMAILS[token.split(':')[0] ?? ''] ?? `${token.split(':')[0] ?? ''}@example.com`) },
     accounts,
     events,
     ingest: createIngest({ events, registry, rounds, clock, snapshots: new InMemorySnapshotStore() }),
-    board: createBoard({ registry, rounds: reader, registrations, clock }),
+    board: createBoard({ registry, rounds: reader, registrations, clock, photoOf }),
     rounds,
     reader,
     registry,
     registrations: new RegistrationService({ registry, registrations, accounts: accountRepository, clock }),
     invites: new JudgeInviteService({ invites: new InMemoryJudgeInviteRepository(), accounts, clock }),
+    photos: new PhotoService({ photos: new InMemoryPhotoStore(), accounts, ids }),
+    photoOf,
     clock,
     logError: (e) => errors.push(e),
   });

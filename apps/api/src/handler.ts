@@ -3,15 +3,17 @@ import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
 import { S3Client } from '@aws-sdk/client-s3';
 import { DynamoDBDocumentClient } from '@aws-sdk/lib-dynamodb';
 import {
-  DynamoAccountRepository, DynamoEventRegistry, DynamoEventStore, DynamoJudgeInviteRepository, DynamoRegistrationRepository, S3SnapshotStore,
+  DynamoAccountRepository, DynamoEventRegistry, DynamoEventStore, DynamoJudgeInviteRepository, DynamoPhotoStore, DynamoRegistrationRepository,
+  S3SnapshotStore,
 } from '@tom/aws-adapters';
-import { AccountService, EventService, JudgeInviteService, RegistrationService, RoundService } from '@tom/core';
+import { AccountService, EventService, JudgeInviteService, PhotoService, RegistrationService, RoundService } from '@tom/core';
 import type { APIGatewayProxyEventV2, APIGatewayProxyStructuredResultV2 } from 'aws-lambda';
 import { randomUUID } from 'node:crypto';
 import { createApi } from './api.js';
 import { createBoard } from './board.js';
 import { CognitoEmailLookup, CognitoTokenVerifier } from './cognito.js';
 import { createIngest } from './ingest.js';
+import { createPhotoLookup } from './photos.js';
 import { createRoundReader } from './rounds.js';
 
 const env = (name: string): string => {
@@ -33,6 +35,7 @@ const registrations = new DynamoRegistrationRepository(dynamo, { tableName: env(
 const events = new EventService({ events: registry, accounts: accountRepository, registrations, clock, ids });
 const reader = createRoundReader(rounds);
 const accounts = new AccountService({ accounts: accountRepository, clock, ids });
+const photoOf = createPhotoLookup(accountRepository, () => clock.now());
 
 const api = createApi({
   tokens: new CognitoTokenVerifier(env('USER_POOL_ID'), env('USER_POOL_CLIENT_ID')),
@@ -40,11 +43,13 @@ const api = createApi({
   accounts,
   events,
   ingest: createIngest({ events, registry, rounds, clock, snapshots: new S3SnapshotStore(new S3Client({}), env('SNAPSHOTS_BUCKET')) }),
-  board: createBoard({ registry, rounds: reader, registrations, clock }),
+  board: createBoard({ registry, rounds: reader, registrations, clock, photoOf }),
   rounds,
   reader,
   registrations: new RegistrationService({ registry, registrations, accounts: accountRepository, clock }),
   invites: new JudgeInviteService({ invites: new DynamoJudgeInviteRepository(dynamo, { tableName: env('TOURNAMENTS_TABLE') }), accounts, clock }),
+  photos: new PhotoService({ photos: new DynamoPhotoStore(dynamo, { tableName: env('TOURNAMENTS_TABLE'), ...retention }), accounts, ids }),
+  photoOf,
   registry,
   clock,
   logError: (error) => { console.error(error); },
