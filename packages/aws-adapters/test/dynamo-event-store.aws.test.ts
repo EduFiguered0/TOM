@@ -7,4 +7,4 @@ import { awsConfig, testStackOutput } from './aws-env.js';
 const client = DynamoDBDocumentClient.from(new DynamoDBClient(awsConfig));
 const tableName = await testStackOutput('EventsTableName');
 
-eventStoreContract('DynamoDB (TomTest)', () => new DynamoEventStore(client, { tableName, retentionDays: 1 }));
+eventStoreContract('DynamoDB (tom-test-data)', () => new DynamoEventStore(client, { tableName, retentionDays: 1 }));

@@ -1,6 +1,6 @@
 /**
  * Deploy de produção num comando: confere o repositório e o login da AWS, sobe a API e o CloudFront e publica o site.
- * Uso: npm run deploy (perfil AWS `tom`, ou AWS_PROFILE). TomData e TomAuth continuam à parte (guia de operação, "AWS").
+ * Uso: npm run deploy (perfil AWS `tom`, ou AWS_PROFILE). tom-prod-data e tom-prod-auth continuam à parte (guia de operação, "AWS").
  */
 import { execSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
@@ -42,8 +42,8 @@ const main = () => {
   }
 
   // Mudança de IAM pede confirmação do CDK: num terminal sem interação (ex.: "!" no Claude Code) o deploy para e avisa.
-  step('API e CloudFront (TomApi, TomWeb)');
-  run(`npx cdk deploy TomApi TomWeb --exclusively --profile ${profile}`, join(root, 'infra'));
+  step('API e CloudFront (tom-prod-api, TomWeb)');
+  run(`npx cdk deploy tom-prod-api TomWeb --exclusively --profile ${profile}`, join(root, 'infra'));
 
   step('Site');
   run('npm run web:deploy');

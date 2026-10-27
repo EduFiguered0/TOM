@@ -22,6 +22,7 @@ const TYPES: Record<string, string> = {
   '.json': 'application/json; charset=utf-8',
   '.svg': 'image/svg+xml',
   '.png': 'image/png',
+  '.jpg': 'image/jpeg',
   '.ico': 'image/x-icon',
   '.webmanifest': 'application/manifest+json',
 };
@@ -42,7 +43,7 @@ const files = (dir: string): string[] =>
   readdirSync(dir, { withFileTypes: true }).flatMap((e) => (e.isDirectory() ? files(join(dir, e.name)) : [join(dir, e.name)]));
 
 const main = async () => {
-  const [web, auth] = await Promise.all([outputs('TomWeb'), outputs('TomAuth')]);
+  const [web, auth] = await Promise.all([outputs('TomWeb'), outputs('tom-prod-auth')]);
   const bucket = web('SiteBucket');
 
   execSync('npm run build -w @tom/web', { cwd: root, stdio: 'inherit' });

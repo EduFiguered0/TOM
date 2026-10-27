@@ -1,6 +1,6 @@
 import { CloudFormationClient, DescribeStacksCommand } from '@aws-sdk/client-cloudformation';
 
-/** Testes reais usam as stacks descartáveis (TomTest, TomAuthTest, TomApiTest). Perfil padrão: tom (sobrescreva com AWS_PROFILE). */
+/** Testes reais usam as stacks descartáveis (tom-test-data, tom-test-auth, tom-test-api). Perfil padrão: tom (sobrescreva com AWS_PROFILE). */
 export const awsConfig = { region: 'us-east-2', profile: process.env['AWS_PROFILE'] ?? 'tom' };
 
 export const stackOutput = async (stack: string, key: string): Promise<string> => {
@@ -11,4 +11,4 @@ export const stackOutput = async (stack: string, key: string): Promise<string> =
   return value;
 };
 
-export const testStackOutput = (key: string) => stackOutput('TomTest', key);
+export const testStackOutput = (key: string) => stackOutput('tom-test-data', key);

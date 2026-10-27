@@ -6,4 +6,4 @@ import { awsConfig, testStackOutput } from './aws-env.js';
 const client = new S3Client(awsConfig);
 const bucket = await testStackOutput('SnapshotsBucketName');
 
-snapshotStoreContract('S3 (TomTest)', () => new S3SnapshotStore(client, bucket));
+snapshotStoreContract('S3 (tom-test-data)', () => new S3SnapshotStore(client, bucket));

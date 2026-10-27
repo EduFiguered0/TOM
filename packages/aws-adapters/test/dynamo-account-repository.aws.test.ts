@@ -7,4 +7,4 @@ import { awsConfig, testStackOutput } from './aws-env.js';
 const client = DynamoDBDocumentClient.from(new DynamoDBClient(awsConfig));
 const tableName = await testStackOutput('AccountsTableName');
 
-accountRepositoryContract('DynamoDB (TomTest)', () => new DynamoAccountRepository(client, { tableName, retentionDays: 1 }));
+accountRepositoryContract('DynamoDB (tom-test-data)', () => new DynamoAccountRepository(client, { tableName, retentionDays: 1 }));

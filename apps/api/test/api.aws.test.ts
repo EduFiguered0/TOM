@@ -14,12 +14,12 @@ import { readFileSync } from 'node:fs';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { awsConfig, stackOutput } from '../../../packages/aws-adapters/test/aws-env.js';
 
-/** Ponta a ponta contra TomApiTest: usuário descartável no pool de testes, dois "celulares", apagado no fim. */
+/** Ponta a ponta contra tom-test-api: usuário descartável no pool de testes, dois "celulares", apagado no fim. */
 const cognito = new CognitoIdentityProviderClient(awsConfig);
 const [apiUrl, userPoolId, clientId] = await Promise.all([
-  stackOutput('TomApiTest', 'ApiUrl'),
-  stackOutput('TomAuthTest', 'UserPoolId'),
-  stackOutput('TomAuthTest', 'UserPoolClientId'),
+  stackOutput('tom-test-api', 'ApiUrl'),
+  stackOutput('tom-test-auth', 'UserPoolId'),
+  stackOutput('tom-test-auth', 'UserPoolClientId'),
 ]);
 const email = `teste-${randomUUID()}@example.com`;
 const adminEmail = `teste-adm-${randomUUID()}@example.com`;
@@ -71,7 +71,7 @@ afterAll(async () => {
   await Promise.all([email, adminEmail, otherEmail].map((user) => cognito.send(new AdminDeleteUserCommand({ UserPoolId: userPoolId, Username: user }))));
 });
 
-describe('API real (TomApiTest)', () => {
+describe('API real (tom-test-api)', () => {
   it('recusa chamada sem token ou com token forjado', async () => {
     expect((await call('GET', '/me', null)).status).toBe(401);
     expect((await call('GET', '/me', 'eyJhbGciOiJub25lIn0.e30.')).status).toBe(401);

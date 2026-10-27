@@ -7,4 +7,4 @@ import { awsConfig, testStackOutput } from './aws-env.js';
 const client = DynamoDBDocumentClient.from(new DynamoDBClient(awsConfig));
 const tableName = await testStackOutput('TournamentsTableName');
 
-judgeInviteRepositoryContract('DynamoDB (TomTest)', () => new DynamoJudgeInviteRepository(client, { tableName }));
+judgeInviteRepositoryContract('DynamoDB (tom-test-data)', () => new DynamoJudgeInviteRepository(client, { tableName }));

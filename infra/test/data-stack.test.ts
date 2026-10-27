@@ -35,8 +35,8 @@ describe('DataStack', () => {
   });
 
   it('bucket de fotografias com nome fixo (a API recebe um ARN literal)', () => {
-    prod.hasResourceProperties('AWS::S3::Bucket', { BucketName: 'tom-snapshots-123456789012-us-east-2' });
-    temp.hasResourceProperties('AWS::S3::Bucket', { BucketName: 'tom-snapshots-test-123456789012-us-east-2' });
+    prod.hasResourceProperties('AWS::S3::Bucket', { BucketName: 'tom-prod-snapshots-123456789012' });
+    temp.hasResourceProperties('AWS::S3::Bucket', { BucketName: 'tom-test-snapshots-123456789012' });
   });
 
   it('bucket privado, criptografado, só HTTPS', () => {
