@@ -21,6 +21,8 @@ export interface Registration {
   launched: boolean;
   /** Removida pelo ADM: só ele inscreve de novo. */
   removed: boolean;
+  /** Pagou a inscrição (o ADM marca até o encerramento). Não bloqueia nada; só o ADM vê. */
+  paid: boolean;
 }
 
 /** O evento saiu do status exigido antes de a inscrição ser gravada (ex.: o TOM mandou o resultado final). */
@@ -35,6 +37,8 @@ export interface RegistrationRepository {
   get(eventId: string, accountId: string): Promise<Registration | null>;
   /** Grava (ou regrava). Com `guard`, só grava se o evento ainda estiver nesse status; senão EventStatusChangedError. */
   put(registration: Registration, guard: EventStatus | null): Promise<void>;
+  /** Inscrições de uma conta em todos os eventos (histórico do jogador), em qualquer ordem. */
+  listByAccount(accountId: string): Promise<Registration[]>;
 }
 
 export const byInscription = (a: Registration, b: Registration) =>

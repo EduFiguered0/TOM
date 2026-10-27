@@ -146,6 +146,38 @@ describe('entrada tardia e painel do ADM', () => {
     expect((await service.add(actors.admin, event.id, 'tarde')).awaitingApproval).toBe(false);
   });
 
+  it('pagamento: nasce não pago; só o ADM marca, até o encerramento', async () => {
+    const { service, accounts, events, event, code } = await setup();
+    expect((await service.join(await account(accounts, 'ana', '100001'), code)).registration.paid).toBe(false);
+    await rejects(service.setPaid(actors.p1, event.id, 'ana', true), 'forbidden');
+    expect((await service.setPaid(actors.admin, event.id, 'ana', true)).paid).toBe(true);
+    await events.markRunning(event.id);
+    await events.markFinal(event.id, []);
+    expect((await service.setPaid(actors.admin, event.id, 'ana', false)).paid).toBe(false);
+    await events.close(actors.admin, event.id);
+    await rejects(service.setPaid(actors.admin, event.id, 'ana', true), 'event_state', 'Evento encerrado: o pagamento não muda mais');
+  });
+
+  it('histórico do jogador: eventos mais recentes primeiro, sem removidos, com o nome atual; só o ADM vê', async () => {
+    const { service, accounts, events, registry, event, code } = await setup();
+    const ana = await account(accounts, 'ana', '100001');
+    await service.join(ana, code);
+    await service.setPaid(actors.admin, event.id, 'ana', true);
+    await events.cancel(actors.admin, event.id);
+    const { event: next } = await events.createEvent(actors.admin, { label: 'Segunda', date: '2026-10-30' });
+    await service.join(ana, next.code ?? '');
+    const record = await registry.get(next.id);
+    if (!record) throw new Error('evento não gravado');
+    await registry.save({ ...record.event, label: 'Nome do TOM' }, record.version);
+    await rejects(service.history(actors.p1, 'ana'), 'forbidden');
+    expect(await service.history(actors.admin, 'ana')).toEqual([
+      { eventId: next.id, label: 'Nome do TOM', date: '2026-10-30', paid: false },
+      { eventId: event.id, label: 'Liga de Outubro', date: event.date, paid: true },
+    ]);
+    await service.remove(actors.admin, next.id, 'ana');
+    expect((await service.history(actors.admin, 'ana')).map((h) => h.eventId)).toEqual([event.id]);
+  });
+
   it('só o ADM lista, remove, marca lançado e inscreve à mão', async () => {
     const { service, accounts, event, code } = await setup();
     const ana = await account(accounts, 'ana', '100001');

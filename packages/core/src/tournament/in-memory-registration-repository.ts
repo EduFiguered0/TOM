@@ -16,6 +16,10 @@ export class InMemoryRegistrationRepository implements RegistrationRepository {
     return Promise.resolve(found ? structuredClone(found) : null);
   }
 
+  listByAccount(accountId: string): Promise<Registration[]> {
+    return Promise.resolve([...this.items.values()].filter((r) => r.accountId === accountId).map((r) => structuredClone(r)));
+  }
+
   async put(registration: Registration, guard: EventStatus | null): Promise<void> {
     if (guard && (await this.registry.get(registration.eventId))?.event.status !== guard) {
       throw new EventStatusChangedError(`O evento não está mais em "${guard}"`);
