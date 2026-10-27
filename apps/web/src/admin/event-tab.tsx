@@ -5,7 +5,7 @@ import { EventConfig } from '../screens/event-panel.js';
 import { RegistrationsTable, type Registrations } from '../screens/registrations.js';
 import type { TomFolder } from '../tom-folder/use-tom-folder.js';
 import { FolderBox } from './folder-box.js';
-import { eventSteps } from './steps.js';
+import { eventSteps, nextStep } from './steps.js';
 import { box, ghost, linkButton, ok, primary } from '../ui.js';
 
 interface Props {
@@ -93,6 +93,7 @@ export const EventTab = ({ api, event, last = null, reload, folder, registration
           </li>
         ))}
       </ol>
+      {nextStep(event.status) && <p class="m-0 rounded-md border border-dashed border-line px-3 py-1.5 text-sm text-muted">{nextStep(event.status)}</p>}
       {message && <p class={`m-0 text-sm ${message.ok ? 'text-ok' : 'text-error'}`} role={message.ok ? 'status' : 'alert'}>{message.text}</p>}
       {data && data.awaiting > 0 && (
         <p class="m-0 rounded-md border border-warn px-3 py-1.5 text-sm font-semibold text-warn" role="status">

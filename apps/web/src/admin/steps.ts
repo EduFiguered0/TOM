@@ -12,3 +12,14 @@ export const eventSteps = (status: EventStatusDto | null): { label: string; stat
   const now = status ? CURRENT[status] : 0;
   return LABELS.map((label, i) => ({ label, state: i < now ? 'done' : i === now ? 'now' : 'todo' }));
 };
+
+const NEXT: Record<EventStatusDto, string | null> = {
+  open: 'Próximo passo: lance os inscritos no TOM e gere o pareamento da rodada 1. O botão Iniciar rodada aparece na aba Rodada.',
+  running: 'Entre rodadas: imprima a Classificação no TOM (não o Registro de partida) para ela aparecer na TV. O pareamento seguinte volta às mesas.',
+  final: 'Resultado final recebido: confira e encerre o evento.',
+  closed: null,
+  cancelled: null,
+};
+
+/** O que o ADM faz agora, e onde (o site segue os arquivos do TOM). */
+export const nextStep = (status: EventStatusDto): string | null => NEXT[status];
