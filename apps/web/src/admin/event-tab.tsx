@@ -1,4 +1,4 @@
-import type { EventDto } from '@tom/contracts';
+import type { ActiveEventResponse, EventDto } from '@tom/contracts';
 import { useState } from 'preact/hooks';
 import type { Api } from '../api.js';
 import { EventConfig } from '../screens/event-panel.js';
@@ -6,11 +6,13 @@ import { RegistrationsTable, type Registrations } from '../screens/registrations
 import type { TomFolder } from '../tom-folder/use-tom-folder.js';
 import { FolderBox } from './folder-box.js';
 import { eventSteps } from './steps.js';
-import { box, linkButton, ok, primary } from '../ui.js';
+import { box, ghost, linkButton, ok, primary } from '../ui.js';
 
 interface Props {
   api: Api;
   event: EventDto | null;
+  /** Sem evento ativo: o último evento, para reexibir a classificação final na TV. */
+  last?: ActiveEventResponse['last'];
   reload: () => Promise<void>;
   folder: TomFolder;
   registrations: Registrations;
@@ -21,7 +23,7 @@ interface Props {
 const STEP = { done: 'text-green', now: 'bg-accent/15 font-bold text-accent', todo: 'text-muted' } as const;
 
 /** Aba Evento: etapas do evento e, lado a lado, configuração, pasta do TOM e inscritos. Sem rolar a página. */
-export const EventTab = ({ api, event, reload, folder, registrations, onTeam }: Props) => {
+export const EventTab = ({ api, event, last = null, reload, folder, registrations, onTeam }: Props) => {
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<{ ok: boolean; text: string } | null>(null);
 
@@ -36,12 +38,35 @@ export const EventTab = ({ api, event, reload, folder, registrations, onTeam }: 
       .finally(() => { setBusy(false); });
   };
 
+  /** Mostra ou tira da TV a classificação final do último evento. */
+  const showOnTv = (on: boolean) => {
+    if (!last) return;
+    setBusy(true);
+    setMessage(null);
+    void api.showOnTv(last.id, on)
+      .then(async (result) => { ok(result); setMessage({ ok: true, text: on ? 'Classificação na TV.' : 'Classificação fora da TV.' }); await reload(); })
+      .catch((e: unknown) => { setMessage({ ok: false, text: (e as Error).message }); })
+      .finally(() => { setBusy(false); });
+  };
+
   if (!event) {
     return (
-      <section class={`${box} max-w-xl`} aria-label="Criar evento">
-        <h2 class="m-0 text-base font-bold">Criar evento</h2>
-        <EventConfig api={api} event={null} reload={reload} />
-      </section>
+      <div class="flex max-w-xl flex-col gap-4">
+        <section class={box} aria-label="Criar evento">
+          <h2 class="m-0 text-base font-bold">Criar evento</h2>
+          <EventConfig api={api} event={null} reload={reload} />
+        </section>
+        {last?.canShow && (
+          <section class={box} aria-label="TV">
+            <h2 class="m-0 text-base font-bold">TV</h2>
+            <p class="m-0 text-sm">Classificação de <b>{last.label}</b> ({last.date.split('-').reverse().join('/')})</p>
+            <button type="button" class={`${last.onTv ? ghost : primary} self-start`} disabled={busy} onClick={() => { showOnTv(!last.onTv); }}>
+              {last.onTv ? 'Tirar da TV' : 'Mostrar na TV'}
+            </button>
+            {message && <p class={`m-0 text-sm ${message.ok ? 'text-ok' : 'text-error'}`} role={message.ok ? 'status' : 'alert'}>{message.text}</p>}
+          </section>
+        )}
+      </div>
     );
   }
 

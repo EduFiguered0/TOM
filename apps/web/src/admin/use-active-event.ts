@@ -1,4 +1,4 @@
-import type { EventDto } from '@tom/contracts';
+import type { ActiveEventResponse, EventDto } from '@tom/contracts';
 import { useCallback, useEffect, useState } from 'preact/hooks';
 import type { Api } from '../api.js';
 
@@ -9,12 +9,13 @@ const POLL_MS = 15_000;
 export const useActiveEvent = (api: Api, enabled: boolean) => {
   const [event, setEvent] = useState<EventDto | null | undefined>(enabled ? undefined : null);
   const [error, setError] = useState<string | null>(null);
+  const [last, setLast] = useState<ActiveEventResponse['last']>(null);
 
   const reload = useCallback(async () => {
     if (!enabled) return;
     try {
       const result = await api.activeEvent();
-      if (result.ok) { setEvent(result.body.event); setError(null); } else setError(result.error.message);
+      if (result.ok) { setEvent(result.body.event); setLast(result.body.last); setError(null); } else setError(result.error.message);
     } catch {
       // Sem conexão: mantém o último estado; a próxima consulta tenta de novo.
     }
@@ -29,5 +30,5 @@ export const useActiveEvent = (api: Api, enabled: boolean) => {
     return () => { clearInterval(timer); document.removeEventListener('visibilitychange', onVisible); };
   }, [reload]);
 
-  return { event, error, reload };
+  return { event, last, error, reload };
 };
