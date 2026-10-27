@@ -1,5 +1,5 @@
 import type { PlayerEventDto, PlayerRowDto } from '@tom/contracts';
-import { useEffect, useState } from 'preact/hooks';
+import { useEffect, useRef, useState } from 'preact/hooks';
 import type { Api } from '../api.js';
 import { box, Feedback, field, ghost } from '../ui.js';
 
@@ -16,10 +16,12 @@ export const PlayersTab = ({ api }: { api: Api }) => {
   const [events, setEvents] = useState<PlayerEventDto[] | null>(null);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<{ ok: boolean; text: string } | null>(null);
+  /** Jogador aberto agora: resposta de um clique anterior que chegue atrasada é descartada. */
+  const selected = useRef<string | null>(null);
 
-  const search = async (text: string) => {
+  const search = async (text: string, keepMessage = false) => {
     setBusy(true);
-    setMessage(null);
+    if (!keepMessage) setMessage(null);
     try {
       const result = await api.players(text.trim());
       if (result.ok) setRows(result.body); else setMessage({ ok: false, text: result.error.message });
@@ -33,10 +35,14 @@ export const PlayersTab = ({ api }: { api: Api }) => {
   useEffect(() => { void search(''); }, [api]);
 
   const select = (row: PlayerRowDto) => {
+    selected.current = row.id;
     setOpen(row);
     setEvents(null);
     void api.playerEvents(row.id)
-      .then((result) => { if (result.ok) setEvents(result.body); else setMessage({ ok: false, text: result.error.message }); })
+      .then((result) => {
+        if (selected.current !== row.id) return;
+        if (result.ok) setEvents(result.body); else setMessage({ ok: false, text: result.error.message });
+      })
       .catch((e: unknown) => { setMessage({ ok: false, text: (e as Error).message }); });
   };
 
@@ -51,7 +57,7 @@ export const PlayersTab = ({ api }: { api: Api }) => {
         if (!result.ok) { setMessage({ ok: false, text: result.error.message }); return; }
         setOpen(result.body);
         setMessage({ ok: true, text: 'Vínculo desfeito. O dono do Player ID já pode cadastrá-lo.' });
-        await search(query);
+        await search(query, true);
       })
       .catch((e: unknown) => { setMessage({ ok: false, text: (e as Error).message }); })
       .finally(() => { setBusy(false); });

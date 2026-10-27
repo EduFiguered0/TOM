@@ -306,6 +306,9 @@ export interface PlayerRowDto {
   phone: string | null;
 }
 
+/** Conta na guia Equipe (busca, juízes, escala): mascarada como na guia Jogadores, com a marca de juiz. */
+export type TeamMemberDto = PlayerRowDto & { judge: boolean };
+
 /** Um evento no cadastro do jogador (só o ADM vê). */
 export interface PlayerEventDto {
   eventId: string;

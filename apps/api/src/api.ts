@@ -27,6 +27,7 @@ import {
   type MyRegistrationDto,
   type PlayerEventDto,
   type PlayerRowDto,
+  type TeamMemberDto,
   type RegistrationDto,
   type RegistrationsResponse,
   type BoardResponse,
@@ -155,6 +156,8 @@ const toPlayerRow = (account: Account): PlayerRowDto => ({
   email: maskEmail(account.email),
   phone: maskPhone(account.profile.phone),
 });
+
+const toTeamMember = (account: Account): TeamMemberDto => ({ ...toPlayerRow(account), judge: account.judge === true });
 
 const toMe = ({ account, actor }: Principal, judging: boolean): MeResponse => ({
   ...toAccount(account),
@@ -506,14 +509,14 @@ export const createApi = ({ tokens, emails, accounts, events, ingest, board, rou
       handle: async ({ request, identity }) => {
         const { query } = parseSearchRequest(jsonBody(request));
         const { actor } = await accounts.authenticate(identity);
-        return { status: 200, body: (await accounts.search(actor, query)).map(toAccount) };
+        return { status: 200, body: (await accounts.search(actor, query)).map(toTeamMember) };
       },
     },
     {
       method: 'GET', path: /^\/staff\/judges$/,
       handle: async ({ identity }) => {
         const { actor } = await accounts.authenticate(identity);
-        return { status: 200, body: (await accounts.listJudges(actor)).map(toAccount) };
+        return { status: 200, body: (await accounts.listJudges(actor)).map(toTeamMember) };
       },
     },
     {
@@ -521,7 +524,7 @@ export const createApi = ({ tokens, emails, accounts, events, ingest, board, rou
       handle: async ({ request, identity, params: [id = ''] }) => {
         const { judge } = parseSetJudgeRequest(jsonBody(request));
         const { actor } = await accounts.authenticate(identity);
-        return { status: 200, body: toAccount(await accounts.setJudge(actor, id, judge)) };
+        return { status: 200, body: toTeamMember(await accounts.setJudge(actor, id, judge)) };
       },
     },
     {

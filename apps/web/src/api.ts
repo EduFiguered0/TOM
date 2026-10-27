@@ -1,5 +1,4 @@
 import type {
-  AccountResponse,
   ActiveEventResponse,
   CreateEventRequest,
   EventDto,
@@ -15,6 +14,7 @@ import type {
   PlayerEventDto,
   PlayerRowDto,
   RegistrationDto,
+  TeamMemberDto,
   MeResponse,
   MyRoundResponse,
   OverrideDto,
@@ -85,10 +85,10 @@ export const createApi = (session: Session, base = '/api', fetchFn: typeof fetch
     playerEvents: (accountId: string) => call<PlayerEventDto[]>('GET', `/accounts/${encodeURIComponent(accountId)}/events`),
     setLaunched: (eventId: string, accountId: string, launched: boolean) =>
       call<RegistrationDto>('POST', `/events/${encodeURIComponent(eventId)}/registrations/${encodeURIComponent(accountId)}/launched`, { launched }),
-    searchAccounts: (query: string) => call<AccountResponse[]>('POST', '/staff/search', { query }),
-    judges: () => call<AccountResponse[]>('GET', '/staff/judges'),
+    searchAccounts: (query: string) => call<TeamMemberDto[]>('POST', '/staff/search', { query }),
+    judges: () => call<TeamMemberDto[]>('GET', '/staff/judges'),
     setJudge: (accountId: string, judge: boolean) =>
-      call<AccountResponse>('POST', `/staff/accounts/${encodeURIComponent(accountId)}/judge`, { judge }),
+      call<TeamMemberDto>('POST', `/staff/accounts/${encodeURIComponent(accountId)}/judge`, { judge }),
     myRound: () => call<MyRoundResponse>('GET', '/round/me'),
     report: (report: ReportDto) => call<MyRoundResponse>('POST', '/round/report', { report }),
     startRound: (bestOf: 1 | 3, roundMinutes: number | null) => call<BoardResponse>('POST', '/round/start', { bestOf, roundMinutes }),
