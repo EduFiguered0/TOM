@@ -1,0 +1,52 @@
+{
+  "$schema": "https://raw.githubusercontent.com/googleapis/release-please/main/schemas/config.json",
+  "release-type": "node",
+  "include-component-in-tag": false,
+  "bump-minor-pre-major": true,
+  "pull-request-title-pattern": "Release v${version}",
+  "changelog-sections": [
+    {
+      "type": "feat",
+      "section": "Novidades"
+    },
+    {
+      "type": "fix",
+      "section": "Correções"
+    },
+    {
+      "type": "perf",
+      "section": "Desempenho"
+    },
+    {
+      "type": "docs",
+      "section": "Documentação",
+      "hidden": true
+    },
+    {
+      "type": "test",
+      "section": "Testes",
+      "hidden": true
+    },
+    {
+      "type": "ci",
+      "section": "Automação",
+      "hidden": true
+    },
+    {
+      "type": "chore",
+      "section": "Manutenção",
+      "hidden": true
+    },
+    {
+      "type": "refactor",
+      "section": "Refatoração",
+      "hidden": true
+    }
+  ],
+  "packages": {
+    ".": {
+      "package-name": "tom-pokemon",
+      "changelog-path": "CHANGELOG.md"
+    }
+  }
+}
