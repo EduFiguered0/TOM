@@ -297,7 +297,7 @@ Em aberto:
 
 - [x] Dependência do match_slips: as guias são obrigatórias em toda rodada com mesas. Sem elas (ou com guias de outra rodada), o pareamento é recusado e o sistema pede para gerar as guias no TOM. Sem fallback por nome na v1.
 - [x] Como o enviador percebe que o TOM terminou de escrever: o arquivo fica sem mudar de tamanho e data por 1,5 s e termina em `</html>`. A pasta é lida por polling a cada 1 s (o `fs.watch` perde eventos no Windows/OneDrive). Todos os HTMLs do evento mais recente são enviados, inclusive brackets; conteúdo idêntico (mesmo SHA-256) não é reenviado. A frequência real de regravação do TOM sai do log do enviador num evento real.
-- [x] Login com Google **[R4]**: pronto no código e na infra; ativado com o cadastro do provedor no Cognito e a flag `google` (README, "Ativar o Google"). Publicar o app no Google exige home e política de privacidade públicas.
+- [x] Login com Google **[R4]**: pronto no código e na infra; ativado com o cadastro do provedor no Cognito e a flag `google` (guia de operação, "Ativar o Google"). Publicar o app no Google exige home e política de privacidade públicas.
 - [ ] Remetente dos e-mails e acesso de produção do SES **[R3]**: necessários antes do primeiro evento (limite atual de ~50 e-mails/dia) e para o e-mail do código de login em português.
 - [ ] Estética das telas (celular, TV, painel): o layout atual é funcional; o visual será revisto com as três telas lado a lado.
 - [ ] Top cut / eliminatória (arquivo brackets).

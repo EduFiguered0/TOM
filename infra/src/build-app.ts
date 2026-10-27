@@ -21,7 +21,7 @@ export const buildApp = (account: string | undefined, app = new App()) => {
   const bucket = (ephemeral: boolean) => snapshotsBucketName(account, REGION, ephemeral);
   const data = new DataStack(app, 'TomData', { env, ephemeral: false, snapshotsBucketName: bucket(false) });
   const test = new DataStack(app, 'TomTest', { env, ephemeral: true, snapshotsBucketName: bucket(true) });
-  // Google só depois de o provedor existir no pool (README, "Ativar o Google"); os testes nunca usam.
+  // Google só depois de o provedor existir no pool (guia de operação, "Ativar o Google"); os testes nunca usam.
   const google = app.node.tryGetContext('google') === true;
   const auth = new AuthStack(app, 'TomAuth', { env, ephemeral: false, domainPrefix: LOGIN_PREFIX, google, callbackUrls: CALLBACK_URLS });
   const authTest = new AuthStack(app, 'TomAuthTest', { env, ephemeral: true, domainPrefix: 'ggtcg-login-teste', google: false, callbackUrls: [] });

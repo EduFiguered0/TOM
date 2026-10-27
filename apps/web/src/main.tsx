@@ -20,7 +20,7 @@ interface Config {
   region: string;
   userPoolClientId: string;
   loginDomain: string;
-  /** O Google só aparece depois de ligado no Cognito (README, "Ativar o Google"). */
+  /** O Google só aparece depois de ligado no Cognito (guia de operação, "Ativar o Google"). */
   google: boolean;
 }
 

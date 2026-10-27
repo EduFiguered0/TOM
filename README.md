@@ -1,182 +1,51 @@
 # TOM Pokémon
 
-Camada de auditoria de resultados para torneios de Pokémon TCG rodados no TOM (Tournament Operations Manager). Os jogadores se inscrevem pelo QR da TV e reportam pelo celular; o sistema valida por consenso (termômetro por mesa) e o ADM lança as keys no TOM. O TOM continua sendo a fonte oficial: o sistema só lê os HTMLs que ele gera.
+Sistema de apoio a torneios de Pokémon TCG rodados no TOM (Tournament Operations Manager), feito para a loja Good Gamë.
 
-Detalhes do produto em [`docs/spec-tom.md`](docs/spec-tom.md); arquitetura em [`docs/adr/0001-arquitetura-do-repositorio.md`](docs/adr/0001-arquitetura-do-repositorio.md).
+## Por que existe
 
-## Estrutura
+No TOM, os resultados de cada mesa são digitados pelo organizador a partir de papéis preenchidos pelos jogadores, o que gera filas, erros de digitação e discussões sobre placar. Este projeto põe uma camada de auditoria em volta do TOM, sem substituí-lo:
+
+- Os jogadores se inscrevem pelo QR mostrado na TV do salão e reportam o resultado da própria mesa pelo celular.
+- O sistema valida por consenso: cada mesa tem uma cor (aguardando, um lado reportou, resultado validado, juiz na mesa).
+- A TV mostra as mesas, o cronômetro da rodada, os vencedores e a classificação.
+- O organizador e os juízes resolvem divergências num painel e lançam as keys no TOM.
+
+O TOM continua sendo a fonte oficial: o sistema só lê os relatórios HTML que ele gera.
+
+## Arquitetura
+
+Monorepo TypeScript em arquitetura hexagonal (portas e adaptadores):
 
 ```
 apps/
-  api/           API: uma Lambda atrás de Function URL (rotas abaixo)
-  web/           site em Preact + Tailwind (tema escuro): home pública (/), privacidade (/privacidade),
-                 celular do jogador (/conta), QR do evento (/e/<código>, inscreve sozinho), TV do salão (/tv)
-                 e área do ADM no notebook (/conta, /painel, /conta/inscritos, /conta/equipe, /conta/jogadores)
-  uploader/      enviador: observa a pasta do TOM (somente leitura)
+  api/           API HTTP
+  web/           site: celular do jogador, TV do salão e área do organizador
+  uploader/      enviador alternativo dos relatórios do TOM
 packages/
-  core/          domínio e casos de uso, sem dependências
-  contracts/     formato e validação das requisições da API, sem dependências
-  tom-reports/   leitura dos HTMLs do TOM (camada anticorrupção)
-  aws-adapters/  DynamoDB e S3 implementando as portas do core
-infra/           AWS CDK: dados, login e API
-docs/            spec, ADRs e PDFs de referência
-tools/           material local fora do git (instalador do TOM)
+  core/          domínio e casos de uso, sem dependências externas
+  contracts/     formato e validação das mensagens entre site e API
+  tom-reports/   leitura dos relatórios do TOM (camada anticorrupção)
+  aws-adapters/  persistência implementando as portas do core
+infra/           infraestrutura como código
 ```
 
-Regra de dependência: `apps → adaptadores / contracts → core`. O `core` não importa nada; o ESLint bloqueia violações.
+- **Regra de dependência:** `apps → adaptadores / contracts → core`. O `core` não importa nada de fora; o lint bloqueia violações.
+- **Rodadas em event sourcing:** cada reporte, ajuste e acréscimo é um evento gravado; o estado da mesa é a projeção deles, o que deixa a auditoria completa.
+- **Nuvem serverless:** paga só pelo uso, com custo projetado de centavos por mês para o porte de uma loja.
 
-## Requisitos
+Decisões de arquitetura em [`docs/adr`](docs/adr) e detalhes do produto em [`docs/spec-tom.md`](docs/spec-tom.md).
 
-- Node.js 22 ou mais novo (via nvm-windows: `nvm install 22` e `nvm use 22`)
-- Para a AWS: AWS CLI com o perfil `tom` (`aws login --profile tom`)
+## Tecnologias
 
-## Comandos
-
-```bash
-npm install
-npm run check     # typecheck + lint + testes (offline, sem AWS)
-npm test          # só testes (offline)
-npm run test:aws  # testes reais contra as stacks de teste (TomTest, TomAuthTest, TomApiTest)
-npm run build     # compila os pacotes para dist/
-```
-
-Site (desenvolvimento local com o pool e a API de testes; publicação em produção):
-
-```bash
-npm run web:dev      # http://localhost:5173 e http://localhost:5173/tv
-npm run web:deploy   # só o site: build, envio ao S3 e limpeza do cache do CloudFront
-```
-
-## Releases
-
-Versão única para o projeto todo (`package.json` da raiz), em [versionamento semântico](https://semver.org/lang/pt-BR/); enquanto for 0.x, o sistema ainda muda bastante. Os testes rodam no GitHub a cada PR (`.github/workflows/check.yml`); merge comum na `main` não dispara nada, e o Release roda o mesmo Check antes de lançar.
-
-1. Os PRs entram na `main` com commits `feat:` (novidade), `fix:` (correção) ou `docs:`/`test:`/`ci:`/`chore:` (não aparecem nas notas).
-2. Quando quiser lançar: *Actions → Release → Run workflow*. Ele roda o Check e, se passar, abre (ou atualiza) o PR **"Release vX.Y.Z"** com as mudanças desde a última versão (`feat` sobe a versão do meio; `fix`, a última).
-3. Faça o merge desse PR: a tag, a release no GitHub e o `CHANGELOG.md` saem sozinhos.
-4. Deploy da versão lançada, num comando (confere branch, alterações locais, GitHub e login da AWS; avisa se há mudança fora de release):
-
-```bash
-npm run deploy   # TomApi + TomWeb + site; mudança de IAM pede confirmação: rode num terminal normal
-```
-
-## Uso no dia do evento
-
-Área do ADM no notebook do TOM, no **Chrome ou no Edge** (pensada para 1280×720 ou mais, sem rolar a página). Menu lateral com as abas **Evento**, **Rodada**, **Inscritos**, **Equipe** e **Jogadores**; no topo, o status da pasta do TOM e **Abrir TV**.
-
-1. **Evento:** crie o evento (nome, data, tempo de rodada, juízes) e clique em **"Conectar pasta do TOM"** (a pasta `reports` do TOM). A TV mostra o QR; quem escaneia se cadastra e fica inscrito.
-2. O ADM digita os inscritos no TOM (tabela com "copiar ID/nome" e "lançado no TOM"). O QR fica aberto até o encerramento, num canto da TV durante as rodadas: quem escaneia depois do início da rodada 1 fica **aguardando o organizador**, e o ADM **aprova** (lança no TOM e a pessoa entra no próximo pareamento) ou **recusa** na tabela de inscritos.
-3. **Rodada:** imprima o pareamento e as guias no TOM; a pasta envia sozinha e aparece **"Iniciar rodada"**. As mesas ficam numa tabela por ordem de ação; a mesa escolhida abre ao lado com os reportes, a key do TOM, **Ajustar resultado** (botões por vencedor e placar, ID, DGL, ausência; sem motivo obrigatório), acréscimo e reporte por jogador sem celular. As abas R1, R2… mostram e ajustam rodadas anteriores; keys pendentes só geram aviso, não travam a próxima rodada. Cada jogador reporta uma vez; correção é com o juiz. O nome do evento passa a ser o do torneio no TOM, e a configuração do evento grava sozinha (sem botão Salvar).
-4. **TV:** todas as mesas numa página, em ordem, com o vencedor de cada mesa verde (sem placar), os byes à parte e o QR para quem chega tarde. Entre rodadas, os standings intermediários do TOM mostram a classificação parcial até o próximo pareamento.
-5. Os standings da última rodada do TOM mostram na TV a classificação final (pontos e desempates) e, no celular, a colocação de cada jogador. Aí o ADM encerra o evento, e a TV volta para a espera. Sem evento ativo, a aba Evento permite **mostrar e tirar da TV** a classificação do último evento.
-
-**Pasta do TOM.** O site lê a pasta (só leitura) a cada 3 s e envia sozinho os relatórios novos para o evento ativo, com o login do ADM: sem token e sem comando. Continua enviando em qualquer aba; num dia novo, o navegador pede um clique em "Permitir". A página precisa ficar aberta (pode ficar atrás do TOM). Arquivos gravados antes da criação do evento (o torneio anterior que ficou na pasta) são ignorados: o primeiro arquivo novo amarra o torneio ao evento.
-
-**Plano B: enviador por comando**, no notebook do TOM (somente leitura da pasta). O token é gerado na criação do evento (resposta de `POST /events`); ele vai pela variável de ambiente para não ficar no histórico do terminal:
-
-```powershell
-$env:TOM_UPLOAD_TOKEN="<token do evento>"
-npm run uploader -- --folder "C:\Users\<você>\TOM_DATA\data\reports" --api https://<site>/api
-```
-
-Sem `--api`, o enviador só mostra no console o que enviaria (modo de teste). Token revogado ou de outro torneio param o envio com instrução; sem internet, ele tenta de novo sozinho.
-
-Opções: `--state` (registro de envios, padrão `~/.tom-uploader/sent.json`, nunca dentro da pasta do TOM), `--interval` e `--quiet` em ms.
-
-## AWS
-
-Região us-east-2, perfil `tom`. Cada stack de produção tem um gêmeo descartável usado só nos testes reais:
-
-| Stack | Gêmeo de teste | Recursos |
-| --- | --- | --- |
-| `TomData` | `TomTest` | DynamoDB `Events`, `Accounts` e `Tournaments` (sob demanda, TTL 24 meses), S3 `Snapshots` (privado, expira em 24 meses) |
-| `TomAuth` | `TomAuthTest` | Cognito user pool (Essentials, e-mail e senha; Google só em produção), gatilho de pré-cadastro (Lambda 128 MB), grupo `admin` |
-| `TomApi` | `TomApiTest` | Lambda Node 22 Arm 256 MB + Function URL (sem API Gateway), logs por 14 dias |
-| `TomWeb` | — | Site no S3 + CloudFront, `/api` no mesmo endereço, `/api/board` guardado 5 s, CSP rígida |
-
-Custo projetado: **menos de US$ 0,20/mês** com 100 jogadores e 1 evento por mês. Preços, franquias e escolhas feitas por custo estão em [Recursos AWS e custos](docs/spec-tom.md#recursos-aws-e-custos-r3).
-
-```bash
-npm run cdk -- diff --profile tom
-npm run cdk -- deploy --all --profile tom   # num terminal interativo: mudanças de IAM pedem confirmação
-```
-
-Rotas da API (as de conta e ADM exigem `Authorization: Bearer <token de acesso do Cognito>`):
-
-| Rota | Quem | Para quê |
-| --- | --- | --- |
-| `GET /me` | qualquer conta | Dados da própria conta, papel e se já pode agir (404 se ainda não cadastrou) |
-| `POST /me` | qualquer conta | Cadastro (nome, sobrenome, ano de nascimento, telefone opcional e Player ID); o e-mail vem do Cognito. Player ID já em uso: 409 |
-| `POST /me/name` | qualquer conta | Confere ou corrige nome e sobrenome (contas antigas tiveram o nome separado no primeiro espaço) |
-| `POST /session` | qualquer conta | Ativa este dispositivo; com outro ativo, exige `{"replace": true}` e revoga o anterior |
-| `POST /me/player-id` | qualquer conta | Conta sem Player ID informa depois; para trocar, só o ADM (409) |
-| `POST /staff/invites`, `GET /staff/invites`, `POST /staff/invites/{código}/cancel` | ADM | Convite de juiz: QR só no painel, vale 15 minutos e uma única vez; lista e cancela os abertos |
-| `POST /invites/{código}/accept` | qualquer conta | Quem escaneou `/juiz/<código>` vira juiz da equipe (precisa de Player ID); usado ou vencido: 410 |
-| `POST /me/photo`, `POST /me/image-consent` | qualquer conta | Foto do perfil (`{"photo": dataURL ou null}`, 128×128 recortada no celular) e, para menores, a autorização de imagem do responsável |
-| `GET /photos/{chave}` | qualquer conta | A foto pela chave; a chave só sai do servidor para quem pode ver (ADM no quadro e na guia Jogadores, oponente na mesa). Menor sem autorização: nunca |
-| `POST /players/{conta}/photo/remove` | ADM | Tira uma foto inadequada |
-| `POST /players/search` | ADM | Guia Jogadores: todos os cadastrados ou a busca (`{"query"}`: Player ID, nome ou e-mail), mascarados no servidor (primeiro nome, `duk•••@gmail.com`, `•••• 1234`) |
-| `GET /player-ids/{pid}` | ADM | Quem cadastrou esse Player ID (mascarado) |
-| `POST /player-ids/{pid}/unlink` | ADM | Desfaz o vínculo errado; o dono verdadeiro pode cadastrar o Player ID |
-| `POST /staff/search` | ADM | Equipe: busca conta por nome (sem acento) ou Player ID exato |
-| `GET /staff/judges` | ADM | Juízes da equipe |
-| `POST /staff/accounts/{id}/judge` | ADM | Marca ou tira o juiz da equipe (`{"judge": true}`); o juiz precisa de Player ID |
-| `GET /round/me` | qualquer conta | Rodada atual do ponto de vista do jogador: mesa, oponente, prazo, cor e o próprio reporte (sem o placar do oponente) |
-| `POST /round/report` | jogador com Player ID | Reporta placar ou ID na própria mesa |
-| `POST /round/start` | ADM | Inicia a rodada publicada pelo TOM (melhor de 1 ou 3, tempo); a rodada 1 põe o evento em andamento |
-| `GET /panel` | juiz escalado no evento atual, ADM | Painel: todas as mesas com Player IDs, os dois reportes, cor e motivo, override, acréscimo e a key do TOM; a rodada mais recente e as keys pendentes de rodadas anteriores |
-| `GET /panel/rounds/{r}` | juiz, ADM | O mesmo painel para uma rodada anterior do torneio atual |
-| `POST /panel/tables/{n}/override` | juiz, ADM | Override (placar, ID, DGL, vitória por ausência), motivo opcional; avisa se a key já foi lançada |
-| `POST /panel/tables/{n}/extend` | juiz, ADM | Acréscimo de tempo na mesa |
-| `POST /panel/tables/{n}/key-launched` | ADM | Marca a key como lançada no TOM (só mesa verde) |
-| `POST /panel/tables/{n}/report` | ADM | Reporte em nome de jogador sem celular |
-| `POST /panel/rounds/{r}/tables/{n}/…` | juiz, ADM | As mesmas ações numa rodada anterior |
-| `POST /events` | ADM | Cria o evento do dia (nome, `date`, `roundMinutes` = 50, `judges`); um ativo por vez; devolve o token do enviador uma única vez |
-| `GET /events/active` | ADM | Evento ativo, com o código do QR |
-| `PATCH /events/{id}` | ADM | Muda o tempo de rodada e os juízes enquanto o evento não acabou |
-| `POST /events/{id}/close` | ADM | Encerra (só depois do resultado final do TOM) |
-| `POST /events/{id}/cancel` | ADM | Cancela antes de encerrar; não entra no histórico |
-| `GET /events/{id}/registrations` | ADM | Inscritos (Player ID, nome, sobrenome, ano) com os contadores de inscritos, entradas tardias aguardando e lançados no TOM |
-| `POST /events/{id}/registrations` | ADM | Inscreve à mão (`{"accountId"}`), sem esperar aprovação |
-| `POST /events/{id}/registrations/{conta}/approve`, `/remove`, `/launched`, `/paid` | ADM | Aprovar entrada tardia, remover (ou recusar), marcar lançado no TOM, marcar pagamento (até o encerramento) |
-| `GET /accounts/{conta}/events` | ADM | Eventos do jogador (nome, data, pago), do mais recente para o mais antigo |
-| `POST /join/{código}` | qualquer conta | Fim do caminho do QR: inscreve (de novo, só devolve a inscrição) |
-| `GET /me/event` | qualquer conta | Evento ativo, a própria inscrição e, no fim, a própria colocação |
-| `PUT /events/{id}/judges` | ADM | Troca os juízes escalados no evento (só juízes da equipe) |
-| `POST /events/{id}/revoke` | ADM | Revoga o token do enviador |
-| `POST /uploads` | enviador (`x-upload-token`) | Recebe um HTML do TOM; com pareamento e guias da rodada, publica a rodada |
-| `POST /events/active/uploads` | ADM | O mesmo envio, pelo navegador do ADM (pasta do TOM conectada), sempre para o evento ativo; arquivo de antes do evento é ignorado |
-| `GET /board` | ADM | TV por fase do evento (espera, QR com inscritos, rodada com vencedores e o QR no canto, classificação parcial, classificação final), só nomes; sem cache compartilhado. A TV (`/tv`) abre com a sessão do ADM, pelo "Abrir TV" do painel; `/tv?demo` mostra dados fictícios sem login |
-| `POST /events/{id}/tv` | ADM | Mostra (`{"on": true}`) ou tira da TV a classificação final do último evento encerrado |
-
-O ADM vem do grupo `admin` do Cognito; o juiz é marcado pelo ADM na aba "Equipe" e só age no evento em que for escalado (vê só a aba Rodada). Para dar o papel de ADM a uma conta já criada (vale no próximo token, em até 15 min):
-
-```bash
-aws cognito-idp admin-add-user-to-group --profile tom --user-pool-id <TomAuth.UserPoolId> --username <e-mail> --group-name admin
-```
-
-### Login
-
-E-mail e senha (mínimo de 8 caracteres, com letras e números). O cadastro é confirmado na hora por um gatilho de pré-cadastro, sem código por e-mail; o único e-mail que o sistema manda é o de "Esqueci minha senha". Contas antigas, criadas com código por e-mail, definem a senha por ele. Só o Google liga um login novo a uma conta que já existe com o mesmo e-mail; numa conta criada com senha (e-mail não provado), o Google prova o dono e os logins de senha caem.
-
-Como a senha não prova o e-mail, ao dar o papel de ADM confira o usuário certo: `aws cognito-idp list-users --profile tom --user-pool-id <TomAuth.UserPoolId> --filter 'email = "<e-mail>"'` lista todos os logins desse e-mail; use o `Username` de quem você conhece.
-
-### Ativar o Google
-
-1. No Google Cloud, cliente OAuth "Aplicativo da Web" com o URI de redirecionamento `https://ggtcg-login.auth.us-east-2.amazoncognito.com/oauth2/idpresponse`. Enquanto o app estiver "Em teste", só os usuários de teste entram; para publicar, o Google pede home e política de privacidade.
-2. Cadastrar o provedor no pool (o segredo fica só no seu terminal, nunca no repositório):
-
-   ```bash
-   aws cognito-idp create-identity-provider --profile tom --user-pool-id <TomAuth.UserPoolId> --provider-name Google --provider-type Google --provider-details client_id=<id>,client_secret=<segredo>,authorize_scopes="openid email profile" --attribute-mapping email=email,email_verified=email_verified
-   ```
-
-3. Trocar `"google": false` para `true` em `infra/cdk.json`, rodar `npm run cdk -- deploy TomAuth --profile tom` e `npm run web:deploy`.
-
-O bootstrap usa a policy restrita `TomCdkExecution` (`infra/bootstrap/execution-policy.json`) em vez de `AdministratorAccess`:
-
-```bash
-aws iam create-policy --profile tom --policy-name TomCdkExecution --policy-document file://infra/bootstrap/execution-policy.json
-npm run cdk -- bootstrap aws://<conta>/us-east-2 --profile tom --cloudformation-execution-policies arn:aws:iam::<conta>:policy/TomCdkExecution
-```
-
-Para mudar a policy: edite o JSON e rode `aws iam create-policy-version --profile tom --policy-arn <arn> --policy-document file://infra/bootstrap/execution-policy.json --set-as-default`.
+| Camada | Tecnologia |
+| --- | --- |
+| Linguagem | TypeScript (Node.js 22) |
+| Site | Preact, Tailwind CSS, Vite |
+| API | AWS Lambda com Function URL |
+| Dados | Amazon DynamoDB e Amazon S3 |
+| Login | Amazon Cognito (e-mail e senha, Google) |
+| Entrega do site | Amazon CloudFront |
+| Infraestrutura | AWS CDK com cdk-nag |
+| Testes e qualidade | Vitest, ESLint, GitHub Actions |
+| Versões | Versionamento semântico com release-please |

@@ -1,6 +1,6 @@
 /**
  * Deploy de produção num comando: confere o repositório e o login da AWS, sobe a API e o CloudFront e publica o site.
- * Uso: npm run deploy (perfil AWS `tom`, ou AWS_PROFILE). TomData e TomAuth continuam à parte (README, "AWS").
+ * Uso: npm run deploy (perfil AWS `tom`, ou AWS_PROFILE). TomData e TomAuth continuam à parte (guia de operação, "AWS").
  */
 import { execSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
