@@ -13,6 +13,7 @@ export const HomePage = ({ loggedIn, onSignOut }: Props) => {
   return (
     <main class={page}>
       <section class={card}>
+        <img src={STORE.logo} alt="" width="512" height="512" class="mx-auto size-32 rounded-xl" />
         <h1 class="m-0 text-2xl font-bold">{STORE.name}</h1>
         <p class={muted}>Torneios de Pokémon TCG</p>
         <p class="m-0">{STORE.address}</p>
