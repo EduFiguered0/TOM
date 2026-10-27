@@ -6,13 +6,15 @@ export interface BoardDeps {
   rounds: { state(ref: RoundRef): Promise<RoundState> };
   registrations: RegistrationRepository;
   clock: { now(): Date };
+  /** Chave da foto visível por Player ID (null = avatar genérico). */
+  photoOf?: (playerId: string) => Promise<string | null>;
 }
 
 /**
  * Quadro público da TV, por fase do último evento: espera, QR com inscritos, pareamentos da rodada (com o QR
  * para quem chega tarde) ou classificação final (até o próximo evento ser criado). Só nomes, nunca Player ID.
  */
-export const createBoard = ({ registry, rounds, registrations, clock }: BoardDeps) => async (): Promise<BoardResponse> => {
+export const createBoard = ({ registry, rounds, registrations, clock, photoOf = () => Promise.resolve(null) }: BoardDeps) => async (): Promise<BoardResponse> => {
   const serverTime = clock.now().toISOString();
   const latest = await registry.latest();
   const event = latest?.event;
@@ -29,7 +31,7 @@ export const createBoard = ({ registry, rounds, registrations, clock }: BoardDep
       if (event.partial && event.partial.round >= current.ref.round) {
         return { state: 'standings', event: summary, round: event.partial.round, standings: event.partial.standings, serverTime };
       }
-      return { state: 'running', ...(await round(current, rounds, serverTime)), code: event.code ?? '' };
+      return { state: 'running', ...(await round(current, rounds, serverTime, photoOf)), code: event.code ?? '' };
     }
     case 'final':
       return event.standings ? { state: 'final', event: summary, standings: event.standings, serverTime } : { state: 'idle', serverTime };
@@ -41,7 +43,9 @@ export const createBoard = ({ registry, rounds, registrations, clock }: BoardDep
   }
 };
 
-const round = async (current: CurrentRound, rounds: BoardDeps['rounds'], serverTime: string): Promise<RoundBoard> => {
+const round = async (
+  current: CurrentRound, rounds: BoardDeps['rounds'], serverTime: string, photoOf: (playerId: string) => Promise<string | null>,
+): Promise<RoundBoard> => {
   const state = await rounds.state(current.ref);
   const minutes = state.roundMinutes ?? DEFAULT_ROUND_MINUTES;
   return {
@@ -50,9 +54,10 @@ const round = async (current: CurrentRound, rounds: BoardDeps['rounds'], serverT
     round: current.ref.round,
     startedAt: state.startedAt?.toISOString() ?? null,
     endsAt: state.startedAt ? new Date(state.startedAt.getTime() + minutes * 60_000).toISOString() : null,
-    tables: state.tables.map((t) => ({
+    tables: await Promise.all(state.tables.map(async (t) => ({
       table: t.table, player1: t.player1.name, player2: t.player2.name, color: t.status.color, result: tvResult(t.status),
-    })),
+      ...await Promise.all([photoOf(t.player1.playerId), photoOf(t.player2.playerId)]).then(([photo1, photo2]) => ({ photo1, photo2 })),
+    }))),
     byes: state.byes,
     serverTime,
   };
