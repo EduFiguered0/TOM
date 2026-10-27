@@ -41,6 +41,7 @@ export interface AccountServiceDeps {
 
 const MAX_ATTEMPTS = 3;
 const SEARCH_LIMIT = 20;
+const PLAYERS_LIMIT = 200;
 
 /** Sem acento e em minúsculas, para comparar nomes. */
 const fold = (text: string) => text.normalize('NFD').replace(/\p{M}/gu, '').toLowerCase();
@@ -181,6 +182,42 @@ export class AccountService {
     });
   }
 
+  /** Conta pelo id (dono de uma foto); null se não existe. */
+  async byId(accountId: string): Promise<Account | null> {
+    return (await this.deps.accounts.get(accountId))?.account ?? null;
+  }
+
+  /** Id da conta de quem está logado. */
+  async resolveId(identity: Identity): Promise<string> {
+    return (await this.resolve(identity)).account.id;
+  }
+
+  /** A própria pessoa põe, troca ou tira a foto (a imagem já foi gravada pelo PhotoService). */
+  async setPhoto(identity: Identity, photoId: string | null): Promise<Account> {
+    const { account } = await this.resolve(identity);
+    return this.execute(account.id, (current) => (
+      (current.photoId ?? null) === photoId ? null : { actor: self(identity), account: { ...current, photoId }, data: { type: 'photo_set', photoId } }
+    ));
+  }
+
+  /** O ADM tira uma foto inadequada. */
+  async clearPhoto(actor: Actor | null, accountId: string): Promise<Account> {
+    requireAdmin(actor);
+    return this.execute(accountId, (current) => (
+      current.photoId ? { actor, account: { ...current, photoId: null }, data: { type: 'photo_set', photoId: null } } : null
+    ));
+  }
+
+  /** Menor: o responsável autoriza (ou não) mostrar a foto nas mesas. */
+  async setImageConsent(identity: Identity, consent: boolean): Promise<Account> {
+    const { account } = await this.resolve(identity);
+    return this.execute(account.id, (current) => (
+      (current.imageConsent ?? false) === consent
+        ? null
+        : { actor: self(identity), account: { ...current, imageConsent: consent }, data: { type: 'image_consent_set', consent } }
+    ));
+  }
+
   /** Conta sem Player ID informa depois. Para trocar um Player ID já cadastrado, só pelo ADM. */
   async claimPlayerId(identity: Identity, playerId: string): Promise<Account> {
     const value = validated(() => toPlayerId(playerId));
@@ -224,6 +261,16 @@ export class AccountService {
     });
   }
 
+  /** Convite de juiz aceito: a conta entra na equipe (o ator é o próprio convite). */
+  async grantJudge(accountId: string, source: string): Promise<Account> {
+    const actor: Actor = { role: 'system', source };
+    return this.execute(accountId, (account) => {
+      if (account.judge === true) return null;
+      if (!account.playerId) throw new CommandRejected('invalid_input', 'O juiz precisa ter Player ID cadastrado');
+      return { actor, account: { ...account, judge: true }, data: { type: 'judge_set', judge: true } };
+    });
+  }
+
   /** Busca da Equipe: só dígitos = Player ID exato; senão parte do nome, sem acento nem maiúsculas. */
   async search(actor: Actor | null, query: string): Promise<Account[]> {
     requireAdmin(actor);
@@ -232,6 +279,22 @@ export class AccountService {
     const wanted = fold(text);
     const match = /^\d+$/.test(text) ? (a: Account) => a.playerId === text : (a: Account) => fold(fullName(a.profile)).includes(wanted);
     return byName((await this.deps.accounts.all()).filter(match)).slice(0, SEARCH_LIMIT);
+  }
+
+  /**
+   * Guia Jogadores: todos em ordem alfabética, ou a busca sobre os dados completos (a API mascara a resposta).
+   * Só dígitos = Player ID que começa com o texto; senão parte do nome completo ou do e-mail.
+   */
+  async players(actor: Actor | null, query: string): Promise<Account[]> {
+    requireAdmin(actor);
+    const text = query.trim();
+    const wanted = fold(text);
+    const match = !text
+      ? () => true
+      : /^\d+$/.test(text)
+        ? (a: Account) => a.playerId?.startsWith(text) === true
+        : (a: Account) => fold(fullName(a.profile)).includes(wanted) || a.email.includes(text.toLowerCase());
+    return byName((await this.deps.accounts.all()).filter(match)).slice(0, PLAYERS_LIMIT);
   }
 
   /** Juízes da equipe, para o ADM escalar no evento. */

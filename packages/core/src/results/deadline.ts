@@ -1,4 +1,4 @@
-export const DEFAULT_ROUND_MINUTES = 30;
+export const DEFAULT_ROUND_MINUTES = 50;
 
 export class InvalidDurationError extends Error {
   override name = 'InvalidDurationError';

@@ -40,15 +40,6 @@ export const tvColumns = (count: number): { columns: 1 | 2 | 3; perColumn: numbe
  */
 export const clockSkew = (serverTime: string, receivedAtMs: number): number => Date.parse(serverTime) - receivedAtMs;
 
-/**
- * O quadro fica até 5 s no cache do CloudFront: o `serverTime` da resposta envelhece. O cabeçalho `Age` diz quanto;
- * sem ele (ou inválido), vale o horário como veio.
- */
-export const freshServerTime = (serverTime: string, ageHeader: string | null): string => {
-  const age = ageHeader === null ? NaN : Number(ageHeader);
-  return Number.isFinite(age) && age > 0 ? new Date(Date.parse(serverTime) + age * 1000).toISOString() : serverTime;
-};
-
 /** TV não rola: as mesas são divididas em páginas que trocam sozinhas. */
 export const pages = <T>(items: readonly T[], perPage: number): T[][] => {
   const result: T[][] = [];

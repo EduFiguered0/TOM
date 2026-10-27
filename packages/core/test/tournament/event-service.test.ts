@@ -56,10 +56,10 @@ describe('evento e token do enviador', () => {
     expect(JSON.stringify(stored)).not.toContain(token);
   });
 
-  it('cria aberto, com código, data de hoje e 30 min', async () => {
+  it('cria aberto, com código, data de hoje e 50 min', async () => {
     const { service, events } = setup();
     const { event } = await service.createEvent(actors.admin, { label: 'Liga' });
-    expect(event).toMatchObject({ status: 'open', date: '2026-10-23', roundMinutes: 30, standings: null });
+    expect(event).toMatchObject({ status: 'open', date: '2026-10-23', roundMinutes: 50, standings: null });
     expect(event.code).toMatch(/^[ABCDEFGHJKMNPQRSTUVWXYZ23456789]{8}$/);
     expect((await events.findByCode(event.code ?? ''))?.event.id).toBe(event.id);
     expect((await service.active())?.id).toBe(event.id);
@@ -105,6 +105,20 @@ describe('evento e token do enviador', () => {
     expect((await service.cancel(actors.admin, event.id)).status).toBe('cancelled');
     await rejects(service.cancel(actors.admin, event.id), 'event_state', 'Evento encerrado ou cancelado não muda');
     await rejects(service.update(actors.admin, event.id, { roundMinutes: 40 }), 'event_state', 'Evento encerrado ou cancelado não muda');
+  });
+
+  it('evento sem tempo de rodada nasce com 50 minutos', async () => {
+    const { service } = setup();
+    expect((await service.createEvent(actors.admin, { label: 'Liga' })).event.roundMinutes).toBe(50);
+  });
+
+  it('o nome do evento passa a ser o do torneio no TOM; igual não regrava', async () => {
+    const { service, events: registry } = setup();
+    const { event, token } = await service.createEvent(actors.admin, { label: 'Liga digitada' });
+    expect((await service.authorizeUpload(token, 'FODASE')).label).toBe('FODASE');
+    const version = (await registry.get(event.id))?.version;
+    expect((await service.authorizeUpload(token, 'FODASE')).label).toBe('FODASE');
+    expect((await registry.get(event.id))?.version).toBe(version);
   });
 
   it('classificação parcial só com o evento em andamento', async () => {

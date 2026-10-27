@@ -12,9 +12,15 @@ describe('ingestão: TOM → enviador → API', () => {
     expect(created).toMatchObject({ status: 201, body: { label: 'Liga', token: expect.stringMatching(/^[\w-]{43}$/) as unknown } });
   });
 
-  it('TV sem evento: espera, pública e guardável pelo CloudFront', async () => {
+  it('TV só para o ADM, sem cache público; sem evento, espera', async () => {
     const { call } = setup();
-    expect(await call('GET', '/board', null)).toMatchObject({ status: 200, body: { state: 'idle' }, cacheControl: 'public, max-age=5' });
+    await register(call, 'adm:a1');
+    await register(call, 'ana-email:s1', '100001');
+    expect((await call('GET', '/board', null)).status).toBe(401);
+    expect((await call('GET', '/board', 'ana-email:s1')).status).toBe(403);
+    const board = await call('GET', '/board', 'adm:a1:admin');
+    expect(board).toMatchObject({ status: 200, body: { state: 'idle' } });
+    expect(board.cacheControl).toBeUndefined();
   });
 
   it('pareamento sozinho espera as guias; com as guias a rodada é publicada e a TV mostra ao iniciar', async () => {
@@ -26,10 +32,10 @@ describe('ingestão: TOM → enviador → API', () => {
     expect(done.body.published).toHaveLength(1);
 
     // Inscrições abertas: a TV mostra o QR até a rodada 1 começar.
-    expect((await call('GET', '/board', null)).body).toMatchObject({ state: 'open' });
+    expect((await call('GET', '/board', 'adm:a1:admin')).body).toMatchObject({ state: 'open' });
     await call('POST', '/round/start', 'adm:a1:admin', { bestOf: 3, roundMinutes: null });
-    const board = await call('GET', '/board', null);
-    expect(board).toMatchObject({ status: 200, cacheControl: 'public, max-age=5' });
+    const board = await call('GET', '/board', 'adm:a1:admin');
+    expect(board).toMatchObject({ status: 200 });
     const body = board.body as Extract<BoardResponse, { state: 'running' }>;
     expect(body).toMatchObject({ state: 'running', tournament: 'FODASE', endsAt: expect.any(String) as unknown });
     expect(body.tables.length).toBeGreaterThan(0);

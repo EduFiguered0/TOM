@@ -55,6 +55,19 @@ export interface MeResponse extends AccountResponse {
   judging: boolean;
   /** false = conta antiga, com o nome separado automaticamente: mostra "Confira seu nome". */
   nameReviewed: boolean;
+  /** Chave da própria foto (a pessoa sempre vê a sua); null sem foto. */
+  photo: string | null;
+  /** Menor: o responsável autorizou mostrar a foto nas mesas. */
+  imageConsent: boolean;
+}
+
+/** Foto já recortada e reduzida no celular (data URL); null tira a foto. */
+export interface PhotoRequest {
+  photo: string | null;
+}
+
+export interface PhotoResponse {
+  photo: string | null;
 }
 
 /** Equipe: busca por nome ou Player ID. */
@@ -139,7 +152,11 @@ export interface RoundBoard {
   /** Fim do tempo da rodada (sem acréscimos de mesa). */
   endsAt: string | null;
   /** `result`: só com a mesa verde (vencedor, empate ou derrota dupla); nunca o placar. */
-  tables: { table: number; player1: string; player2: string; color: TableColor; result: 'player1' | 'player2' | 'tie' | 'double_loss' | null }[];
+  /** `photo1`/`photo2`: chave da foto visível (null = avatar genérico). */
+  tables: {
+    table: number; player1: string; player2: string; color: TableColor; result: 'player1' | 'player2' | 'tie' | 'double_loss' | null;
+    photo1: string | null; photo2: string | null;
+  }[];
   byes: string[];
   /** Momento em que o servidor montou a resposta; a TV corrige o relógio local por ele. */
   serverTime: string;
@@ -231,7 +248,7 @@ export interface CreateEventRequest {
   label: string;
   /** `YYYY-MM-DD`; ausente = hoje. */
   date?: string;
-  /** Ausente = 30 minutos. */
+  /** Ausente = 50 minutos. */
   roundMinutes?: number;
   /** Juízes escalados (ids de conta); ausente = nenhum. */
   judges: string[];
@@ -274,6 +291,8 @@ export interface RegistrationDto {
   awaitingApproval: boolean;
   launched: boolean;
   removed: boolean;
+  /** Pagou (o ADM marca); só vai para o ADM. */
+  paid: boolean;
   /** Está nas guias da rodada atual deste evento; null antes de o TOM publicar uma rodada. */
   inRound: boolean | null;
 }
@@ -285,19 +304,61 @@ export interface RegistrationsResponse {
   /** Entradas tardias esperando o ADM. */
   awaiting: number;
   launched: number;
+  /** Inscritos (sem removidos e sem quem aguarda) que pagaram. */
+  paid: number;
+}
+
+/** A própria inscrição, como o jogador vê: sem o pagamento (só o ADM vê). */
+export type MyRegistrationDto = Omit<RegistrationDto, 'paid'>;
+
+/** Linha da guia Jogadores, mascarada no servidor: o ADM reconhece a pessoa sem receber e-mail, telefone ou sobrenome. */
+export interface PlayerRowDto {
+  id: string;
+  playerId: string | null;
+  /** Só o primeiro nome. */
+  firstName: string;
+  /** `duk•••@gmail.com`. */
+  email: string;
+  /** `•••• 1234`; null sem telefone. */
+  phone: string | null;
+  /** Chave da foto visível; null sem foto (ou menor sem autorização). */
+  photo: string | null;
+}
+
+/** Conta na guia Equipe (busca, juízes, escala): mascarada como na guia Jogadores, com a marca de juiz. */
+export type TeamMemberDto = PlayerRowDto & { judge: boolean };
+
+/** Convite de juiz aberto (o QR leva a `/juiz/<código>`). */
+export interface InviteDto {
+  code: string;
+  /** ISO 8601. */
+  expiresAt: string;
+}
+
+/** Um evento no cadastro do jogador (só o ADM vê). */
+export interface PlayerEventDto {
+  eventId: string;
+  label: string;
+  /** `YYYY-MM-DD`. */
+  date: string;
+  paid: boolean;
+}
+
+export interface SetPaidRequest {
+  paid: boolean;
 }
 
 /** Evento ativo e a inscrição da própria conta; os dois null sem evento ativo. */
 export interface MyEventResponse {
   event: EventDto | null;
-  registration: RegistrationDto | null;
+  registration: MyRegistrationDto | null;
   /** Colocação final do jogador (quando o TOM mandou os standings da última rodada); null antes ou se não jogou. */
   placement: { rank: number; total: number; wins: number; losses: number; ties: number; points: number | null } | null;
 }
 
 export interface JoinResponse {
   event: EventDto;
-  registration: RegistrationDto;
+  registration: MyRegistrationDto;
 }
 
 export interface AddRegistrationRequest {
@@ -342,6 +403,15 @@ export const parseAddRegistrationRequest = (body: unknown): AddRegistrationReque
 
 export const parseSetLaunchedRequest = (body: unknown): SetLaunchedRequest => ({ launched: field(object(body, 'Corpo'), 'launched', 'boolean') });
 
+export const parseSetPaidRequest = (body: unknown): SetPaidRequest => ({ paid: field(object(body, 'Corpo'), 'paid', 'boolean') });
+
+export const parsePhotoRequest = (body: unknown): PhotoRequest => {
+  const root = object(body, 'Corpo');
+  return { photo: root['photo'] === null ? null : field(root, 'photo', 'string') };
+};
+
+export const parseImageConsentRequest = (body: unknown): { consent: boolean } => ({ consent: field(object(body, 'Corpo'), 'consent', 'boolean') });
+
 export const parseShowOnTvRequest = (body: unknown): ShowOnTvRequest => ({ on: field(object(body, 'Corpo'), 'on', 'boolean') });
 
 export const parseJudgesRequest = (body: unknown): JudgesRequest => ({ judges: judgeList(object(body, 'Corpo')) });
@@ -373,6 +443,8 @@ export type SeatDto =
       opponentReported: boolean;
       /** Verde ou key lançada: o jogador não corrige mais (só juiz/ADM). */
       locked: boolean;
+      /** Chave da foto do oponente (null = avatar genérico). */
+      opponentPhoto: string | null;
     };
 
 export interface MyRoundResponse {
@@ -393,7 +465,7 @@ export interface ReportRequest {
 
 export interface StartRoundRequest {
   bestOf: 1 | 3;
-  /** null = 30 minutos (padrão da spec). */
+  /** null = tempo do evento (padrão: 50 minutos). */
   roundMinutes: number | null;
 }
 
@@ -470,7 +542,8 @@ export const parseOverrideRequest = (body: unknown): OverrideRequest => {
   const root = object(body, 'Corpo');
   const o = object(root['override'], 'override');
   const kind = field(o, 'kind', 'string');
-  const reason = field(root, 'reason', 'string');
+  // Motivo opcional: ausente vira vazio.
+  const reason = root['reason'] === undefined ? '' : field(root, 'reason', 'string');
   switch (kind) {
     case 'score': return { reason, override: { kind, player1: field(o, 'player1', 'number'), player2: field(o, 'player2', 'number') } };
     case 'intentional_draw':

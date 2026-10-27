@@ -15,7 +15,10 @@ describe('equipe', () => {
   it('ADM busca, marca juiz e lista a equipe; jogador recebe 403', async () => {
     const { call, joao } = await team();
     const found = await call('POST', '/staff/search', ADM, { query: '100001' });
-    expect(found).toMatchObject({ status: 200, body: [{ id: joao, judge: false, playerId: '100001' }] });
+    expect(found).toMatchObject({ status: 200, body: [{ id: joao, judge: false, playerId: '100001', firstName: 'Ana', email: 'ana•••@example.com' }] });
+    // Equipe também mascarada: nada de e-mail completo, sobrenome ou ano no navegador.
+    expect(JSON.stringify(found.body)).not.toMatch(/Souza|ana@example|birthYear/);
+    expect(JSON.stringify((await call('GET', '/staff/judges', ADM)).body)).not.toMatch(/Souza|ana@example|birthYear/);
     expect(await call('POST', `/staff/accounts/${joao}/judge`, ADM, { judge: true })).toMatchObject({ status: 200, body: { judge: true } });
     expect((await call('GET', '/staff/judges', ADM)).body as AccountResponse[]).toEqual([expect.objectContaining({ id: joao })]);
     expect((await call('POST', '/staff/search', 'ana-email:j1', { query: 'ana' })).status).toBe(403);

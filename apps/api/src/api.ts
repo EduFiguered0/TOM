@@ -9,20 +9,29 @@ import {
   parseSetJudgeRequest,
   parseExtendRequest,
   parseOverrideRequest,
+  parseImageConsentRequest,
   parseNameRequest,
+  parsePhotoRequest,
   parsePlayerIdRequest,
   parseStaffReportRequest,
   parseRegisterRequest,
   parseReportRequest,
   parseStartRoundRequest,
   parseSessionRequest,
+  parseSetPaidRequest,
   parseShowOnTvRequest,
   parseUploadRequest,
   type AccountResponse,
   type ActiveEventResponse,
   type EventDto,
+  type InviteDto,
   type JoinResponse,
   type MyEventResponse,
+  type MyRegistrationDto,
+  type PlayerEventDto,
+  type PhotoResponse,
+  type PlayerRowDto,
+  type TeamMemberDto,
   type RegistrationDto,
   type RegistrationsResponse,
   type BoardResponse,
@@ -33,11 +42,16 @@ import {
 } from '@tom/contracts';
 import {
   CommandRejected,
+  maskEmail,
+  maskPhone,
+  visiblePhoto,
   type Account,
   type AccountService,
   type EventRegistry,
   type EventService,
   type Identity,
+  type JudgeInviteService,
+  type PhotoService,
   type Principal,
   type Registration,
   type RegistrationService,
@@ -49,7 +63,7 @@ import {
 } from '@tom/core';
 import type { Ingest } from './ingest.js';
 import { panel } from './panel.js';
-import { myRound, type RoundReader } from './rounds.js';
+import { myRound, opponentOf, type RoundReader } from './rounds.js';
 
 export interface HttpRequest {
   method: string;
@@ -87,6 +101,10 @@ export interface ApiDeps {
   reader: RoundReader;
   registry: EventRegistry;
   registrations: RegistrationService;
+  invites: JudgeInviteService;
+  photos: PhotoService;
+  /** Chave da foto visível por Player ID (assento do oponente). */
+  photoOf: (playerId: string) => Promise<string | null>;
   clock: { now(): Date };
   logError: (error: unknown) => void;
 }
@@ -103,6 +121,7 @@ const STATUS: Record<RejectCode, number> = {
   player_id_taken: 409,
   player_id_set: 409,
   name_reviewed: 409,
+  invite_invalid: 410,
   concurrency: 409,
   round_not_paired: 409,
   round_already_started: 409,
@@ -141,6 +160,18 @@ const toAccount = (account: Account): AccountResponse => ({
   createdAt: account.createdAt.toISOString(),
 });
 
+/** Guia Jogadores: mascarado aqui, no servidor. */
+const toPlayerRow = (account: Account): PlayerRowDto => ({
+  id: account.id,
+  playerId: account.playerId,
+  firstName: account.profile.firstName,
+  email: maskEmail(account.email),
+  phone: maskPhone(account.profile.phone),
+  photo: visiblePhoto(account, new Date()),
+});
+
+const toTeamMember = (account: Account): TeamMemberDto => ({ ...toPlayerRow(account), judge: account.judge === true });
+
 const toMe = ({ account, actor }: Principal, judging: boolean): MeResponse => ({
   ...toAccount(account),
   role: actor?.role === 'admin' ? 'admin' : 'player',
@@ -148,6 +179,8 @@ const toMe = ({ account, actor }: Principal, judging: boolean): MeResponse => ({
   judge: account.judge === true,
   judging,
   nameReviewed: account.nameReviewed,
+  photo: account.photoId ?? null,
+  imageConsent: account.imageConsent === true,
 });
 
 /** `withCode`: só o ADM recebe o código do QR (a TV mostra no QR; o resto não precisa). */
@@ -172,8 +205,16 @@ const toRegistration = (r: Registration, inRound: boolean | null): RegistrationD
   awaitingApproval: r.awaitingApproval,
   launched: r.launched,
   removed: r.removed,
+  paid: r.paid,
   inRound,
 });
+
+/** O jogador vê a própria inscrição sem o pagamento. */
+const ownRegistration = (dto: RegistrationDto): MyRegistrationDto => {
+  const own: Partial<RegistrationDto> = { ...dto };
+  delete own.paid;
+  return own as MyRegistrationDto;
+};
 
 const jsonBody = (request: HttpRequest): unknown => {
   try {
@@ -216,11 +257,12 @@ const EVENT_ID = '([0-9a-f-]{36})';
 const ACCOUNT_ID = EVENT_ID;
 /** Código do QR no caminho: 8 letras maiúsculas e dígitos. */
 const EVENT_CODE = '([A-Z0-9]{8})';
+const INVITE_CODE = '([A-Z0-9]{10})';
 /** Player ID no caminho: só dígitos. */
 const PLAYER_ID = '([0-9]{1,20})';
 
 /** Roteador da API: uma Lambda atende todas as rotas. Todas exigem token de acesso válido. */
-export const createApi = ({ tokens, emails, accounts, events, ingest, board, rounds, reader, registry, registrations, clock, logError }: ApiDeps) => {
+export const createApi = ({ tokens, emails, accounts, events, ingest, board, rounds, reader, registry, registrations, invites, photos, photoOf, clock, logError }: ApiDeps) => {
   /**
    * Primeiro acesso por um login novo (ex.: Google de quem já tinha conta pelo código por e-mail):
    * liga o login à conta do mesmo e-mail verificado e repete. Sem conta com esse e-mail, segue o 404.
@@ -303,7 +345,7 @@ export const createApi = ({ tokens, emails, accounts, events, ingest, board, rou
       handle: async ({ identity, params: [code = ''] }) => {
         const principal = await accounts.authenticate(identity);
         const { event, registration } = await registrations.join(principal, code);
-        return { status: 200, body: { event: toEvent(event), registration: await registrationOf(registration, event) } satisfies JoinResponse };
+        return { status: 200, body: { event: toEvent(event), registration: ownRegistration(await registrationOf(registration, event)) } satisfies JoinResponse };
       },
     },
     {
@@ -312,10 +354,43 @@ export const createApi = ({ tokens, emails, accounts, events, ingest, board, rou
         const mine = await registrations.mine(await accounts.authenticate(identity));
         const body: MyEventResponse = {
           event: mine ? toEvent(mine.event) : null,
-          registration: mine?.registration ? await registrationOf(mine.registration, mine.event) : null,
+          registration: mine?.registration ? ownRegistration(await registrationOf(mine.registration, mine.event)) : null,
           placement: mine?.registration && !mine.registration.removed ? await placementOf(mine.event, mine.registration.playerId) : null,
         };
         return { status: 200, body };
+      },
+    },
+    {
+      method: 'POST', path: new RegExp(`^/invites/${INVITE_CODE}/accept$`),
+      handle: async ({ identity, params: [code = ''] }) => {
+        await invites.accept(await accounts.authenticate(identity), code);
+        return { status: 200, body: await me(await accounts.authenticate(identity)) };
+      },
+    },
+    {
+      method: 'POST', path: /^\/me\/photo$/,
+      handle: async ({ request, identity }) => {
+        const { photo } = parsePhotoRequest(jsonBody(request));
+        await accounts.authenticate(identity);
+        if (photo === null) await photos.remove(identity); else await photos.upload(identity, photo);
+        return { status: 200, body: await me(await accounts.authenticate(identity)) };
+      },
+    },
+    {
+      method: 'POST', path: /^\/me\/image-consent$/,
+      handle: async ({ request, identity }) => {
+        const { consent } = parseImageConsentRequest(jsonBody(request));
+        await accounts.authenticate(identity);
+        await accounts.setImageConsent(identity, consent);
+        return { status: 200, body: await me(await accounts.authenticate(identity)) };
+      },
+    },
+    {
+      method: 'GET', path: /^\/photos\/([A-Za-z0-9-]{1,64})$/,
+      handle: async ({ identity, params: [id = ''] }) => {
+        // Quem tem a chave vê: ela só sai do servidor para quem pode ver (ADM no quadro, oponente na mesa).
+        const { account } = await accounts.authenticate(identity);
+        return { status: 200, body: { photo: await photos.read(id, account.id) } satisfies PhotoResponse };
       },
     },
     {
@@ -343,7 +418,45 @@ export const createApi = ({ tokens, emails, accounts, events, ingest, board, rou
       method: 'GET', path: new RegExp(`^/player-ids/${PLAYER_ID}$`),
       handle: async ({ identity, params: [pid = ''] }) => {
         const { actor } = await accounts.authenticate(identity);
-        return { status: 200, body: toAccount(await accounts.findByPlayerId(actor, pid)) };
+        return { status: 200, body: toPlayerRow(await accounts.findByPlayerId(actor, pid)) };
+      },
+    },
+    {
+      method: 'POST', path: /^\/staff\/invites$/,
+      handle: async ({ identity }) => {
+        const { actor } = await accounts.authenticate(identity);
+        const invite = await invites.create(actor);
+        return { status: 201, body: { code: invite.code, expiresAt: invite.expiresAt.toISOString() } satisfies InviteDto };
+      },
+    },
+    {
+      method: 'GET', path: /^\/staff\/invites$/,
+      handle: async ({ identity }) => {
+        const { actor } = await accounts.authenticate(identity);
+        return { status: 200, body: (await invites.open(actor)).map((i): InviteDto => ({ code: i.code, expiresAt: i.expiresAt.toISOString() })) };
+      },
+    },
+    {
+      method: 'POST', path: new RegExp(`^/staff/invites/${INVITE_CODE}/cancel$`),
+      handle: async ({ identity, params: [code = ''] }) => {
+        const { actor } = await accounts.authenticate(identity);
+        await invites.cancel(actor, code);
+        return { status: 204, body: null };
+      },
+    },
+    {
+      method: 'POST', path: new RegExp(`^/players/${ACCOUNT_ID}/photo/remove$`),
+      handle: async ({ identity, params: [accountId = ''] }) => {
+        const { actor } = await accounts.authenticate(identity);
+        return { status: 200, body: toPlayerRow(await photos.removeByAdmin(actor, accountId)) };
+      },
+    },
+    {
+      method: 'POST', path: /^\/players\/search$/,
+      handle: async ({ request, identity }) => {
+        const { query } = parseSearchRequest(jsonBody(request));
+        const { actor } = await accounts.authenticate(identity);
+        return { status: 200, body: (await accounts.players(actor, query)).map(toPlayerRow) };
       },
     },
     {
@@ -354,7 +467,7 @@ export const createApi = ({ tokens, emails, accounts, events, ingest, board, rou
         // A conta errada sai também do evento ativo.
         const active = await events.active();
         if (active) await registrations.dropAccount(active.id, account.id);
-        return { status: 200, body: toAccount(account) };
+        return { status: 200, body: toPlayerRow(account) };
       },
     },
     {
@@ -426,6 +539,7 @@ export const createApi = ({ tokens, emails, accounts, events, ingest, board, rou
           total: playing.length,
           awaiting: kept.length - playing.length,
           launched: playing.filter((r) => r.launched).length,
+          paid: playing.filter((r) => r.paid).length,
         };
         return { status: 200, body };
       },
@@ -440,15 +554,24 @@ export const createApi = ({ tokens, emails, accounts, events, ingest, board, rou
       },
     },
     {
-      method: 'POST', path: new RegExp(`^/events/${EVENT_ID}/registrations/${ACCOUNT_ID}/(approve|remove|launched)$`),
+      method: 'POST', path: new RegExp(`^/events/${EVENT_ID}/registrations/${ACCOUNT_ID}/(approve|remove|launched|paid)$`),
       handle: async ({ request, identity, params: [id = '', accountId = '', action = ''] }) => {
         const { actor } = await accounts.authenticate(identity);
         const registration = action === 'approve'
           ? await registrations.approve(actor, id, accountId)
           : action === 'remove'
             ? await registrations.remove(actor, id, accountId)
-            : await registrations.setLaunched(actor, id, accountId, parseSetLaunchedRequest(jsonBody(request)).launched);
+            : action === 'paid'
+              ? await registrations.setPaid(actor, id, accountId, parseSetPaidRequest(jsonBody(request)).paid)
+              : await registrations.setLaunched(actor, id, accountId, parseSetLaunchedRequest(jsonBody(request)).launched);
         return { status: 200, body: await registrationOf(registration, await eventById(id)) };
+      },
+    },
+    {
+      method: 'GET', path: new RegExp(`^/accounts/${ACCOUNT_ID}/events$`),
+      handle: async ({ identity, params: [accountId = ''] }) => {
+        const { actor } = await accounts.authenticate(identity);
+        return { status: 200, body: (await registrations.history(actor, accountId)) satisfies PlayerEventDto[] };
       },
     },
     {
@@ -465,14 +588,14 @@ export const createApi = ({ tokens, emails, accounts, events, ingest, board, rou
       handle: async ({ request, identity }) => {
         const { query } = parseSearchRequest(jsonBody(request));
         const { actor } = await accounts.authenticate(identity);
-        return { status: 200, body: (await accounts.search(actor, query)).map(toAccount) };
+        return { status: 200, body: (await accounts.search(actor, query)).map(toTeamMember) };
       },
     },
     {
       method: 'GET', path: /^\/staff\/judges$/,
       handle: async ({ identity }) => {
         const { actor } = await accounts.authenticate(identity);
-        return { status: 200, body: (await accounts.listJudges(actor)).map(toAccount) };
+        return { status: 200, body: (await accounts.listJudges(actor)).map(toTeamMember) };
       },
     },
     {
@@ -480,7 +603,7 @@ export const createApi = ({ tokens, emails, accounts, events, ingest, board, rou
       handle: async ({ request, identity, params: [id = ''] }) => {
         const { judge } = parseSetJudgeRequest(jsonBody(request));
         const { actor } = await accounts.authenticate(identity);
-        return { status: 200, body: toAccount(await accounts.setJudge(actor, id, judge)) };
+        return { status: 200, body: toTeamMember(await accounts.setJudge(actor, id, judge)) };
       },
     },
     {
@@ -531,7 +654,8 @@ export const createApi = ({ tokens, emails, accounts, events, ingest, board, rou
         const { actor } = await accounts.authenticate(identity);
         const current = await activeRound();
         const state = current ? await reader.state(current.ref) : null;
-        return { status: 200, body: myRound(state, actor, clock.now()) };
+        const opponent = opponentOf(state, actor);
+        return { status: 200, body: myRound(state, actor, clock.now(), opponent ? await photoOf(opponent) : null) };
       },
     },
     {
@@ -548,7 +672,8 @@ export const createApi = ({ tokens, emails, accounts, events, ingest, board, rou
         const table = (await reader.state(ref)).tables.find((t) => t.player1.playerId === actor.playerId || t.player2.playerId === actor.playerId);
         if (!table) throw new CommandRejected('not_your_table', 'Você não está em nenhuma mesa desta rodada');
         const state = reader.remember(await rounds.submitReport(actor, ref, { table: table.table, report }));
-        return { status: 200, body: myRound(state, actor, clock.now()) };
+        const opponent = opponentOf(state, actor);
+        return { status: 200, body: myRound(state, actor, clock.now(), opponent ? await photoOf(opponent) : null) };
       },
     },
     {
@@ -656,6 +781,14 @@ export const createApi = ({ tokens, emails, accounts, events, ingest, board, rou
     },
   ];
   routes.push(...panelRoutes);
+  routes.push({
+    method: 'GET', path: /^\/board$/,
+    handle: async ({ identity }) => {
+      // A TV é extensão do painel do ADM (nomes e fotos dos jogadores): só com sessão de ADM, sem cache compartilhado.
+      await requireAdmin(identity);
+      return { status: 200, body: await board() };
+    },
+  });
 
   const openRoutes: OpenRoute[] = [
     {
@@ -664,13 +797,6 @@ export const createApi = ({ tokens, emails, accounts, events, ingest, board, rou
         status: 200,
         body: await ingest.withToken(request.headers['x-upload-token'] ?? '', parseUploadRequest(jsonBody(request))),
       }),
-    },
-    {
-      method: 'GET', path: /^\/board$/,
-      handle: async () => {
-        // Muitas TVs e celulares olhando custam o mesmo que um: o CloudFront guarda por 5 s.
-        return { status: 200, body: await board(), cacheControl: 'public, max-age=5' };
-      },
     },
   ];
 

@@ -1,5 +1,4 @@
 import type {
-  AccountResponse,
   ActiveEventResponse,
   CreateEventRequest,
   EventDto,
@@ -12,7 +11,12 @@ import type {
   ErrorResponse,
   JoinResponse,
   MyEventResponse,
+  InviteDto,
+  PhotoResponse,
+  PlayerEventDto,
+  PlayerRowDto,
   RegistrationDto,
+  TeamMemberDto,
   MeResponse,
   MyRoundResponse,
   OverrideDto,
@@ -40,7 +44,8 @@ const tablePath = (round: number | undefined, table: number, action: string) => 
 /** API no mesmo endereço do site (`/api`), com o token de acesso do dispositivo. */
 export const createApi = (session: Session, base = '/api', fetchFn: typeof fetch = (...args) => fetch(...args)) => {
   const call = async <T>(method: string, path: string, body?: unknown): Promise<ApiResult<T>> => {
-    const token = await session.accessToken();
+    // Renovar o login sem rede não desloga: vira "sem conexão" e a próxima chamada tenta de novo.
+    const token = await session.accessToken().catch(() => { throw new OfflineError(); });
     if (!token) return { ok: false, status: 401, error: { error: 'unauthorized', message: 'Entre de novo.' } };
     let response: Response;
     try {
@@ -64,8 +69,16 @@ export const createApi = (session: Session, base = '/api', fetchFn: typeof fetch
     myEvent: () => call<MyEventResponse>('GET', '/me/event'),
     claimPlayerId: (playerId: string) => call<MeResponse>('POST', '/me/player-id', { playerId }),
     confirmName: (firstName: string, lastName: string) => call<MeResponse>('POST', '/me/name', { firstName, lastName }),
-    accountByPlayerId: (playerId: string) => call<AccountResponse>('GET', `/player-ids/${encodeURIComponent(playerId)}`),
-    unlinkPlayerId: (playerId: string) => call<AccountResponse>('POST', `/player-ids/${encodeURIComponent(playerId)}/unlink`),
+    setPhoto: (photo: string | null) => call<MeResponse>('POST', '/me/photo', { photo }),
+    setImageConsent: (consent: boolean) => call<MeResponse>('POST', '/me/image-consent', { consent }),
+    photo: (id: string) => call<PhotoResponse>('GET', `/photos/${encodeURIComponent(id)}`),
+    removePlayerPhoto: (accountId: string) => call<PlayerRowDto>('POST', `/players/${encodeURIComponent(accountId)}/photo/remove`),
+    players: (query: string) => call<PlayerRowDto[]>('POST', '/players/search', { query }),
+    createInvite: () => call<InviteDto>('POST', '/staff/invites'),
+    openInvites: () => call<InviteDto[]>('GET', '/staff/invites'),
+    cancelInvite: (code: string) => call<null>('POST', `/staff/invites/${encodeURIComponent(code)}/cancel`),
+    acceptInvite: (code: string) => call<MeResponse>('POST', `/invites/${encodeURIComponent(code)}/accept`),
+    unlinkPlayerId: (playerId: string) => call<PlayerRowDto>('POST', `/player-ids/${encodeURIComponent(playerId)}/unlink`),
     createEvent: (request: CreateEventRequest) => call<CreateEventResponse>('POST', '/events', request),
     activeEvent: () => call<ActiveEventResponse>('GET', '/events/active'),
     showOnTv: (eventId: string, on: boolean) => call<ActiveEventResponse>('POST', `/events/${encodeURIComponent(eventId)}/tv`, { on }),
@@ -78,18 +91,22 @@ export const createApi = (session: Session, base = '/api', fetchFn: typeof fetch
       call<RegistrationDto>('POST', `/events/${encodeURIComponent(eventId)}/registrations`, { accountId }),
     registrationAction: (eventId: string, accountId: string, action: 'approve' | 'remove') =>
       call<RegistrationDto>('POST', `/events/${encodeURIComponent(eventId)}/registrations/${encodeURIComponent(accountId)}/${action}`),
+    setPaid: (eventId: string, accountId: string, paid: boolean) =>
+      call<RegistrationDto>('POST', `/events/${encodeURIComponent(eventId)}/registrations/${encodeURIComponent(accountId)}/paid`, { paid }),
+    playerEvents: (accountId: string) => call<PlayerEventDto[]>('GET', `/accounts/${encodeURIComponent(accountId)}/events`),
     setLaunched: (eventId: string, accountId: string, launched: boolean) =>
       call<RegistrationDto>('POST', `/events/${encodeURIComponent(eventId)}/registrations/${encodeURIComponent(accountId)}/launched`, { launched }),
-    searchAccounts: (query: string) => call<AccountResponse[]>('POST', '/staff/search', { query }),
-    judges: () => call<AccountResponse[]>('GET', '/staff/judges'),
+    searchAccounts: (query: string) => call<TeamMemberDto[]>('POST', '/staff/search', { query }),
+    judges: () => call<TeamMemberDto[]>('GET', '/staff/judges'),
     setJudge: (accountId: string, judge: boolean) =>
-      call<AccountResponse>('POST', `/staff/accounts/${encodeURIComponent(accountId)}/judge`, { judge }),
+      call<TeamMemberDto>('POST', `/staff/accounts/${encodeURIComponent(accountId)}/judge`, { judge }),
     myRound: () => call<MyRoundResponse>('GET', '/round/me'),
     report: (report: ReportDto) => call<MyRoundResponse>('POST', '/round/report', { report }),
+    board: () => call<BoardResponse>('GET', '/board'),
     startRound: (bestOf: 1 | 3, roundMinutes: number | null) => call<BoardResponse>('POST', '/round/start', { bestOf, roundMinutes }),
     panel: (round?: number) => call<PanelResponse>('GET', panelPath(round)),
-    override: (table: number, override: OverrideDto, reason: string, round?: number) =>
-      call<PanelResponse & { requiresTomFix: boolean }>('POST', tablePath(round, table, 'override'), { override, reason }),
+    override: (table: number, override: OverrideDto, round?: number) =>
+      call<PanelResponse & { requiresTomFix: boolean }>('POST', tablePath(round, table, 'override'), { override }),
     extend: (table: number, minutes: number, round?: number) => call<PanelResponse>('POST', tablePath(round, table, 'extend'), { minutes }),
     keyLaunched: (table: number, round?: number) => call<PanelResponse>('POST', tablePath(round, table, 'key-launched')),
     staffReport: (table: number, side: 'player1' | 'player2', report: ReportDto, round?: number) =>

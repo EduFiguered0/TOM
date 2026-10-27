@@ -53,7 +53,7 @@ npm run web:deploy   # build, envio ao S3 e limpeza do cache do CloudFront
 
 1. **Evento:** crie o evento (nome, data, tempo de rodada, juízes) e clique em **"Conectar pasta do TOM"** (a pasta `reports` do TOM). A TV mostra o QR; quem escaneia se cadastra e fica inscrito.
 2. O ADM digita os inscritos no TOM (tabela com "copiar ID/nome" e "lançado no TOM"). O QR fica aberto até o encerramento, num canto da TV durante as rodadas: quem escaneia depois do início da rodada 1 fica **aguardando o organizador**, e o ADM **aprova** (lança no TOM e a pessoa entra no próximo pareamento) ou **recusa** na tabela de inscritos.
-3. **Rodada:** imprima o pareamento e as guias no TOM; a pasta envia sozinha e aparece **"Iniciar rodada"**. As mesas ficam numa tabela por ordem de ação; a mesa escolhida abre ao lado com os reportes, a key do TOM, **Ajustar resultado** (botões por vencedor e placar, ID, DGL, ausência, com motivo), acréscimo e reporte por jogador sem celular. As abas R1, R2… mostram e ajustam rodadas anteriores; keys pendentes só geram aviso, não travam a próxima rodada.
+3. **Rodada:** imprima o pareamento e as guias no TOM; a pasta envia sozinha e aparece **"Iniciar rodada"**. As mesas ficam numa tabela por ordem de ação; a mesa escolhida abre ao lado com os reportes, a key do TOM, **Ajustar resultado** (botões por vencedor e placar, ID, DGL, ausência; sem motivo obrigatório), acréscimo e reporte por jogador sem celular. As abas R1, R2… mostram e ajustam rodadas anteriores; keys pendentes só geram aviso, não travam a próxima rodada. Cada jogador reporta uma vez; correção é com o juiz. O nome do evento passa a ser o do torneio no TOM, e a configuração do evento grava sozinha (sem botão Salvar).
 4. **TV:** todas as mesas numa página, em ordem, com o vencedor de cada mesa verde (sem placar), os byes à parte e o QR para quem chega tarde. Entre rodadas, os standings intermediários do TOM mostram a classificação parcial até o próximo pareamento.
 5. Os standings da última rodada do TOM mostram na TV a classificação final (pontos e desempates) e, no celular, a colocação de cada jogador. Aí o ADM encerra o evento, e a TV volta para a espera. Sem evento ativo, a aba Evento permite **mostrar e tirar da TV** a classificação do último evento.
 
@@ -97,7 +97,13 @@ Rotas da API (as de conta e ADM exigem `Authorization: Bearer <token de acesso d
 | `POST /me/name` | qualquer conta | Confere ou corrige nome e sobrenome (contas antigas tiveram o nome separado no primeiro espaço) |
 | `POST /session` | qualquer conta | Ativa este dispositivo; com outro ativo, exige `{"replace": true}` e revoga o anterior |
 | `POST /me/player-id` | qualquer conta | Conta sem Player ID informa depois; para trocar, só o ADM (409) |
-| `GET /player-ids/{pid}` | ADM | Quem cadastrou esse Player ID |
+| `POST /staff/invites`, `GET /staff/invites`, `POST /staff/invites/{código}/cancel` | ADM | Convite de juiz: QR só no painel, vale 15 minutos e uma única vez; lista e cancela os abertos |
+| `POST /invites/{código}/accept` | qualquer conta | Quem escaneou `/juiz/<código>` vira juiz da equipe (precisa de Player ID); usado ou vencido: 410 |
+| `POST /me/photo`, `POST /me/image-consent` | qualquer conta | Foto do perfil (`{"photo": dataURL ou null}`, 128×128 recortada no celular) e, para menores, a autorização de imagem do responsável |
+| `GET /photos/{chave}` | qualquer conta | A foto pela chave; a chave só sai do servidor para quem pode ver (ADM no quadro e na guia Jogadores, oponente na mesa). Menor sem autorização: nunca |
+| `POST /players/{conta}/photo/remove` | ADM | Tira uma foto inadequada |
+| `POST /players/search` | ADM | Guia Jogadores: todos os cadastrados ou a busca (`{"query"}`: Player ID, nome ou e-mail), mascarados no servidor (primeiro nome, `duk•••@gmail.com`, `•••• 1234`) |
+| `GET /player-ids/{pid}` | ADM | Quem cadastrou esse Player ID (mascarado) |
 | `POST /player-ids/{pid}/unlink` | ADM | Desfaz o vínculo errado; o dono verdadeiro pode cadastrar o Player ID |
 | `POST /staff/search` | ADM | Equipe: busca conta por nome (sem acento) ou Player ID exato |
 | `GET /staff/judges` | ADM | Juízes da equipe |
@@ -107,26 +113,27 @@ Rotas da API (as de conta e ADM exigem `Authorization: Bearer <token de acesso d
 | `POST /round/start` | ADM | Inicia a rodada publicada pelo TOM (melhor de 1 ou 3, tempo); a rodada 1 põe o evento em andamento |
 | `GET /panel` | juiz escalado no evento atual, ADM | Painel: todas as mesas com Player IDs, os dois reportes, cor e motivo, override, acréscimo e a key do TOM; a rodada mais recente e as keys pendentes de rodadas anteriores |
 | `GET /panel/rounds/{r}` | juiz, ADM | O mesmo painel para uma rodada anterior do torneio atual |
-| `POST /panel/tables/{n}/override` | juiz, ADM | Override (placar, ID, DGL, vitória por ausência) com motivo; avisa se a key já foi lançada |
+| `POST /panel/tables/{n}/override` | juiz, ADM | Override (placar, ID, DGL, vitória por ausência), motivo opcional; avisa se a key já foi lançada |
 | `POST /panel/tables/{n}/extend` | juiz, ADM | Acréscimo de tempo na mesa |
 | `POST /panel/tables/{n}/key-launched` | ADM | Marca a key como lançada no TOM (só mesa verde) |
 | `POST /panel/tables/{n}/report` | ADM | Reporte em nome de jogador sem celular |
 | `POST /panel/rounds/{r}/tables/{n}/…` | juiz, ADM | As mesmas ações numa rodada anterior |
-| `POST /events` | ADM | Cria o evento do dia (nome, `date`, `roundMinutes` = 30, `judges`); um ativo por vez; devolve o token do enviador uma única vez |
+| `POST /events` | ADM | Cria o evento do dia (nome, `date`, `roundMinutes` = 50, `judges`); um ativo por vez; devolve o token do enviador uma única vez |
 | `GET /events/active` | ADM | Evento ativo, com o código do QR |
 | `PATCH /events/{id}` | ADM | Muda o tempo de rodada e os juízes enquanto o evento não acabou |
 | `POST /events/{id}/close` | ADM | Encerra (só depois do resultado final do TOM) |
 | `POST /events/{id}/cancel` | ADM | Cancela antes de encerrar; não entra no histórico |
 | `GET /events/{id}/registrations` | ADM | Inscritos (Player ID, nome, sobrenome, ano) com os contadores de inscritos, entradas tardias aguardando e lançados no TOM |
 | `POST /events/{id}/registrations` | ADM | Inscreve à mão (`{"accountId"}`), sem esperar aprovação |
-| `POST /events/{id}/registrations/{conta}/approve`, `/remove`, `/launched` | ADM | Aprovar entrada tardia, remover (ou recusar), marcar lançado no TOM |
+| `POST /events/{id}/registrations/{conta}/approve`, `/remove`, `/launched`, `/paid` | ADM | Aprovar entrada tardia, remover (ou recusar), marcar lançado no TOM, marcar pagamento (até o encerramento) |
+| `GET /accounts/{conta}/events` | ADM | Eventos do jogador (nome, data, pago), do mais recente para o mais antigo |
 | `POST /join/{código}` | qualquer conta | Fim do caminho do QR: inscreve (de novo, só devolve a inscrição) |
 | `GET /me/event` | qualquer conta | Evento ativo, a própria inscrição e, no fim, a própria colocação |
 | `PUT /events/{id}/judges` | ADM | Troca os juízes escalados no evento (só juízes da equipe) |
 | `POST /events/{id}/revoke` | ADM | Revoga o token do enviador |
 | `POST /uploads` | enviador (`x-upload-token`) | Recebe um HTML do TOM; com pareamento e guias da rodada, publica a rodada |
 | `POST /events/active/uploads` | ADM | O mesmo envio, pelo navegador do ADM (pasta do TOM conectada), sempre para o evento ativo; arquivo de antes do evento é ignorado |
-| `GET /board` | público | TV por fase do evento (espera, QR com inscritos, rodada com vencedores e o QR no canto, classificação parcial, classificação final), só nomes, guardada 5 s no CloudFront |
+| `GET /board` | ADM | TV por fase do evento (espera, QR com inscritos, rodada com vencedores e o QR no canto, classificação parcial, classificação final), só nomes; sem cache compartilhado. A TV (`/tv`) abre com a sessão do ADM, pelo "Abrir TV" do painel; `/tv?demo` mostra dados fictícios sem login |
 | `POST /events/{id}/tv` | ADM | Mostra (`{"on": true}`) ou tira da TV a classificação final do último evento encerrado |
 
 O ADM vem do grupo `admin` do Cognito; o juiz é marcado pelo ADM na aba "Equipe" e só age no evento em que for escalado (vê só a aba Rodada). Para dar o papel de ADM a uma conta já criada (vale no próximo token, em até 15 min):

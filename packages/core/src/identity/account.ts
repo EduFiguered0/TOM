@@ -30,6 +30,10 @@ export interface Account {
   playerId: PlayerId | null;
   /** Juiz da equipe, marcado pelo ADM. Sozinho não dá poder: o juiz só age no evento em que foi escalado. */
   judge?: boolean;
+  /** Foto do perfil (chave aleatória, muda a cada troca); ausente/null = sem foto. */
+  photoId?: string | null;
+  /** Menor: o responsável autoriza mostrar a foto nas mesas (consentimento específico de imagem). */
+  imageConsent?: boolean;
   /** Sessão do dispositivo ativo (`origin_jti` do token); tokens de outra sessão são recusados. */
   activeSession: string | null;
   createdAt: Date;
@@ -46,7 +50,11 @@ export type IdentityEventData =
   /** O ADM pôs ou tirou a conta da equipe de juízes. */
   | { type: 'judge_set'; judge: boolean }
   /** A própria pessoa conferiu nome e sobrenome. */
-  | { type: 'name_confirmed' };
+  | { type: 'name_confirmed' }
+  /** Foto posta, trocada ou tirada (null), pela pessoa ou pelo ADM. */
+  | { type: 'photo_set'; photoId: string | null }
+  /** Autorização de imagem do responsável (menor) marcada ou desmarcada. */
+  | { type: 'image_consent_set'; consent: boolean };
 
 /** Fato gravado junto com a conta, para auditoria. */
 export type IdentityEvent = IdentityEventData & {

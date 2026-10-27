@@ -17,7 +17,7 @@ const event = (): TournamentEvent => ({
 
 const registration = (eventId: string, at: string, accountId = randomUUID()): Registration => ({
   eventId, accountId, playerId: toPlayerId('100001'), firstName: 'Ana', lastName: 'Souza', birthYear: 1990,
-  at: new Date(at), by: 'self', awaitingApproval: false, launched: false, removed: false,
+  at: new Date(at), by: 'self', awaitingApproval: false, launched: false, removed: false, paid: false,
 });
 
 /** Contrato da porta: toda implementação (memória, DynamoDB) deve passar. Ids únicos por execução. */
@@ -59,6 +59,34 @@ export const registrationRepositoryContract = (name: string, create: () => { reg
       await expect(registrations.put(late, 'open')).rejects.toThrow(EventStatusChangedError);
       expect(await registrations.get(e.id, late.accountId)).toBeNull();
       await expect(registrations.put(registration(randomUUID(), '2026-10-24T13:03:00Z'), 'open')).rejects.toThrow(EventStatusChangedError);
+    });
+
+    it('altera só os campos pedidos, sobre o que está gravado; inscrição inexistente dá null', async () => {
+      const { registry, registrations } = create();
+      const e = event();
+      await registry.save(e, 0);
+      const r = registration(e.id, '2026-10-24T13:01:00Z');
+      await registrations.put(r, null);
+      await registrations.update(e.id, r.accountId, { paid: true });
+      expect(await registrations.update(e.id, r.accountId, { launched: true })).toEqual({ ...r, paid: true, launched: true });
+      expect(await registrations.get(e.id, r.accountId)).toEqual({ ...r, paid: true, launched: true });
+      expect(await registrations.update(e.id, randomUUID(), { paid: true })).toBeNull();
+    });
+
+    it('lista as inscrições de uma conta em vários eventos; regravar não duplica', async () => {
+      const { registry, registrations } = create();
+      const [a, b] = [event(), event()];
+      await registry.save(a, 0);
+      await registry.save(b, 0);
+      const account = randomUUID();
+      const first = registration(a.id, '2026-10-24T13:01:00Z', account);
+      await registrations.put(first, 'open');
+      await registrations.put({ ...first, paid: true }, null);
+      await registrations.put(registration(b.id, '2026-10-25T13:01:00Z', account), null);
+      await registrations.put(registration(b.id, '2026-10-25T13:02:00Z'), null);
+      const mine = await registrations.listByAccount(account);
+      expect(mine.map((r) => [r.eventId, r.paid]).sort()).toEqual([[a.id, true], [b.id, false]].sort());
+      expect(await registrations.listByAccount(randomUUID())).toEqual([]);
     });
   });
 };

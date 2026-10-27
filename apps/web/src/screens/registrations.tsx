@@ -1,4 +1,4 @@
-import { displayName, type AccountResponse, type EventDto, type RegistrationDto, type RegistrationsResponse } from '@tom/contracts';
+import { displayName, type EventDto, type RegistrationDto, type RegistrationsResponse, type TeamMemberDto } from '@tom/contracts';
 import { useCallback, useEffect, useState } from 'preact/hooks';
 import type { Api } from '../api.js';
 import { field as input, ghost, linkButton as action } from '../ui.js';
@@ -36,7 +36,7 @@ export type Registrations = ReturnType<typeof useRegistrations>;
 export const RegistrationsTable = ({ api, event, registrations }: { api: Api; event: EventDto; registrations: Registrations }) => {
   const { data, reload } = registrations;
   const [query, setQuery] = useState('');
-  const [found, setFound] = useState<AccountResponse[] | null>(null);
+  const [found, setFound] = useState<TeamMemberDto[] | null>(null);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<{ ok: boolean; text: string } | null>(null);
 
@@ -101,6 +101,12 @@ export const RegistrationsTable = ({ api, event, registrations }: { api: Api; ev
             onChange={(e) => { const on = e.currentTarget.checked; void run(() => api.setLaunched(event.id, r.accountId, on)); }} />
         )}
       </td>
+      <td class="py-1.5 pr-2 text-center">
+        {!r.removed && (
+          <input type="checkbox" aria-label={`${displayName(r)} pagou`} class="size-4 accent-accent" checked={r.paid} disabled={busy}
+            onChange={(e) => { const on = e.currentTarget.checked; void run(() => api.setPaid(event.id, r.accountId, on)); }} />
+        )}
+      </td>
       <td class="py-1.5 text-right">
         {!r.removed && !r.awaitingApproval && (
           <button type="button" class={`${action} text-error`} disabled={busy}
@@ -120,7 +126,7 @@ export const RegistrationsTable = ({ api, event, registrations }: { api: Api; ev
               <tr class="border-b border-line text-left text-xs uppercase tracking-wide text-muted">
                 <th class="whitespace-nowrap py-1.5 pr-2 font-semibold">Player ID</th><th class="py-1.5 pr-2 font-semibold">Nome</th>
                 <th class="py-1.5 pr-2 font-semibold">Sobrenome</th><th class="py-1.5 pr-2 font-semibold">Ano</th>
-                <th class="py-1.5 pr-2 font-semibold">Situação</th><th class="whitespace-nowrap py-1.5 pr-2 font-semibold">No TOM</th><th />
+                <th class="py-1.5 pr-2 font-semibold">Situação</th><th class="whitespace-nowrap py-1.5 pr-2 font-semibold">No TOM</th><th class="py-1.5 pr-2 font-semibold">Pago</th><th />
               </tr>
             </thead>
             <tbody>{data.registrations.map(row)}</tbody>
@@ -136,7 +142,7 @@ export const RegistrationsTable = ({ api, event, registrations }: { api: Api; ev
         <ul class="m-0 flex max-h-32 flex-col gap-1 overflow-y-auto p-0 text-sm">
           {found.map((a) => (
             <li key={a.id} class="flex items-center justify-between gap-2">
-              <span>{displayName(a.profile)} · {a.playerId ?? 'sem Player ID'}</span>
+              <span>{a.firstName} · {a.email} · {a.playerId ?? 'sem Player ID'}</span>
               <button type="button" class={action} disabled={busy} onClick={() => { void run(() => api.addRegistration(event.id, a.id)); }}>Inscrever</button>
             </li>
           ))}

@@ -1,4 +1,4 @@
-import type { Cognito, Tokens } from './cognito.js';
+import { AuthError, type Cognito, type Tokens } from './cognito.js';
 
 const KEY = 'tom.auth';
 /** Renova o token de acesso um pouco antes de expirar. */
@@ -19,9 +19,10 @@ export const browserStorage: Storage = {
 
 /** Tokens do dispositivo: mantém o login por até 30 dias e renova o token de acesso sozinho. */
 export const createSession = (cognito: Cognito, storage: Storage, now = () => Date.now()) => {
-  let tokens: Tokens | null = (() => {
+  const read = (): Tokens | null => {
     try { return JSON.parse(storage.get() ?? 'null') as Tokens | null; } catch { return null; }
-  })();
+  };
+  let tokens: Tokens | null = read();
   let refreshing: Promise<Tokens> | null = null;
 
   const keep = (next: Tokens | null) => {
@@ -35,8 +36,13 @@ export const createSession = (cognito: Cognito, storage: Storage, now = () => Da
 
     signedIn(next: Tokens) { keep(next); },
 
-    /** Token de acesso válido; renova se estiver perto de expirar. null = precisa entrar de novo. */
+    /**
+     * Token de acesso válido; renova se estiver perto de expirar. null = precisa entrar de novo.
+     * Falha de rede na renovação lança (a tela mostra "sem conexão" e tenta de novo): só o Cognito recusando desloga.
+     */
     async accessToken(): Promise<string | null> {
+      // Sem login nesta aba: outra aba (ex.: o painel, ao lado da TV) pode ter entrado.
+      tokens ??= read();
       if (!tokens) return null;
       if (tokens.expiresAt - MARGIN_MS > now()) return tokens.access;
       try {
@@ -44,7 +50,8 @@ export const createSession = (cognito: Cognito, storage: Storage, now = () => Da
         const next = await refreshing;
         keep(next);
         return next.access;
-      } catch {
+      } catch (error) {
+        if (!(error instanceof AuthError)) throw error;
         keep(null);
         return null;
       } finally {

@@ -20,20 +20,16 @@ describe('WebStack', () => {
     template.resourceCountIs('AWS::CloudFront::OriginAccessControl', 1);
   });
 
-  it('quadro da TV guardado pelo tempo da API, sem Authorization na chave; vem antes de /api/*', () => {
-    const [board] = config()['CacheBehaviors'] as { PathPattern: string; AllowedMethods: string[] }[];
-    expect(board?.PathPattern).toBe('/api/board');
-    expect(board?.AllowedMethods).toEqual(['GET', 'HEAD']);
-    template.hasResourceProperties('AWS::CloudFront::CachePolicy', {
-      CachePolicyConfig: Match.objectLike({
-        MaxTTL: 10,
-        ParametersInCacheKeyAndForwardedToOrigin: Match.objectLike({ HeadersConfig: { HeaderBehavior: 'none' } }),
-      }),
-    });
+  it('quadro da TV é do ADM: sem regra pública; cai em /api/*, que repassa o Authorization', () => {
+    const behaviors = config()['CacheBehaviors'] as { PathPattern: string }[];
+    expect(behaviors.map((b) => b.PathPattern)).not.toContain('/api/board');
+    template.resourcePropertiesCountIs('AWS::CloudFront::CachePolicy', {
+      CachePolicyConfig: Match.objectLike({ ParametersInCacheKeyAndForwardedToOrigin: Match.objectLike({ HeadersConfig: { HeaderBehavior: 'none' } }) }),
+    }, 0);
   });
 
   it('API em /api no mesmo endereço, sem cache e com o Authorization repassado', () => {
-    const [, api] = config()['CacheBehaviors'] as { PathPattern: string; AllowedMethods: string[] }[];
+    const [api] = config()['CacheBehaviors'] as { PathPattern: string; AllowedMethods: string[] }[];
     expect(api?.PathPattern).toBe('/api/*');
     expect(api?.AllowedMethods).toContain('POST');
     template.hasResourceProperties('AWS::CloudFront::CachePolicy', {

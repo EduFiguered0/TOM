@@ -4,7 +4,7 @@ import { describeReport, reportOptions, seatMessage } from '../src/round/round.j
 
 type TableSeat = Extract<SeatDto, { kind: 'table' }>;
 const seat = (over: Partial<TableSeat>): TableSeat => ({
-  kind: 'table', table: 1, opponent: 'teste5 5', deadline: null, color: 'gray', redReason: null, myReport: null, opponentReported: false, locked: false, ...over,
+  kind: 'table', table: 1, opponent: 'teste5 5', deadline: null, color: 'gray', redReason: null, myReport: null, opponentReported: false, locked: false, opponentPhoto: null, ...over,
 });
 
 describe('opções de reporte', () => {
@@ -30,10 +30,10 @@ describe('mensagem da mesa', () => {
   it('uma frase por cor, dizendo o que fazer', () => {
     expect(seatMessage(seat({}), false).text).toMatch(/Aguardando o ADM iniciar/);
     expect(seatMessage(seat({}), true).text).toMatch(/Reporte o resultado/);
-    expect(seatMessage(seat({ color: 'orange', myReport: { kind: 'intentional_draw' } }), true).text).toMatch(/Aguardando o oponente/);
+    expect(seatMessage(seat({ color: 'orange', myReport: { kind: 'intentional_draw' } }), true).text).toBe('Resultado enviado. Aguardando o oponente.');
     expect(seatMessage(seat({ color: 'orange', opponentReported: true }), true).text).toMatch(/Falta o seu/);
     expect(seatMessage(seat({ color: 'green', locked: true }), true)).toEqual({ tone: 'ok', text: 'Resultado validado. Bom jogo!' });
-    expect(seatMessage(seat({ color: 'red', redReason: 'outcome_conflict' }), true).text).toMatch(/não batem/);
+    expect(seatMessage(seat({ color: 'red', redReason: 'outcome_conflict' }), true)).toEqual({ tone: 'error', text: 'Os reportes não batem. Chamem o juiz.' });
     expect(seatMessage(seat({ color: 'red', redReason: 'timeout' }), true).text).toMatch(/Tempo esgotado/);
   });
 });

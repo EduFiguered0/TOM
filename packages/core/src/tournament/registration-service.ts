@@ -79,6 +79,7 @@ export class RegistrationService {
       awaitingApproval: event.status === 'running',
       launched: false,
       removed: false,
+      paid: false,
     };
     await this.deps.registrations.put(registration, event.status);
     return registration;
@@ -107,6 +108,7 @@ export class RegistrationService {
       awaitingApproval: false,
       launched: existing?.launched ?? false,
       removed: false,
+      paid: existing?.paid ?? false,
     };
     await this.deps.registrations.put(registration, null);
     return registration;
@@ -121,6 +123,26 @@ export class RegistrationService {
   async approve(actor: Actor | null, eventId: string, accountId: string): Promise<Registration> {
     requireAdmin(actor);
     return this.update(eventId, accountId, { awaitingApproval: false });
+  }
+
+  /** O ADM marca quem pagou, até o encerramento (pode pagar no fim do evento). */
+  async setPaid(actor: Actor | null, eventId: string, accountId: string, paid: boolean): Promise<Registration> {
+    requireAdmin(actor);
+    const event = await this.event(eventId);
+    if (!ACTIVE_STATUSES.includes(event.status)) throw new CommandRejected('event_state', 'Evento encerrado: o pagamento não muda mais');
+    return this.update(eventId, accountId, { paid });
+  }
+
+  /** Eventos do jogador, do mais recente para o mais antigo, com o nome atual do evento e se pagou. Só o ADM vê. */
+  async history(actor: Actor | null, accountId: string): Promise<{ eventId: string; label: string; date: string; paid: boolean }[]> {
+    requireAdmin(actor);
+    const kept = (await this.deps.registrations.listByAccount(accountId)).filter((r) => !r.removed);
+    const rows = await Promise.all(kept.map(async (r) => {
+      const event = (await this.deps.registry.get(r.eventId))?.event;
+      // Cancelado foi criado por engano: não entra no histórico.
+      return event && event.status !== 'cancelled' ? { eventId: r.eventId, label: event.label, date: event.date, paid: r.paid } : null;
+    }));
+    return rows.filter((r) => r !== null).sort((a, b) => b.date.localeCompare(a.date) || b.eventId.localeCompare(a.eventId));
   }
 
   async setLaunched(actor: Actor | null, eventId: string, accountId: string, launched: boolean): Promise<Registration> {
@@ -158,11 +180,13 @@ export class RegistrationService {
     return record.event;
   }
 
-  private async update(eventId: string, accountId: string, change: Partial<Registration>): Promise<Registration> {
-    const registration = await this.deps.registrations.get(eventId, accountId);
-    if (!registration) throw new CommandRejected('account_not_found', 'Inscrição não encontrada');
-    const next = { ...registration, ...change };
-    await this.deps.registrations.put(next, null);
+  private async update(
+    eventId: string,
+    accountId: string,
+    change: Partial<Pick<Registration, 'awaitingApproval' | 'launched' | 'removed' | 'paid'>>,
+  ): Promise<Registration> {
+    const next = await this.deps.registrations.update(eventId, accountId, change);
+    if (!next) throw new CommandRejected('account_not_found', 'Inscrição não encontrada');
     return next;
   }
 }

@@ -46,20 +46,23 @@ describe('rodada no celular do jogador', () => {
     const { report, me, start } = await setupRound();
     await start();
     const first = (await report('p1:c1', { kind: 'score', own: 2, opponent: 1 })).body as MyRoundResponse;
-    expect(seat(first)).toMatchObject({ color: 'orange', myReport: { kind: 'score', own: 2, opponent: 1 }, opponentReported: false, locked: false });
-    expect(seat(await me('p2:c2'))).toMatchObject({ color: 'orange', myReport: null, opponentReported: true });
+    expect(seat(first)).toMatchObject({ color: 'orange', myReport: { kind: 'score', own: 2, opponent: 1 }, opponentReported: false, locked: true });
+    expect(seat(await me('p2:c2'))).toMatchObject({ color: 'orange', myReport: null, opponentReported: true, locked: false });
     expect(JSON.stringify(await me('p2:c2'))).not.toContain('"own":2');
 
     expect(seat((await report('p2:c2', { kind: 'score', own: 1, opponent: 2 })).body as MyRoundResponse)).toMatchObject({ color: 'green', locked: true });
     expect((await report('p1:c1', { kind: 'score', own: 2, opponent: 0 })).body).toMatchObject({ error: 'table_locked' });
   });
 
-  it('reportes divergentes ficam vermelhos com o motivo; corrigir volta a verde', async () => {
-    const { report, start } = await setupRound();
+  it('reportes divergentes ficam vermelhos com o motivo; o jogador não reporta de novo (é com o juiz)', async () => {
+    const { report, start, me } = await setupRound();
     await start();
     await report('p1:c1', { kind: 'score', own: 2, opponent: 1 });
+    expect(seat(await me('p1:c1'))).toMatchObject({ locked: true });
     expect(seat((await report('p2:c2', { kind: 'score', own: 2, opponent: 0 })).body as MyRoundResponse)).toMatchObject({ color: 'red', redReason: 'outcome_conflict' });
-    expect(seat((await report('p2:c2', { kind: 'score', own: 1, opponent: 2 })).body as MyRoundResponse)).toMatchObject({ color: 'green' });
+    expect(await report('p2:c2', { kind: 'score', own: 1, opponent: 2 })).toMatchObject({
+      status: 409, body: { error: 'table_locked', message: 'Você já reportou esta mesa. Para corrigir, chame o juiz.' },
+    });
   });
 
   it('placar inválido e quem não está em mesa são recusados', async () => {
