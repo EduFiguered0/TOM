@@ -3,7 +3,9 @@ import type { PlayerId } from '../shared/player-id.js';
 
 /** Dados pessoais guardados (spec, "Dados pessoais e LGPD"). */
 export interface Profile {
-  name: string;
+  /** Nome e sobrenome separados, como o TOM pede. */
+  firstName: string;
+  lastName: string;
   birthYear: number;
   phone: string | null;
   /** "Sou o responsável legal por este jogador e autorizo o uso dos dados acima." Obrigatório para menores. */
@@ -22,6 +24,8 @@ export interface Account {
    */
   emailProven?: boolean;
   profile: Profile;
+  /** false = conta antiga, com o nome separado automaticamente no primeiro espaço: a pessoa confere uma vez. */
+  nameReviewed: boolean;
   /** Informado pelo jogador; vale desde o cadastro. O primeiro a cadastrar fica com ele. */
   playerId: PlayerId | null;
   /** Juiz da equipe, marcado pelo ADM. Sozinho não dá poder: o juiz só age no evento em que foi escalado. */
@@ -40,7 +44,9 @@ export type IdentityEventData =
   | { type: 'player_id_unlinked'; playerId: PlayerId }
   | { type: 'session_activated'; session: string; replaced: string | null }
   /** O ADM pôs ou tirou a conta da equipe de juízes. */
-  | { type: 'judge_set'; judge: boolean };
+  | { type: 'judge_set'; judge: boolean }
+  /** A própria pessoa conferiu nome e sobrenome. */
+  | { type: 'name_confirmed' };
 
 /** Fato gravado junto com a conta, para auditoria. */
 export type IdentityEvent = IdentityEventData & {
@@ -58,11 +64,31 @@ export class InvalidProfileError extends Error {
 }
 
 const ADULT_AGE = 18;
+const NAME_MAX = 50;
+
+const clean = (text: string) => text.trim().replace(/\s+/g, ' ');
+
+/** Nome completo: nome e sobrenome, sem espaço sobrando quando o sobrenome está vazio (só em dado antigo). */
+export const fullName = ({ firstName, lastName }: { firstName: string; lastName: string }): string => `${firstName} ${lastName}`.trim();
+
+/** Nome antigo, de um campo só: separa no primeiro espaço. */
+export const splitName = (full: string): { firstName: string; lastName: string } => {
+  const [firstName = '', ...rest] = clean(full).split(' ');
+  return { firstName, lastName: rest.join(' ') };
+};
+
+/** Normaliza e valida nome e sobrenome. */
+export const validName = (input: { firstName: string; lastName: string }): { firstName: string; lastName: string } => {
+  const firstName = clean(input.firstName);
+  const lastName = clean(input.lastName);
+  if (firstName.length < 1 || firstName.length > NAME_MAX) throw new InvalidProfileError('Nome deve ter de 1 a 50 caracteres');
+  if (lastName.length < 1 || lastName.length > NAME_MAX) throw new InvalidProfileError('Sobrenome deve ter de 1 a 50 caracteres');
+  return { firstName, lastName };
+};
 
 /** Normaliza e valida o perfil do cadastro. */
 export const validProfile = (input: Profile, now: Date): Profile => {
-  const name = input.name.trim().replace(/\s+/g, ' ');
-  if (name.length < 2 || name.length > 100) throw new InvalidProfileError('Nome deve ter de 2 a 100 caracteres');
+  const { firstName, lastName } = validName(input);
   const year = now.getUTCFullYear();
   if (!Number.isInteger(input.birthYear) || input.birthYear < 1900 || input.birthYear > year) {
     throw new InvalidProfileError('Ano de nascimento inválido');
@@ -72,5 +98,5 @@ export const validProfile = (input: Profile, now: Date): Profile => {
   }
   const phone = input.phone?.replace(/\D/g, '') || null;
   if (phone && (phone.length < 10 || phone.length > 13)) throw new InvalidProfileError('Telefone inválido');
-  return { name, birthYear: input.birthYear, phone, guardianConsent: input.guardianConsent };
+  return { firstName, lastName, birthYear: input.birthYear, phone, guardianConsent: input.guardianConsent };
 };

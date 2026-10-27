@@ -14,4 +14,10 @@ describe('conta lida do DynamoDB', () => {
     expect(fromStored({ ...stored, playerId: null }).playerId).toBeNull();
     expect(fromStored({ ...stored, playerId: null }).createdAt).toEqual(new Date('2026-10-23T14:00:00Z'));
   });
+
+  it('conta antiga com "name": separa no primeiro espaço e fica por conferir', () => {
+    const account = fromStored({ ...stored, playerId: null });
+    expect(account).toMatchObject({ profile: { firstName: 'Ana', lastName: 'Souza', birthYear: 1990 }, nameReviewed: false });
+    expect(account.profile).not.toHaveProperty('name');
+  });
 });

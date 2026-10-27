@@ -3,6 +3,7 @@ import { GetCommand, PutCommand, QueryCommand, TransactWriteCommand, type Dynamo
 import {
   byInscription,
   EventStatusChangedError,
+  splitName,
   type EventStatus,
   type Registration,
   type RegistrationRepository,
@@ -17,7 +18,15 @@ export interface DynamoRegistrationRepositoryOptions {
   retentionDays?: number;
 }
 
-type StoredRegistration = Omit<Registration, 'at' | 'awaitingApproval'> & { at: string; awaitingApproval?: boolean; confirmed?: boolean };
+type StoredRegistration = Omit<Registration, 'at' | 'awaitingApproval' | 'firstName' | 'lastName'> & {
+  at: string;
+  awaitingApproval?: boolean;
+  confirmed?: boolean;
+  /** Inscrição antiga: `name` num campo só. */
+  name?: string;
+  firstName?: string;
+  lastName?: string;
+};
 
 const eventKey = (id: string) => ({ pk: `event#${id}`, sk: 'event' });
 const key = (eventId: string, accountId: string) => ({ pk: `event#${eventId}`, sk: `reg#${accountId}` });
@@ -89,8 +98,10 @@ export class DynamoRegistrationRepository implements RegistrationRepository {
   }
 }
 
-/** Inscrição da época da confirmação de presença: sem `awaitingApproval`, e o `confirmed` sai. */
+/** Inscrição antiga: sem `awaitingApproval` (o `confirmed` sai) e com `name` num campo só (separa no primeiro espaço). */
 export const registrationFromStored = (s: StoredRegistration): Registration => ({
-  eventId: s.eventId, accountId: s.accountId, playerId: s.playerId, name: s.name, birthYear: s.birthYear, at: new Date(s.at),
+  eventId: s.eventId, accountId: s.accountId, playerId: s.playerId,
+  ...(s.firstName === undefined ? splitName(s.name ?? '') : { firstName: s.firstName, lastName: s.lastName ?? '' }),
+  birthYear: s.birthYear, at: new Date(s.at),
   by: s.by, awaitingApproval: s.awaitingApproval ?? false, launched: s.launched, removed: s.removed,
 });

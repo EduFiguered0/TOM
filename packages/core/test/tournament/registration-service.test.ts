@@ -29,7 +29,7 @@ const setup = async () => {
 const account = async (accounts: InMemoryAccountRepository, id: string, playerId: string | null, judge = false): Promise<Principal> => {
   const a: Account = {
     id, email: `${id}@example.com`, logins: [id], playerId: playerId ? toPlayerId(playerId) : null, activeSession: 's', judge,
-    createdAt: new Date(), profile: { name: `Nome ${id}`, birthYear: 1990, phone: null, guardianConsent: false },
+    createdAt: new Date(), profile: { firstName: 'Nome', lastName: id, birthYear: 1990, phone: null, guardianConsent: false }, nameReviewed: true,
   };
   await accounts.save(a, [], 0);
   return { account: a, actor: playerId ? { role: 'player', accountId: id, playerId: toPlayerId(playerId) } : null };
@@ -47,7 +47,7 @@ describe('inscrição pelo QR', () => {
     const { service, accounts, events, event, code } = await setup();
     const ana = await account(accounts, 'ana', '100001');
     const first = await service.join(ana, code);
-    expect(first.registration).toMatchObject({ accountId: 'ana', playerId: '100001', name: 'Nome ana', birthYear: 1990, by: 'self', awaitingApproval: false });
+    expect(first.registration).toMatchObject({ accountId: 'ana', playerId: '100001', firstName: 'Nome', lastName: 'ana', birthYear: 1990, by: 'self', awaitingApproval: false });
     expect((await service.join(ana, code)).registration).toEqual(first.registration);
     await events.markRunning(event.id);
     expect((await service.join(ana, code)).registration).toEqual(first.registration);

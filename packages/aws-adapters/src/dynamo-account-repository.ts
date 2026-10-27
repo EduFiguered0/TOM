@@ -4,11 +4,13 @@ import {
   AccountConflictError,
   ConcurrencyError,
   PlayerIdTakenError,
+  splitName,
   type Account,
   type AccountRecord,
   type AccountRepository,
   type IdentityEvent,
   type PlayerId,
+  type Profile,
 } from '@tom/core';
 
 const DAY_SECONDS = 86_400;
@@ -20,9 +22,12 @@ export interface DynamoAccountRepositoryOptions {
 }
 
 /** Contas de antes do plano 2 guardam o Player ID como `{ value, confirmed }`; só o confirmado tem trava. */
-type StoredAccount = Omit<Account, 'createdAt' | 'playerId'> & {
+type StoredAccount = Omit<Account, 'createdAt' | 'playerId' | 'profile' | 'nameReviewed'> & {
   createdAt: string;
   playerId: PlayerId | { value: PlayerId; confirmed: boolean } | null;
+  /** Conta antiga: `name` num campo só, sem `firstName`/`lastName` nem `nameReviewed`. */
+  profile: Omit<Profile, 'firstName' | 'lastName'> & Partial<Pick<Profile, 'firstName' | 'lastName'>> & { name?: string };
+  nameReviewed?: boolean;
 };
 
 /** Travas de unicidade: cada login, o e-mail e o Player ID apontam para uma única conta. */
@@ -165,9 +170,12 @@ export class DynamoAccountRepository implements AccountRepository {
 const toStored = (account: Account): StoredAccount => ({ ...account, createdAt: account.createdAt.toISOString() });
 
 export const fromStored = (stored: StoredAccount): Account => {
-  const { playerId } = stored;
+  const { playerId, profile } = stored;
+  const name = profile.firstName === undefined ? splitName(profile.name ?? '') : { firstName: profile.firstName, lastName: profile.lastName ?? '' };
   return {
     ...stored,
+    profile: { ...name, birthYear: profile.birthYear, phone: profile.phone, guardianConsent: profile.guardianConsent },
+    nameReviewed: stored.nameReviewed ?? false,
     // Pendente antigo não tem trava (pode haver outro com o mesmo valor): volta a não ter Player ID e informa de novo.
     playerId: playerId !== null && typeof playerId === 'object' ? (playerId.confirmed ? playerId.value : null) : playerId,
     createdAt: new Date(stored.createdAt),
