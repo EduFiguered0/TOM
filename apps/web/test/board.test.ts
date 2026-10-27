@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { clockSkew, freshServerTime, joinUrl, pages, qrPath, roundClock, tvColumns } from '../src/tv/board.js';
+import { clockSkew, joinUrl, pages, qrPath, roundClock, tvColumns } from '../src/tv/board.js';
 
 const endsAt = '2026-10-24T15:30:00.000Z';
 const at = (iso: string) => Date.parse(iso);
@@ -48,14 +48,6 @@ describe('colunas da TV', () => {
     expect(tvColumns(16)).toEqual({ columns: 2, perColumn: 15, pages: 1, perPage: 16 });
     expect(tvColumns(45)).toEqual({ columns: 3, perColumn: 15, pages: 1, perPage: 45 });
     expect(tvColumns(0)).toEqual({ columns: 1, perColumn: 15, pages: 1, perPage: 0 });
-  });
-});
-
-describe('relógio do servidor com cache', () => {
-  it('soma a idade da resposta guardada no cache', () => {
-    expect(freshServerTime('2026-10-26T20:00:00.000Z', '4')).toBe('2026-10-26T20:00:04.000Z');
-    expect(freshServerTime('2026-10-26T20:00:00.000Z', null)).toBe('2026-10-26T20:00:00.000Z');
-    expect(freshServerTime('2026-10-26T20:00:00.000Z', 'x')).toBe('2026-10-26T20:00:00.000Z');
   });
 });
 

@@ -151,7 +151,7 @@ describe('resultado final e rodada 1', () => {
     const ctx = await setupRound();
     await ctx.call('PATCH', `/events/${ctx.eventId}`, ADM, { roundMinutes: 45 });
     await ctx.start();
-    const board = (await ctx.call('GET', '/board', null)).body as { startedAt: string; endsAt: string };
+    const board = (await ctx.call('GET', '/board', ADM)).body as { startedAt: string; endsAt: string };
     expect(new Date(board.endsAt).getTime() - new Date(board.startedAt).getTime()).toBe(45 * 60_000);
   });
 });

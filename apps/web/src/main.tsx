@@ -32,9 +32,9 @@ const googleStore = {
 const start = async () => {
   const root = document.getElementById('app');
   if (!root) return;
-  // TV do salão: pública, sem login. /tv?demo mostra dados fictícios para conferir o layout.
-  if (pageFor(location.pathname) === 'tv') {
-    render(new URLSearchParams(location.search).has('demo') ? <Tv board={demoBoard()} /> : <LiveTv />, root);
+  // /tv?demo mostra dados fictícios para conferir o layout, sem login.
+  if (pageFor(location.pathname) === 'tv' && new URLSearchParams(location.search).has('demo')) {
+    render(<Tv board={demoBoard()} />, root);
     return;
   }
   if (pageFor(location.pathname) === 'privacy') {
@@ -58,6 +58,12 @@ const start = async () => {
   const config = (await (await fetch('/config.json', { cache: 'no-store' })).json()) as Config;
   const cognito = createCognito({ region: config.region, clientId: config.userPoolClientId });
   const session = createSession(cognito, browserStorage);
+  // TV do salão: extensão do painel do ADM, com a mesma sessão (aberta em "Abrir TV ↗").
+  if (pageFor(location.pathname) === 'tv') {
+    // Sem login, a TV mostra o aviso e segue consultando: entra sozinha quando o ADM fizer login em outra aba.
+    render(<LiveTv load={createApi(session).board} />, root);
+    return;
+  }
   const google = createGoogle(
     { loginDomain: config.loginDomain, clientId: config.userPoolClientId, redirectUri: `${location.origin}/` },
     { fetchFn: fetch.bind(window), store: googleStore, random: () => crypto.getRandomValues(new Uint8Array(32)), now: () => Date.now() },

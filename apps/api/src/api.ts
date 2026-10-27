@@ -735,6 +735,14 @@ export const createApi = ({ tokens, emails, accounts, events, ingest, board, rou
     },
   ];
   routes.push(...panelRoutes);
+  routes.push({
+    method: 'GET', path: /^\/board$/,
+    handle: async ({ identity }) => {
+      // A TV é extensão do painel do ADM (nomes e fotos dos jogadores): só com sessão de ADM, sem cache compartilhado.
+      await requireAdmin(identity);
+      return { status: 200, body: await board() };
+    },
+  });
 
   const openRoutes: OpenRoute[] = [
     {
@@ -743,13 +751,6 @@ export const createApi = ({ tokens, emails, accounts, events, ingest, board, rou
         status: 200,
         body: await ingest.withToken(request.headers['x-upload-token'] ?? '', parseUploadRequest(jsonBody(request))),
       }),
-    },
-    {
-      method: 'GET', path: /^\/board$/,
-      handle: async () => {
-        // Muitas TVs e celulares olhando custam o mesmo que um: o CloudFront guarda por 5 s.
-        return { status: 200, body: await board(), cacheControl: 'public, max-age=5' };
-      },
     },
   ];
 
