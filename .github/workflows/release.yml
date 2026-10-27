@@ -5,16 +5,16 @@ name: Release
 
 on:
   workflow_dispatch:
+  # Só o merge do PR de release mexe no manifest: merge comum na main não abre execução nenhuma.
   push:
     branches: [main]
+    paths: [.release-please-manifest.json]
 
 permissions:
   contents: read
 
 jobs:
-  # Merge comum na main não faz nada aqui: só o botão ou o merge do PR de release.
   check:
-    if: github.event_name == 'workflow_dispatch' || contains(github.event.head_commit.message, 'release-please--')
     uses: ./.github/workflows/check.yml
 
   release-please:
