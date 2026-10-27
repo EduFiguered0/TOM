@@ -15,7 +15,7 @@ export const eventSteps = (status: EventStatusDto | null): { label: string; stat
 
 const NEXT: Record<EventStatusDto, string | null> = {
   open: 'Próximo passo: lance os inscritos no TOM e gere o pareamento da rodada 1. O botão Iniciar rodada aparece na aba Rodada.',
-  running: 'Entre rodadas: imprima a Classificação no TOM (não o Registro de partida) para ela aparecer na TV. O pareamento seguinte volta às mesas.',
+  running: 'Entre rodadas: imprima a Classificação (ou o Registro de partida) no TOM para os resultados aparecerem na TV. O pareamento seguinte volta às mesas.',
   final: 'Resultado final recebido: confira e encerre o evento.',
   closed: null,
   cancelled: null,

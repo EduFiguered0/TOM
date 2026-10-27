@@ -83,18 +83,20 @@ describe('quadro da TV por fase do evento', () => {
     expect(((await ctx.call('GET', '/events/active', ADM)).body as ActiveEventResponse).event?.status).toBe('running');
   });
 
-  it('acréscimo aparece na TV: prazo de cada mesa em acréscimo, ou os turnos extras', async () => {
+  it('registro de partida também leva a TV aos resultados; a classificação da mesma rodada prevalece', async () => {
     const ctx = await setupRound();
     await ctx.start();
-    ctx.advance(51);
-    await ctx.call('POST', '/panel/extend', ADM, { minutes: 5 });
-    const extended = (await board(ctx.call)) as Extract<BoardResponse, { state: 'running' }>;
-    expect(extended.extension).toEqual({ minutes: 5, turns: null });
-    expect(extended.tables[0]).toMatchObject({ deadline: '2026-10-23T14:55:00.000Z', extraTurns: null });
-    await ctx.call('POST', '/panel/extend', ADM, { turns: 5 });
-    const turns = (await board(ctx.call)) as Extract<BoardResponse, { state: 'running' }>;
-    expect(turns.extension).toEqual({ minutes: 5, turns: 5 });
-    expect(turns.tables[0]).toMatchObject({ deadline: null, extraTurns: 5 });
+    const record = (at: string) => upload('matchrecord', upload('matchrecord').content.replace('Rodada 2/3', 'Rodada 3/4'), at);
+    await ctx.send(record('2026-10-24T15:00:00Z'));
+    const fromRecord = (await board(ctx.call)) as Extract<BoardResponse, { state: 'standings' }>;
+    expect(fromRecord).toMatchObject({ state: 'standings', round: 3 });
+    expect(fromRecord.standings[0]).toMatchObject({ rank: 1, opponentWinPct: null });
+    expect(fromRecord.standings.map((s) => s.points)).toEqual([...fromRecord.standings.map((s) => s.points)].sort((a, b) => (b ?? 0) - (a ?? 0)));
+
+    await ctx.send(upload('standings', upload('standings').content.replace('Rodada 3/3', 'Rodada 3/4'), '2026-10-24T15:05:00Z'));
+    await ctx.send(record('2026-10-24T15:10:00Z'));
+    const official = (await board(ctx.call)) as Extract<BoardResponse, { state: 'standings' }>;
+    expect(official.standings[0]?.opponentWinPct).not.toBeNull();
   });
 
   it('mesa verde leva o vencedor; antes, nada', async () => {
