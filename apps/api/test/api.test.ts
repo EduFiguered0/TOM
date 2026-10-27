@@ -101,11 +101,25 @@ describe('API', () => {
     expect((await call('POST', '/me/player-id', 'ana-email:p1', {})).status).toBe(400);
   });
 
+  it('guia Jogadores: lista mascarada no servidor, busca por nome ou e-mail; jogador recebe 403', async () => {
+    const { call } = setup();
+    await register(call, 'ana-email:p1', '100001');
+    await register(call, 'adm:a1');
+    const all = await call('POST', '/players/search', 'adm:a1:admin', { query: '' });
+    expect(all).toMatchObject({ status: 200, body: [{ firstName: 'Ana', playerId: '100001', email: 'ana•••@example.com', phone: null }, { playerId: null }] });
+    expect(JSON.stringify(all.body)).not.toMatch(/Souza|ana@example|birthYear/);
+    expect((await call('POST', '/players/search', 'adm:a1:admin', { query: 'ana@' })).body).toHaveLength(1);
+    expect((await call('POST', '/players/search', 'adm:a1:admin', { query: 'adm@' })).body).toMatchObject([{ playerId: null }]);
+    expect((await call('POST', '/players/search', 'ana-email:p1', { query: '' })).status).toBe(403);
+  });
+
   it('ADM busca e desfaz o vínculo; jogador recebe 403', async () => {
     const { call } = setup();
     await register(call, 'ana-email:p1', '100001');
     await register(call, 'adm:a1');
-    expect(await call('GET', '/player-ids/100001', 'adm:a1:admin')).toMatchObject({ status: 200, body: { profile: { firstName: 'Ana', lastName: 'Souza' }, playerId: '100001' } });
+    const found = await call('GET', '/player-ids/100001', 'adm:a1:admin');
+    expect(found).toMatchObject({ status: 200, body: { firstName: 'Ana', playerId: '100001', email: 'ana•••@example.com' } });
+    expect(JSON.stringify(found.body)).not.toMatch(/Souza|ana@example/);
     expect((await call('GET', '/player-ids/100001', 'ana-email:p1')).status).toBe(403);
     expect((await call('POST', '/player-ids/100001/unlink', 'ana-email:p1')).status).toBe(403);
     expect(await call('GET', '/player-ids/999999', 'adm:a1:admin')).toMatchObject({ status: 404, body: { error: 'account_not_found' } });

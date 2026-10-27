@@ -26,6 +26,7 @@ import {
   type MyEventResponse,
   type MyRegistrationDto,
   type PlayerEventDto,
+  type PlayerRowDto,
   type RegistrationDto,
   type RegistrationsResponse,
   type BoardResponse,
@@ -36,6 +37,8 @@ import {
 } from '@tom/contracts';
 import {
   CommandRejected,
+  maskEmail,
+  maskPhone,
   type Account,
   type AccountService,
   type EventRegistry,
@@ -142,6 +145,15 @@ const toAccount = (account: Account): AccountResponse => ({
   playerId: account.playerId,
   judge: account.judge === true,
   createdAt: account.createdAt.toISOString(),
+});
+
+/** Guia Jogadores: mascarado aqui, no servidor. */
+const toPlayerRow = (account: Account): PlayerRowDto => ({
+  id: account.id,
+  playerId: account.playerId,
+  firstName: account.profile.firstName,
+  email: maskEmail(account.email),
+  phone: maskPhone(account.profile.phone),
 });
 
 const toMe = ({ account, actor }: Principal, judging: boolean): MeResponse => ({
@@ -354,7 +366,15 @@ export const createApi = ({ tokens, emails, accounts, events, ingest, board, rou
       method: 'GET', path: new RegExp(`^/player-ids/${PLAYER_ID}$`),
       handle: async ({ identity, params: [pid = ''] }) => {
         const { actor } = await accounts.authenticate(identity);
-        return { status: 200, body: toAccount(await accounts.findByPlayerId(actor, pid)) };
+        return { status: 200, body: toPlayerRow(await accounts.findByPlayerId(actor, pid)) };
+      },
+    },
+    {
+      method: 'POST', path: /^\/players\/search$/,
+      handle: async ({ request, identity }) => {
+        const { query } = parseSearchRequest(jsonBody(request));
+        const { actor } = await accounts.authenticate(identity);
+        return { status: 200, body: (await accounts.players(actor, query)).map(toPlayerRow) };
       },
     },
     {
