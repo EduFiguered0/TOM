@@ -53,7 +53,7 @@ npm run web:deploy   # build, envio ao S3 e limpeza do cache do CloudFront
 
 1. **Evento:** crie o evento (nome, data, tempo de rodada, juízes) e clique em **"Conectar pasta do TOM"** (a pasta `reports` do TOM). A TV mostra o QR; quem escaneia se cadastra e fica inscrito.
 2. O ADM digita os inscritos no TOM (tabela com "copiar ID/nome" e "lançado no TOM"). O QR fica aberto até o encerramento, num canto da TV durante as rodadas: quem escaneia depois do início da rodada 1 fica **aguardando o organizador**, e o ADM **aprova** (lança no TOM e a pessoa entra no próximo pareamento) ou **recusa** na tabela de inscritos.
-3. **Rodada:** imprima o pareamento e as guias no TOM; a pasta envia sozinha e aparece **"Iniciar rodada"**. As mesas ficam numa tabela por ordem de ação; a mesa escolhida abre ao lado com os reportes, a key do TOM, **Ajustar resultado** (botões por vencedor e placar, ID, DGL, ausência, com motivo), acréscimo e reporte por jogador sem celular. As abas R1, R2… mostram e ajustam rodadas anteriores; keys pendentes só geram aviso, não travam a próxima rodada.
+3. **Rodada:** imprima o pareamento e as guias no TOM; a pasta envia sozinha e aparece **"Iniciar rodada"**. As mesas ficam numa tabela por ordem de ação; a mesa escolhida abre ao lado com os reportes, a key do TOM, **Ajustar resultado** (botões por vencedor e placar, ID, DGL, ausência; sem motivo obrigatório), acréscimo e reporte por jogador sem celular. As abas R1, R2… mostram e ajustam rodadas anteriores; keys pendentes só geram aviso, não travam a próxima rodada. Cada jogador reporta uma vez; correção é com o juiz. O nome do evento passa a ser o do torneio no TOM, e a configuração do evento grava sozinha (sem botão Salvar).
 4. **TV:** todas as mesas numa página, em ordem, com o vencedor de cada mesa verde (sem placar), os byes à parte e o QR para quem chega tarde. Entre rodadas, os standings intermediários do TOM mostram a classificação parcial até o próximo pareamento.
 5. Os standings da última rodada do TOM mostram na TV a classificação final (pontos e desempates) e, no celular, a colocação de cada jogador. Aí o ADM encerra o evento, e a TV volta para a espera. Sem evento ativo, a aba Evento permite **mostrar e tirar da TV** a classificação do último evento.
 
@@ -107,12 +107,12 @@ Rotas da API (as de conta e ADM exigem `Authorization: Bearer <token de acesso d
 | `POST /round/start` | ADM | Inicia a rodada publicada pelo TOM (melhor de 1 ou 3, tempo); a rodada 1 põe o evento em andamento |
 | `GET /panel` | juiz escalado no evento atual, ADM | Painel: todas as mesas com Player IDs, os dois reportes, cor e motivo, override, acréscimo e a key do TOM; a rodada mais recente e as keys pendentes de rodadas anteriores |
 | `GET /panel/rounds/{r}` | juiz, ADM | O mesmo painel para uma rodada anterior do torneio atual |
-| `POST /panel/tables/{n}/override` | juiz, ADM | Override (placar, ID, DGL, vitória por ausência) com motivo; avisa se a key já foi lançada |
+| `POST /panel/tables/{n}/override` | juiz, ADM | Override (placar, ID, DGL, vitória por ausência), motivo opcional; avisa se a key já foi lançada |
 | `POST /panel/tables/{n}/extend` | juiz, ADM | Acréscimo de tempo na mesa |
 | `POST /panel/tables/{n}/key-launched` | ADM | Marca a key como lançada no TOM (só mesa verde) |
 | `POST /panel/tables/{n}/report` | ADM | Reporte em nome de jogador sem celular |
 | `POST /panel/rounds/{r}/tables/{n}/…` | juiz, ADM | As mesmas ações numa rodada anterior |
-| `POST /events` | ADM | Cria o evento do dia (nome, `date`, `roundMinutes` = 30, `judges`); um ativo por vez; devolve o token do enviador uma única vez |
+| `POST /events` | ADM | Cria o evento do dia (nome, `date`, `roundMinutes` = 50, `judges`); um ativo por vez; devolve o token do enviador uma única vez |
 | `GET /events/active` | ADM | Evento ativo, com o código do QR |
 | `PATCH /events/{id}` | ADM | Muda o tempo de rodada e os juízes enquanto o evento não acabou |
 | `POST /events/{id}/close` | ADM | Encerra (só depois do resultado final do TOM) |

@@ -65,7 +65,7 @@ describe('cliente da API', () => {
     await api.panel(2);
     await api.keyLaunched(1);
     await api.keyLaunched(1, 2);
-    await api.override(3, { kind: 'intentional_draw' }, 'x', 2);
+    await api.override(3, { kind: 'intentional_draw' }, 2);
     expect(urls).toEqual([
       '/api/panel', '/api/panel/rounds/2', '/api/panel/tables/1/key-launched', '/api/panel/rounds/2/tables/1/key-launched',
       '/api/panel/rounds/2/tables/3/override',

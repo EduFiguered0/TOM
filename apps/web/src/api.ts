@@ -88,8 +88,8 @@ export const createApi = (session: Session, base = '/api', fetchFn: typeof fetch
     report: (report: ReportDto) => call<MyRoundResponse>('POST', '/round/report', { report }),
     startRound: (bestOf: 1 | 3, roundMinutes: number | null) => call<BoardResponse>('POST', '/round/start', { bestOf, roundMinutes }),
     panel: (round?: number) => call<PanelResponse>('GET', panelPath(round)),
-    override: (table: number, override: OverrideDto, reason: string, round?: number) =>
-      call<PanelResponse & { requiresTomFix: boolean }>('POST', tablePath(round, table, 'override'), { override, reason }),
+    override: (table: number, override: OverrideDto, round?: number) =>
+      call<PanelResponse & { requiresTomFix: boolean }>('POST', tablePath(round, table, 'override'), { override }),
     extend: (table: number, minutes: number, round?: number) => call<PanelResponse>('POST', tablePath(round, table, 'extend'), { minutes }),
     keyLaunched: (table: number, round?: number) => call<PanelResponse>('POST', tablePath(round, table, 'key-launched')),
     staffReport: (table: number, side: 'player1' | 'player2', report: ReportDto, round?: number) =>

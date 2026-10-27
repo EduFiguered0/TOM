@@ -35,7 +35,7 @@ export const EventConfig = ({ api, event, reload }: Props) => {
   const [team, setTeam] = useState<AccountResponse[]>([]);
   const [name, setName] = useState('');
   const [date, setDate] = useState(today());
-  const [minutes, setMinutes] = useState('30');
+  const [minutes, setMinutes] = useState('50');
   const [chosen, setChosen] = useState<string[]>([]);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<{ ok: boolean; text: string } | null>(null);
@@ -64,6 +64,21 @@ export const EventConfig = ({ api, event, reload }: Props) => {
       ok(await api.createEvent({ label: name.trim(), date, roundMinutes: Number(minutes), judges: chosen }));
       setName('');
       return 'Evento criado. Conecte a pasta do TOM.';
+    });
+  };
+
+  /** Sem botão Salvar: cada mudança grava na hora; se a API recusar, o campo volta ao que está salvo. */
+  const save = (change: { roundMinutes?: number; judges?: string[] }) => {
+    if (!event) return;
+    void run(async () => {
+      try {
+        ok(await api.updateEvent(event.id, change));
+        return 'Salvo.';
+      } catch (e) {
+        setMinutes(String(event.roundMinutes));
+        setChosen(event.judges);
+        throw e;
+      }
     });
   };
 
@@ -101,14 +116,11 @@ export const EventConfig = ({ api, event, reload }: Props) => {
         <div class={label}>Data<span class="text-sm text-text">{event.date.split('-').reverse().join('/')}</span></div>
       </div>
       <label class={label}>Tempo de rodada (minutos)
-        <input class={field} inputmode="numeric" value={minutes} onInput={(e) => { setMinutes(e.currentTarget.value); }} />
+        <input class={field} inputmode="numeric" value={minutes} disabled={busy} onInput={(e) => { setMinutes(e.currentTarget.value); }}
+          onBlur={() => { if (minutes.trim() !== String(event.roundMinutes)) save({ roundMinutes: Number(minutes) }); }} />
       </label>
-      <JudgesField team={team} chosen={chosen} onChange={setChosen} />
+      <JudgesField team={team} chosen={chosen} onChange={(ids) => { setChosen(ids); save({ judges: ids }); }} />
       <div class="flex items-center gap-2">
-        <button type="button" class={primary} disabled={busy}
-          onClick={() => { void run(async () => { ok(await api.updateEvent(event.id, { roundMinutes: Number(minutes), judges: chosen })); return 'Evento salvo.'; }); }}>
-          Salvar
-        </button>
         <div class="flex-1" />
         <button type="button" class={`${ghost} text-error`} disabled={busy} onClick={cancel}>Cancelar evento</button>
       </div>
