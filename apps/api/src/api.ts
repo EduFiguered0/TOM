@@ -385,7 +385,7 @@ export const createApi = ({ tokens, emails, accounts, events, ingest, board, rou
         // A conta errada sai também do evento ativo.
         const active = await events.active();
         if (active) await registrations.dropAccount(active.id, account.id);
-        return { status: 200, body: toAccount(account) };
+        return { status: 200, body: toPlayerRow(account) };
       },
     },
     {
