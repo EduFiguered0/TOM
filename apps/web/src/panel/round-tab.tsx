@@ -1,7 +1,8 @@
 import { useState } from 'preact/hooks';
 import type { Api } from '../api.js';
 import { box, field, linkButton, primary } from '../ui.js';
-import { roundClock } from '../tv/board.js';
+import type { PanelResponse } from '@tom/contracts';
+import { extensionClock, roundClock } from '../tv/board.js';
 import { pickTable } from './panel.js';
 import { TableDetail } from './table-detail.js';
 import { TablesList } from './tables-list.js';
@@ -42,6 +43,42 @@ const StartRound = ({ api, onStarted }: { api: Api; onStarted: () => void }) => 
   );
 };
 
+/**
+ * Acréscimo da rodada (juiz ou ADM), depois do tempo: minutos (padrão 5) ou turnos extras (padrão 5) para todas as
+ * mesas ainda sem resultado. Cada clique vale para as que continuam sem resultado.
+ */
+const ExtendRound = ({ api, onDone }: { api: Api; onDone: (body: PanelResponse) => void }) => {
+  const [mode, setMode] = useState<'minutes' | 'turns'>('minutes');
+  const [amount, setAmount] = useState('5');
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const extend = (e: Event) => {
+    e.preventDefault();
+    const n = Number(amount);
+    setBusy(true);
+    setError(null);
+    void api.extend(mode === 'minutes' ? { minutes: n } : { turns: n })
+      .then((result) => { if (result.ok) onDone(result.body); else setError(result.error.message); })
+      .catch((err: unknown) => { setError((err as Error).message); })
+      .finally(() => { setBusy(false); });
+  };
+
+  return (
+    <form class="m-0 flex flex-wrap items-center gap-2" onSubmit={extend} aria-label="Acréscimo">
+      <select class={`${field} w-auto py-1.5`} aria-label="Tipo de acréscimo" value={mode}
+        onChange={(e) => { setMode(e.currentTarget.value === 'turns' ? 'turns' : 'minutes'); setAmount('5'); }}>
+        <option value="minutes">Minutos</option>
+        <option value="turns">Turnos</option>
+      </select>
+      <input class={`${field} w-16 py-1.5`} aria-label={mode === 'minutes' ? 'Minutos' : 'Turnos'} inputmode="numeric"
+        value={amount} onInput={(e) => { setAmount(e.currentTarget.value); }} />
+      <button type="submit" class={primary} disabled={busy}>{busy ? 'Lançando…' : 'Acréscimo nas mesas sem resultado'}</button>
+      {error && <span class="text-sm text-error" role="alert">{error}</span>}
+    </form>
+  );
+};
+
 /** Aba Rodada: controle da rodada no topo, mesas à esquerda e a mesa escolhida à direita. Sem rolar a página. */
 export const RoundTab = ({ api, admin, panel }: { api: Api; admin: boolean; panel: Panel }) => {
   const { data, offline, now, skew, selected: roundSelected, latest, current, open, accept } = panel;
@@ -52,6 +89,8 @@ export const RoundTab = ({ api, admin, panel }: { api: Api; admin: boolean; pane
 
   const endsAt = round?.startedAt && round.roundMinutes ? new Date(Date.parse(round.startedAt) + round.roundMinutes * 60_000).toISOString() : null;
   const clock = roundClock({ endsAt }, now, skew);
+  const extension = round ? extensionClock(round, now, skew) : { kind: 'none' as const };
+  const pending = round ? round.tables.length - round.counts.green : 0;
   const table = round ? pickTable(round.tables, chosen) : null;
   const detail = round?.tables.find((t) => t.table === table);
 
@@ -82,9 +121,13 @@ export const RoundTab = ({ api, admin, panel }: { api: Api; admin: boolean; pane
         <div class="flex-1" />
         {offline && <span class="text-sm text-error">Sem conexão · dados podem estar desatualizados</span>}
         {admin && current && round && !round.startedAt && <StartRound api={api} onStarted={() => { open(round.round); }} />}
+        {current && round?.startedAt && clock.state === 'over' && pending > 0 && <ExtendRound api={api} onDone={accept} />}
         {round && (
           <span class={`font-extrabold tabular-nums ${clock.state === 'running' ? `text-3xl ${clock.warning ? 'text-warn' : ''}` : clock.state === 'over' ? 'text-lg text-error' : 'text-sm text-muted'}`}>
-            {clock.state === 'running' ? clock.text : clock.state === 'over' ? 'Tempo esgotado' : 'Não iniciada'}
+            {clock.state === 'running' ? clock.text
+              : clock.state === 'over'
+                ? extension.kind === 'minutes' ? `Acréscimo ${extension.text}` : extension.kind === 'turns' ? `${String(extension.turns)} turnos extras` : 'Tempo esgotado'
+                : 'Não iniciada'}
           </span>
         )}
       </div>

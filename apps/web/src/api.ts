@@ -9,6 +9,7 @@ import type {
   BoardResponse,
   CreateEventResponse,
   ErrorResponse,
+  ExtendRequest,
   JoinResponse,
   MyEventResponse,
   InviteDto,
@@ -107,7 +108,8 @@ export const createApi = (session: Session, base = '/api', fetchFn: typeof fetch
     panel: (round?: number) => call<PanelResponse>('GET', panelPath(round)),
     override: (table: number, override: OverrideDto, round?: number) =>
       call<PanelResponse & { requiresTomFix: boolean }>('POST', tablePath(round, table, 'override'), { override }),
-    extend: (table: number, minutes: number, round?: number) => call<PanelResponse>('POST', tablePath(round, table, 'extend'), { minutes }),
+    /** Acréscimo da rodada para as mesas sem resultado: minutos ou turnos extras. */
+    extend: (extra: ExtendRequest) => call<PanelResponse>('POST', `${panelPath()}/extend`, extra),
     keyLaunched: (table: number, round?: number) => call<PanelResponse>('POST', tablePath(round, table, 'key-launched')),
     staffReport: (table: number, side: 'player1' | 'player2', report: ReportDto, round?: number) =>
       call<PanelResponse>('POST', tablePath(round, table, 'report'), { side, report }),

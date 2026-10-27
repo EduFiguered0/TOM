@@ -19,6 +19,7 @@ const toPanelTable = (t: TableState): PanelTable => {
       ? { override: t.override.override, reason: t.override.reason, by: actorLabel(t.override.by), at: t.override.at.toISOString() }
       : null,
     extraMinutes: t.extraMinutes,
+    extraTurns: t.extraTurns,
     deadline: t.deadline?.toISOString() ?? null,
     tomKey: key ? { label: keyLabel(key, t), code: t.keys[key] } : null,
     keyLaunched: t.keyLaunched,
@@ -44,6 +45,7 @@ export const panel = (
       tables,
       byes: state.byes,
       counts,
+      extension: state.extension,
       allGreen: state.allGreen,
       closed: state.closed,
     },

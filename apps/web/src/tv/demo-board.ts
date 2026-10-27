@@ -22,6 +22,7 @@ export const demoBoard = (now = Date.now()): RoundBoard & { code: string } => {
     round: 3,
     startedAt: new Date(startedAt).toISOString(),
     endsAt: new Date(startedAt + 30 * 60_000).toISOString(),
+    extension: null,
     tables: Array.from({ length: 25 }, (_, i) => ({
       table: i + 1,
       player1: NAMES[i * 2] ?? '',
@@ -30,6 +31,8 @@ export const demoBoard = (now = Date.now()): RoundBoard & { code: string } => {
       result: COLORS[i % COLORS.length] === 'green' ? RESULTS[i % RESULTS.length] ?? null : null,
       photo1: null,
       photo2: null,
+      deadline: new Date(startedAt + 30 * 60_000).toISOString(),
+      extraTurns: null,
     })),
     byes: [NAMES[50] ?? '', 'Rui Matos'],
     serverTime: new Date(now).toISOString(),

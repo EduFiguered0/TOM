@@ -83,6 +83,20 @@ describe('quadro da TV por fase do evento', () => {
     expect(((await ctx.call('GET', '/events/active', ADM)).body as ActiveEventResponse).event?.status).toBe('running');
   });
 
+  it('acréscimo aparece na TV: prazo de cada mesa em acréscimo, ou os turnos extras', async () => {
+    const ctx = await setupRound();
+    await ctx.start();
+    ctx.advance(51);
+    await ctx.call('POST', '/panel/extend', ADM, { minutes: 5 });
+    const extended = (await board(ctx.call)) as Extract<BoardResponse, { state: 'running' }>;
+    expect(extended.extension).toEqual({ minutes: 5, turns: null });
+    expect(extended.tables[0]).toMatchObject({ deadline: '2026-10-23T14:55:00.000Z', extraTurns: null });
+    await ctx.call('POST', '/panel/extend', ADM, { turns: 5 });
+    const turns = (await board(ctx.call)) as Extract<BoardResponse, { state: 'running' }>;
+    expect(turns.extension).toEqual({ minutes: 5, turns: 5 });
+    expect(turns.tables[0]).toMatchObject({ deadline: null, extraTurns: 5 });
+  });
+
   it('mesa verde leva o vencedor; antes, nada', async () => {
     const ctx = await setupRound();
     await ctx.start();

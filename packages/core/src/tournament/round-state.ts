@@ -18,6 +18,8 @@ export interface TableState extends PairedTable {
   reports: Partial<Record<Side, Report>>;
   override: AppliedOverride | null;
   extraMinutes: number;
+  /** Turnos extras em vez de relógio (null: mesa no relógio). */
+  extraTurns: number | null;
   keyLaunched: boolean;
   deadline: Date | null;
   status: TableStatus;
@@ -31,6 +33,8 @@ export interface RoundState {
   bestOf: BestOf | null;
   tables: TableState[];
   byes: string[];
+  /** Acréscimo da rodada: minutos somados e o número de turnos em vigor (null: nenhum acréscimo). */
+  extension: { minutes: number; turns: number | null } | null;
   /** Todas as mesas verdes: o ADM pode lançar as keys. */
   allGreen: boolean;
   /** Todas as keys lançadas: a próxima rodada pode começar. */
@@ -39,7 +43,7 @@ export interface RoundState {
 
 type Draft = Omit<TableState, 'deadline' | 'status'>;
 
-const freshTable = (t: PairedTable): Draft => ({ ...t, reports: {}, override: null, extraMinutes: 0, keyLaunched: false });
+const freshTable = (t: PairedTable): Draft => ({ ...t, reports: {}, override: null, extraMinutes: 0, extraTurns: null, keyLaunched: false });
 
 /** Função pura: o mesmo histórico e o mesmo instante dão sempre o mesmo estado. */
 export const projectRound = (ref: RoundRef, events: readonly RoundEvent[], now: Date): RoundState => {
@@ -48,6 +52,8 @@ export const projectRound = (ref: RoundRef, events: readonly RoundEvent[], now: 
   let roundMinutes: number | null = null;
   let bestOf: BestOf | null = null;
   let tables = new Map<number, Draft>();
+  // Anotação por `as`: com `: tipo = null` o TypeScript fixa null e o laço não enxerga as atribuições.
+  let extension = null as RoundState['extension'];
 
   const at = (table: number): Draft | undefined => tables.get(table);
 
@@ -77,6 +83,19 @@ export const projectRound = (ref: RoundRef, events: readonly RoundEvent[], now: 
         if (t) t.extraMinutes += e.minutes;
         break;
       }
+      case 'round_extended': {
+        const { extra } = e;
+        const minutes = 'minutes' in extra ? extra.minutes : 0;
+        const turns = 'turns' in extra ? extra.turns : null;
+        extension = { minutes: (extension?.minutes ?? 0) + minutes, turns };
+        for (const n of e.tables) {
+          const t = at(n);
+          if (!t) continue;
+          t.extraMinutes += minutes;
+          t.extraTurns = turns;
+        }
+        break;
+      }
       case 'key_launched': {
         const t = at(e.table);
         if (t) t.keyLaunched = true;
@@ -86,7 +105,7 @@ export const projectRound = (ref: RoundRef, events: readonly RoundEvent[], now: 
   }
 
   const projected = [...tables.values()].map((t): TableState => {
-    const deadline = startedAt && roundMinutes ? tableDeadline(startedAt, roundMinutes, t.extraMinutes) : null;
+    const deadline = startedAt && roundMinutes && t.extraTurns === null ? tableDeadline(startedAt, roundMinutes, t.extraMinutes) : null;
     const status = tableStatus(
       { bestOf: bestOf ?? 3, isBye: false, reports: t.reports, override: t.override?.override, deadline },
       now,
@@ -104,6 +123,7 @@ export const projectRound = (ref: RoundRef, events: readonly RoundEvent[], now: 
     bestOf,
     tables: projected,
     byes: pairing?.byes ?? [],
+    extension,
     allGreen: pairing !== null && projected.every((t) => t.status.color === 'green'),
     closed: pairing !== null && projected.every((t) => t.keyLaunched),
   };

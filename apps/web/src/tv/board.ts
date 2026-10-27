@@ -15,9 +15,32 @@ export const roundClock = (board: Pick<RoundBoard, 'endsAt'>, nowMs: number, ske
   if (!board.endsAt) return { state: 'waiting' };
   const left = Date.parse(board.endsAt) - (nowMs + skewMs);
   if (left <= 0) return { state: 'over' };
-  const seconds = Math.ceil(left / 1000);
-  const text = `${String(Math.floor(seconds / 60)).padStart(2, '0')}:${String(seconds % 60).padStart(2, '0')}`;
-  return { state: 'running', text, warning: left <= WARNING_MS };
+  return { state: 'running', text: mmss(left), warning: left <= WARNING_MS };
+};
+
+const mmss = (ms: number) => {
+  const seconds = Math.ceil(ms / 1000);
+  return `${String(Math.floor(seconds / 60)).padStart(2, '0')}:${String(seconds % 60).padStart(2, '0')}`;
+};
+
+export type Extension = { kind: 'none' } | { kind: 'minutes'; text: string } | { kind: 'turns'; turns: number };
+
+type ExtensionTable = Pick<RoundBoard['tables'][number], 'color' | 'deadline' | 'extraTurns'>;
+
+/**
+ * Acréscimo da rodada depois do tempo: contagem até o prazo mais distante entre as mesas sem resultado, ou os turnos
+ * extras. Mesas verdes não contam; sem mesa pendente, a TV volta a "Tempo esgotado".
+ */
+export const extensionClock = (
+  board: { extension: RoundBoard['extension']; tables: readonly ExtensionTable[] }, nowMs: number, skewMs: number,
+): Extension => {
+  if (!board.extension) return { kind: 'none' };
+  const pending = board.tables.filter((t) => t.color !== 'green');
+  const now = nowMs + skewMs;
+  const last = Math.max(...pending.flatMap((t) => (t.deadline ? [Date.parse(t.deadline)] : [])), -Infinity);
+  if (last > now) return { kind: 'minutes', text: mmss(last - now) };
+  const turns = pending.find((t) => t.extraTurns !== null)?.extraTurns;
+  return turns ? { kind: 'turns', turns } : { kind: 'none' };
 };
 
 const PER_COLUMN = 15;

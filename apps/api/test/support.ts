@@ -38,7 +38,10 @@ const EMAILS: Record<string, string> = { 'ana-email': 'ana@example.com', 'ana-go
 
 export const setup = () => {
   const errors: unknown[] = [];
-  const clock = { now: () => new Date('2026-10-23T14:00:00Z') };
+  let now = new Date('2026-10-23T14:00:00Z');
+  const clock = { now: () => now };
+  /** Avança o relógio em minutos (fim do tempo da rodada, acréscimos). */
+  const advance = (minutes: number) => { now = new Date(now.getTime() + minutes * 60_000); };
   const ids = { next: () => randomUUID() };
   const registry = new InMemoryEventRegistry();
   const rounds = new RoundService({ store: new InMemoryEventStore(), clock, ids });
@@ -73,7 +76,7 @@ export const setup = () => {
       headers: { ...(token ? { authorization: `Bearer ${token}` } : {}), ...headers },
       body: body === undefined ? null : JSON.stringify(body),
     } satisfies HttpRequest);
-  return { call, accounts, accountRepository, rounds, errors };
+  return { call, accounts, accountRepository, rounds, errors, advance };
 };
 
 export const profile = { firstName: 'Ana', lastName: 'Souza', birthYear: 1990, phone: null, guardianConsent: false };

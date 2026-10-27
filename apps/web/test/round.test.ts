@@ -4,7 +4,7 @@ import { describeReport, reportOptions, seatMessage } from '../src/round/round.j
 
 type TableSeat = Extract<SeatDto, { kind: 'table' }>;
 const seat = (over: Partial<TableSeat>): TableSeat => ({
-  kind: 'table', table: 1, opponent: 'teste5 5', deadline: null, color: 'gray', redReason: null, myReport: null, opponentReported: false, locked: false, opponentPhoto: null, ...over,
+  kind: 'table', table: 1, opponent: 'teste5 5', deadline: null, extraTurns: null, color: 'gray', redReason: null, myReport: null, opponentReported: false, locked: false, opponentPhoto: null, ...over,
 });
 
 describe('opções de reporte', () => {

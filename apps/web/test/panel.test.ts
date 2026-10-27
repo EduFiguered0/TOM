@@ -7,7 +7,7 @@ const table = (n: number, over: Partial<PanelTable> = {}): PanelTable => ({
   player1: { name: 'Ana', playerId: '1' },
   player2: { name: 'Bia', playerId: '2' },
   color: 'gray', redReason: null, reports: { player1: null, player2: null }, override: null,
-  extraMinutes: 0, deadline: null, tomKey: null, keyLaunched: false, ...over,
+  extraMinutes: 0, extraTurns: null, deadline: null, tomKey: null, keyLaunched: false, ...over,
 });
 
 describe('painel', () => {

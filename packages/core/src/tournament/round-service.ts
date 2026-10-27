@@ -7,7 +7,7 @@ import type { Actor, Role } from '../shared/actor.js';
 import { CommandRejected } from '../shared/command-rejected.js';
 import type { Clock, IdGenerator } from '../shared/ports.js';
 import { ConcurrencyError, type EventStore } from './event-store.js';
-import type { RoundEventData } from './events.js';
+import type { RoundEventData, RoundExtra } from './events.js';
 import type { RoundPairing, RoundRef } from './round-pairing.js';
 import { projectRound, type RoundState, type TableState } from './round-state.js';
 
@@ -111,15 +111,23 @@ export class RoundService {
     return { state, requiresTomFix };
   }
 
-  extendTime(actor: Actor, ref: RoundRef, input: { table: number; minutes: number }): Promise<RoundState> {
+  /**
+   * Acréscimo da rodada (juiz ou ADM), depois que o tempo acaba: minutos ou turnos extras para todas as mesas
+   * ainda sem resultado. Cada clique vale para as que continuam sem resultado.
+   */
+  extendRound(actor: Actor, ref: RoundRef, extra: RoundExtra): Promise<RoundState> {
     return this.execute(ref, (state) => {
       requireRole(actor, 'judge', 'admin');
       requireStarted(state);
-      const table = findTable(state, input.table);
-      if (!Number.isInteger(input.minutes) || input.minutes <= 0) {
-        throw new CommandRejected('invalid_input', 'Acréscimo deve ser um número inteiro de minutos maior que zero');
+      const [amount, max, label] = 'minutes' in extra ? [extra.minutes, 60, 'minutos'] : [extra.turns, 10, 'turnos'];
+      if (!Number.isInteger(amount) || amount <= 0 || amount > max) {
+        throw new CommandRejected('invalid_input', `Acréscimo deve ser de 1 a ${String(max)} ${label}`);
       }
-      return { actor, data: { type: 'time_extended', table: table.table, minutes: input.minutes } };
+      const end = tableDeadline(state.startedAt ?? new Date(0), state.roundMinutes ?? DEFAULT_ROUND_MINUTES);
+      if (this.deps.clock.now() < end) throw new CommandRejected('round_running', 'O acréscimo só vale depois que o tempo da rodada acaba');
+      const tables = state.tables.filter((t) => t.status.color !== 'green').map((t) => t.table);
+      if (tables.length === 0) throw new CommandRejected('nothing_to_extend', 'Todas as mesas já têm resultado');
+      return { actor, data: { type: 'round_extended', tables, extra } };
     });
   }
 
