@@ -54,7 +54,8 @@ npm run web:deploy   # build, envio ao S3 e limpeza do cache do CloudFront
 1. **Evento:** crie o evento (nome, data, tempo de rodada, juízes) e clique em **"Conectar pasta do TOM"** (a pasta `reports` do TOM). A TV mostra o QR; quem escaneia se cadastra e fica inscrito.
 2. O ADM digita os inscritos no TOM (tabela com "copiar ID/nome" e "lançado no TOM"). O QR fica aberto até o encerramento, num canto da TV durante as rodadas: quem escaneia depois do início da rodada 1 fica **aguardando o organizador**, e o ADM **aprova** (lança no TOM e a pessoa entra no próximo pareamento) ou **recusa** na tabela de inscritos.
 3. **Rodada:** imprima o pareamento e as guias no TOM; a pasta envia sozinha e aparece **"Iniciar rodada"**. As mesas ficam numa tabela por ordem de ação; a mesa escolhida abre ao lado com os reportes, a key do TOM, **Ajustar resultado** (botões por vencedor e placar, ID, DGL, ausência, com motivo), acréscimo e reporte por jogador sem celular. As abas R1, R2… mostram e ajustam rodadas anteriores; keys pendentes só geram aviso, não travam a próxima rodada.
-4. Os standings da última rodada do TOM mostram na TV a classificação final (pontos e desempates) e, no celular, a colocação de cada jogador. Aí o ADM encerra o evento.
+4. **TV:** todas as mesas numa página, em ordem, com o vencedor de cada mesa verde (sem placar), os byes à parte e o QR para quem chega tarde. Entre rodadas, os standings intermediários do TOM mostram a classificação parcial até o próximo pareamento.
+5. Os standings da última rodada do TOM mostram na TV a classificação final (pontos e desempates) e, no celular, a colocação de cada jogador. Aí o ADM encerra o evento, e a TV volta para a espera. Sem evento ativo, a aba Evento permite **mostrar e tirar da TV** a classificação do último evento.
 
 **Pasta do TOM.** O site lê a pasta (só leitura) a cada 3 s e envia sozinho os relatórios novos para o evento ativo, com o login do ADM: sem token e sem comando. Continua enviando em qualquer aba; num dia novo, o navegador pede um clique em "Permitir". A página precisa ficar aberta (pode ficar atrás do TOM). Arquivos gravados antes da criação do evento (o torneio anterior que ficou na pasta) são ignorados: o primeiro arquivo novo amarra o torneio ao evento.
 
@@ -125,7 +126,8 @@ Rotas da API (as de conta e ADM exigem `Authorization: Bearer <token de acesso d
 | `POST /events/{id}/revoke` | ADM | Revoga o token do enviador |
 | `POST /uploads` | enviador (`x-upload-token`) | Recebe um HTML do TOM; com pareamento e guias da rodada, publica a rodada |
 | `POST /events/active/uploads` | ADM | O mesmo envio, pelo navegador do ADM (pasta do TOM conectada), sempre para o evento ativo; arquivo de antes do evento é ignorado |
-| `GET /board` | público | TV por fase do evento (espera, QR com inscritos, rodada com o QR no canto, classificação final), só nomes, guardada 5 s no CloudFront |
+| `GET /board` | público | TV por fase do evento (espera, QR com inscritos, rodada com vencedores e o QR no canto, classificação parcial, classificação final), só nomes, guardada 5 s no CloudFront |
+| `POST /events/{id}/tv` | ADM | Mostra (`{"on": true}`) ou tira da TV a classificação final do último evento encerrado |
 
 O ADM vem do grupo `admin` do Cognito; o juiz é marcado pelo ADM na aba "Equipe" e só age no evento em que for escalado (vê só a aba Rodada). Para dar o papel de ADM a uma conta já criada (vale no próximo token, em até 15 min):
 
