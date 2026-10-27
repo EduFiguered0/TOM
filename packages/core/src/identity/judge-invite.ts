@@ -15,7 +15,10 @@ export interface JudgeInvite {
   cancelled: boolean;
 }
 
-/** Porta de persistência dos convites. `markUsed` só grava se o convite ainda vale (não usado, não cancelado, no prazo). */
+/**
+ * Porta de persistência dos convites. `markUsed` só grava se o convite ainda vale (não usado, não cancelado, no prazo);
+ * `cancel` não mexe em convite já usado (quem usou continua registrado).
+ */
 export interface JudgeInviteRepository {
   create(invite: JudgeInvite): Promise<void>;
   get(code: string): Promise<JudgeInvite | null>;
@@ -51,7 +54,7 @@ export class InMemoryJudgeInviteRepository implements JudgeInviteRepository {
 
   cancel(code: string): Promise<void> {
     const found = this.items.get(code);
-    if (found) this.items.set(code, { ...found, cancelled: true });
+    if (found?.usedBy === null) this.items.set(code, { ...found, cancelled: true });
     return Promise.resolve();
   }
 }

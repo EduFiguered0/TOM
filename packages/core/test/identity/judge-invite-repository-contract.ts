@@ -32,6 +32,15 @@ export const judgeInviteRepositoryContract = (name: string, create: () => JudgeI
       expect(await repo.markUsed(i.code, 'a3', at)).toBe(false);
     });
 
+    it('cancelar convite já usado não apaga quem usou', async () => {
+      const repo = create();
+      const i = invite();
+      await repo.create(i);
+      await repo.markUsed(i.code, 'a1', at);
+      await repo.cancel(i.code);
+      expect(await repo.get(i.code)).toMatchObject({ usedBy: 'a1', cancelled: false });
+    });
+
     it('vencido ou cancelado não é usado', async () => {
       const repo = create();
       const [late, gone] = [invite(15), invite(15)];

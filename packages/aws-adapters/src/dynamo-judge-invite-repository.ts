@@ -60,9 +60,15 @@ export class DynamoJudgeInviteRepository implements JudgeInviteRepository {
     }
   }
 
+  /** Só cancela se ninguém usou: um aceite no mesmo instante não perde o registro de quem usou. */
   async cancel(code: string): Promise<void> {
     const invite = await this.get(code);
-    if (invite) await this.save({ ...invite, cancelled: true }, {});
+    if (!invite || invite.usedBy !== null) return;
+    try {
+      await this.save({ ...invite, cancelled: true }, { ConditionExpression: 'attribute_exists(pk) AND used = :no', ExpressionAttributeValues: { ':no': false } });
+    } catch (error) {
+      if (!(error instanceof ConditionalCheckFailedException)) throw error;
+    }
   }
 
   private async save(invite: JudgeInvite, condition: Record<string, unknown>): Promise<void> {
