@@ -11,8 +11,8 @@ const PAGE_MS = 15_000;
 const pct = (value: number | null) => (value === null ? '—' : `${value.toFixed(2)}%`);
 const cell = 'px-[1vw] py-[.8vh]';
 
-/** Classificação final em uma lista só, com pontos e desempates do TOM. O campeão em destaque. */
-export const FinalTv = ({ label, standings }: { label: string; standings: FinalStandingDto[] }) => {
+/** Classificação (final ou parcial) em uma lista só, com pontos e desempates do TOM. O primeiro em destaque. */
+export const FinalTv = ({ label, standings, title = 'Classificação final' }: { label: string; standings: FinalStandingDto[]; title?: string }) => {
   const [page, setPage] = useState(0);
   const all = pages(standings, PER_PAGE);
   const current = all[page % all.length] ?? [];
@@ -25,7 +25,7 @@ export const FinalTv = ({ label, standings }: { label: string; standings: FinalS
   return (
     <div class={screen}>
       <header class="flex items-baseline justify-between gap-[2vw]">
-        <div class={eventTitle}>{label} · Classificação final</div>
+        <div class={eventTitle}>{label} · {title}</div>
         {all.length > 1 && <div class="text-[1.2vw] text-muted">Página {(page % all.length) + 1} de {all.length}</div>}
       </header>
       <table class="w-full border-collapse text-[1.7vw] tabular-nums">

@@ -1,6 +1,7 @@
 import type { BoardResponse } from '@tom/contracts';
 import { useEffect, useState } from 'preact/hooks';
 import { Tv } from './tv.js';
+import { freshServerTime } from './board.js';
 import { centered } from './styles.js';
 import { WaitingTv } from './waiting.js';
 
@@ -24,7 +25,11 @@ export const LiveTv = ({ fetchFn = browserFetch }: { fetchFn?: typeof fetch }) =
         const response = await fetchFn('/api/board');
         if (stopped) return;
         setOffline(false);
-        if (response.ok) setState({ kind: 'board', board: (await response.json()) as BoardResponse });
+        if (response.ok) {
+          const board = (await response.json()) as BoardResponse;
+          // A resposta pode ter vindo do cache: o relógio da TV desconta a idade dela.
+          setState({ kind: 'board', board: { ...board, serverTime: freshServerTime(board.serverTime, response.headers.get('age')) } });
+        }
         else setOffline(true);
       } catch {
         if (!stopped) setOffline(true);
