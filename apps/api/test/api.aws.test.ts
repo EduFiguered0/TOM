@@ -53,7 +53,7 @@ const createUser = async (user: string) => {
   await cognito.send(new AdminSetUserPasswordCommand({ UserPoolId: userPoolId, Username: user, Password: password, Permanent: true }));
 };
 
-const profile = { name: 'Teste Automático', birthYear: 1990, phone: null, guardianConsent: false };
+const profile = { firstName: 'Teste', lastName: 'Automático', birthYear: 1990, phone: null, guardianConsent: false };
 
 /** Um evento ativo por vez, e a tabela de teste guarda os de execuções anteriores: cancela o que sobrou. */
 const cancelActive = async (adm: string) => {
