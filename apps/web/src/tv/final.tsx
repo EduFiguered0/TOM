@@ -11,11 +11,15 @@ const PAGE_MS = 15_000;
 const pct = (value: number | null) => (value === null ? '—' : `${value.toFixed(2)}%`);
 const cell = 'px-[1vw] py-[.8vh]';
 
+/** Desempates só vêm na classificação do TOM; o registro de partida não os tem. */
+export const hasTiebreakers = (standings: FinalStandingDto[]): boolean => standings.some((s) => s.opponentWinPct !== null);
+
 /** Classificação com pontos e desempates do TOM, em páginas que viram sozinhas. O primeiro em destaque. */
 export const StandingsTable = ({ standings }: { standings: FinalStandingDto[] }) => {
   const [page, setPage] = useState(0);
   const all = pages(standings, PER_PAGE);
   const current = all[page % all.length] ?? [];
+  const tiebreakers = hasTiebreakers(standings);
 
   useEffect(() => {
     const flip = setInterval(() => { setPage((p) => p + 1); }, PAGE_MS);
@@ -31,8 +35,8 @@ export const StandingsTable = ({ standings }: { standings: FinalStandingDto[] })
             <th class={`${cell} font-semibold`}>Jogador</th>
             <th class={`${cell} text-center font-semibold`}>V-D-E</th>
             <th class={`${cell} text-center font-semibold`}>Pontos</th>
-            <th class={`${cell} text-right font-semibold`}>% vit. oponentes</th>
-            <th class={`${cell} text-right font-semibold`}>% vit. op. dos op.</th>
+            {tiebreakers && <th class={`${cell} text-right font-semibold`}>% vit. oponentes</th>}
+            {tiebreakers && <th class={`${cell} text-right font-semibold`}>% vit. op. dos op.</th>}
           </tr>
         </thead>
         <tbody>
@@ -46,8 +50,8 @@ export const StandingsTable = ({ standings }: { standings: FinalStandingDto[] })
               </td>
               <td class={`${cell} text-center`}>{s.wins}-{s.losses}-{s.ties}</td>
               <td class={`${cell} text-center`}>{s.points ?? '—'}</td>
-              <td class={`${cell} text-right ${s.rank === 1 ? '' : 'text-muted'}`}>{pct(s.opponentWinPct)}</td>
-              <td class={`${cell} text-right ${s.rank === 1 ? '' : 'text-muted'}`}>{pct(s.opponentsOpponentWinPct)}</td>
+              {tiebreakers && <td class={`${cell} text-right ${s.rank === 1 ? '' : 'text-muted'}`}>{pct(s.opponentWinPct)}</td>}
+              {tiebreakers && <td class={`${cell} text-right ${s.rank === 1 ? '' : 'text-muted'}`}>{pct(s.opponentsOpponentWinPct)}</td>}
             </tr>
           ))}
         </tbody>

@@ -2,6 +2,7 @@ import type { UploadRequest, UploadResponse } from '@tom/contracts';
 import {
   CommandRejected,
   SnapshotIntegrityError,
+  standingsFromRecord,
   type Actor,
   type EventRegistry,
   type EventService,
@@ -13,6 +14,7 @@ import {
 import {
   identifyReportFile,
   InconsistentReportsError,
+  parseMatchRecord,
   parseMatchSlips,
   parsePairings,
   parseStandings,
@@ -90,6 +92,24 @@ export const createIngest = ({ events, registry, snapshots, rounds, clock }: Ing
     return nothing(true, event.status === 'final' ? 'Resultado final recebido' : null);
   };
 
+  /**
+   * Registro de partida de rodada intermediária: resultados para a TV entre rodadas, sem desempates.
+   * Não cobre a classificação do TOM da mesma rodada (essa tem os desempates).
+   */
+  const recordResult = async (event: TournamentEvent, content: string): Promise<UploadResponse> => {
+    let report;
+    try {
+      report = parseMatchRecord(content);
+    } catch (e) {
+      if (e instanceof TomParseError) return nothing(true, e.message);
+      throw e;
+    }
+    if (report.totalRounds !== null && report.round >= report.totalRounds) return nothing(true, null);
+    const official = event.partial?.round === report.round && event.partial.standings.some((s) => s.opponentWinPct !== null);
+    if (!official) await events.markPartial(event.id, report.round, standingsFromRecord(report.players));
+    return nothing(true, null);
+  };
+
   const checkName = (upload: UploadRequest) => {
     const id = identifyReportFile(upload.fileName);
     if (id?.tournament !== upload.tournament || id.type !== upload.report) {
@@ -114,6 +134,7 @@ export const createIngest = ({ events, registry, snapshots, rounds, clock }: Ing
     }
     if (!stored) return nothing(false, 'Versão já recebida');
     if (upload.report === 'standings') return finalResult(event.id, upload.content);
+    if (upload.report === 'matchrecord') return recordResult(event, upload.content);
     if (!(ROUND_REPORTS as readonly string[]).includes(upload.report)) return nothing(true, null);
 
     const [slips, pairings] = await Promise.all([latest(upload.tournament, 'match_slips'), latest(upload.tournament, 'pairings')]);

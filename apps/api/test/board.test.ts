@@ -83,6 +83,22 @@ describe('quadro da TV por fase do evento', () => {
     expect(((await ctx.call('GET', '/events/active', ADM)).body as ActiveEventResponse).event?.status).toBe('running');
   });
 
+  it('registro de partida também leva a TV aos resultados; a classificação da mesma rodada prevalece', async () => {
+    const ctx = await setupRound();
+    await ctx.start();
+    const record = (at: string) => upload('matchrecord', upload('matchrecord').content.replace('Rodada 2/3', 'Rodada 3/4'), at);
+    await ctx.send(record('2026-10-24T15:00:00Z'));
+    const fromRecord = (await board(ctx.call)) as Extract<BoardResponse, { state: 'standings' }>;
+    expect(fromRecord).toMatchObject({ state: 'standings', round: 3 });
+    expect(fromRecord.standings[0]).toMatchObject({ rank: 1, opponentWinPct: null });
+    expect(fromRecord.standings.map((s) => s.points)).toEqual([...fromRecord.standings.map((s) => s.points)].sort((a, b) => (b ?? 0) - (a ?? 0)));
+
+    await ctx.send(upload('standings', upload('standings').content.replace('Rodada 3/3', 'Rodada 3/4'), '2026-10-24T15:05:00Z'));
+    await ctx.send(record('2026-10-24T15:10:00Z'));
+    const official = (await board(ctx.call)) as Extract<BoardResponse, { state: 'standings' }>;
+    expect(official.standings[0]?.opponentWinPct).not.toBeNull();
+  });
+
   it('mesa verde leva o vencedor; antes, nada', async () => {
     const ctx = await setupRound();
     await ctx.start();
