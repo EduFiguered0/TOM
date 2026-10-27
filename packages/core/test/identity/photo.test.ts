@@ -28,7 +28,7 @@ const setup = () => {
   const ids = { next: () => `i${String(++n)}` };
   const accountService = new AccountService({ accounts, clock, ids });
   const photos = new InMemoryPhotoStore();
-  const service = new PhotoService({ photos, accounts: accountService, ids });
+  const service = new PhotoService({ photos, accounts: accountService, ids, clock });
   const person = async (login: string, profile: Profile) => {
     const identity: Identity = { login, session: `s-${login}`, groups: [], provider: 'password' };
     const account = await accountService.register(identity, `${login}@example.com`, { profile, playerId: null });
@@ -50,7 +50,7 @@ describe('foto do jogador', () => {
     const { identity } = await person('ana', adult);
     const first = await service.upload(identity, PNG);
     expect(first.photoId).toBeTruthy();
-    expect(await service.read(first.photoId ?? '')).toBe(PNG);
+    expect(await service.read(first.photoId ?? '', 'outra-conta')).toBe(PNG);
     const second = await service.upload(identity, PNG.replace('png', 'webp'));
     expect(second.photoId).not.toBe(first.photoId);
     expect((await service.remove(identity)).photoId).toBeNull();
@@ -82,6 +82,33 @@ describe('foto do jogador', () => {
     const legacy: Account = { ...account };
     delete legacy.photoId;
     expect(visiblePhoto(legacy, clock.now())).toBeNull();
+  });
+
+  it('chave antiga deixa de abrir: troca, remoção pelo ADM e autorização retirada cortam o acesso na hora', async () => {
+    const { service, accountService, person } = setup();
+    const { identity, account } = await person('kid', kid);
+    const viewer = 'outra-conta';
+    const first = (await service.upload(identity, PNG)).photoId ?? '';
+    expect(await service.read(first, viewer)).toBeNull();
+    await accountService.setImageConsent(identity, true);
+    expect(await service.read(first, viewer)).toBe(PNG);
+    expect(await service.read(first, account.id)).toBe(PNG);
+    await accountService.setImageConsent(identity, false);
+    expect(await service.read(first, viewer)).toBeNull();
+    expect(await service.read(first, account.id)).toBe(PNG);
+    await accountService.setImageConsent(identity, true);
+    const second = (await service.upload(identity, PNG)).photoId ?? '';
+    expect(await service.read(first, viewer)).toBeNull();
+    expect(await service.read(second, viewer)).toBe(PNG);
+    await service.removeByAdmin(admin, account.id);
+    expect(await service.read(second, viewer)).toBeNull();
+  });
+
+  it('quem faz 18 anos no ano corrente ainda precisa da autorização (só o ano de nascimento é conhecido)', async () => {
+    const { service, clock, person } = setup();
+    const { identity } = await person('quase', { ...adult, birthYear: 2008, guardianConsent: true });
+    const withPhoto = await service.upload(identity, PNG);
+    expect(visiblePhoto(withPhoto, clock.now())).toBeNull();
   });
 
   it('o ADM remove a foto de um jogador; jogador não remove a de outro', async () => {

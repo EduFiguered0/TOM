@@ -22,3 +22,9 @@ export const initials = (name: string): string => {
   const last = words.length > 1 ? words.at(-1)?.[0] ?? '' : '';
   return `${first}${last}`.toUpperCase();
 };
+
+/**
+ * Mesma regra do servidor: só o ano de nascimento é conhecido, então a autorização do responsável é pedida até o
+ * ano em que a pessoa faz 18 (nunca mostra a foto de um menor).
+ */
+export const needsImageConsent = (birthYear: number, now = new Date()): boolean => now.getUTCFullYear() - birthYear <= 18;

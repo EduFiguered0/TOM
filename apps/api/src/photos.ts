@@ -8,17 +8,20 @@ const CACHE_MS = 60_000;
  * Quem recebe a chave pode ver a foto: só o quadro do ADM e o assento do oponente a recebem.
  */
 export const createPhotoLookup = (accounts: AccountRepository, now: () => Date, cacheMs = CACHE_MS) => {
-  const cache = new Map<string, { photo: string | null; at: number }>();
-  return async (playerId: string): Promise<string | null> => {
-    const hit = cache.get(playerId);
-    if (hit && now().getTime() - hit.at < cacheMs) return hit.photo;
-    let photo: string | null = null;
+  // Guarda a busca em andamento: TV e oponentes pedindo a mesma foto juntos fazem uma leitura só.
+  const cache = new Map<string, { photo: Promise<string | null>; at: number }>();
+  const lookup = async (playerId: string): Promise<string | null> => {
     try {
       const record = await accounts.findByPlayerId(toPlayerId(playerId));
-      photo = record ? visiblePhoto(record.account, now()) : null;
+      return record ? visiblePhoto(record.account, now()) : null;
     } catch {
-      photo = null;
+      return null;
     }
+  };
+  return (playerId: string): Promise<string | null> => {
+    const hit = cache.get(playerId);
+    if (hit && now().getTime() - hit.at < cacheMs) return hit.photo;
+    const photo = lookup(playerId);
     cache.set(playerId, { photo, at: now().getTime() });
     return photo;
   };

@@ -389,8 +389,8 @@ export const createApi = ({ tokens, emails, accounts, events, ingest, board, rou
       method: 'GET', path: /^\/photos\/([A-Za-z0-9-]{1,64})$/,
       handle: async ({ identity, params: [id = ''] }) => {
         // Quem tem a chave vê: ela só sai do servidor para quem pode ver (ADM no quadro, oponente na mesa).
-        await accounts.authenticate(identity);
-        return { status: 200, body: { photo: await photos.read(id) } satisfies PhotoResponse };
+        const { account } = await accounts.authenticate(identity);
+        return { status: 200, body: { photo: await photos.read(id, account.id) } satisfies PhotoResponse };
       },
     },
     {

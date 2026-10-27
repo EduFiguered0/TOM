@@ -48,7 +48,7 @@ const api = createApi({
   reader,
   registrations: new RegistrationService({ registry, registrations, accounts: accountRepository, clock }),
   invites: new JudgeInviteService({ invites: new DynamoJudgeInviteRepository(dynamo, { tableName: env('TOURNAMENTS_TABLE') }), accounts, clock }),
-  photos: new PhotoService({ photos: new DynamoPhotoStore(dynamo, { tableName: env('TOURNAMENTS_TABLE'), ...retention }), accounts, ids }),
+  photos: new PhotoService({ photos: new DynamoPhotoStore(dynamo, { tableName: env('TOURNAMENTS_TABLE'), ...retention }), accounts, ids, clock }),
   photoOf,
   registry,
   clock,

@@ -29,7 +29,7 @@ export const Home = ({ me, api, onSignOut, onChanged, joinError, eventRefresh, n
   {notice && <section class={notice.ok ? card : cardWarn}><Feedback message={notice} /></section>}
   {me.role === 'player' && <MyEventCard api={api} refresh={eventRefresh} />}
   {/* No salão o que importa é a mesa: a rodada vem primeiro. */}
-  {me.role === 'player' && me.canAct && <RoundCard api={api} />}
+  {me.role === 'player' && me.canAct && <RoundCard api={api} me={{ photo: me.photo, name: `${me.profile.firstName} ${me.profile.lastName}` }} />}
   <section class={card}>
     <h1 class={title}>Olá, {me.profile.firstName}</h1>
     <p class={muted}>{ROLE[me.role]} · {me.email}</p>

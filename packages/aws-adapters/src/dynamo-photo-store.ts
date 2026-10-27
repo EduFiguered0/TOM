@@ -14,15 +14,15 @@ export class DynamoPhotoStore implements PhotoStore {
     this.retentionSeconds = (options.retentionDays ?? 730) * DAY_SECONDS;
   }
 
-  async put(id: string, dataUrl: string): Promise<void> {
+  async put(id: string, dataUrl: string, owner: string): Promise<void> {
     await this.client.send(new PutCommand({
       TableName: this.options.tableName,
-      Item: { pk: `photo#${id}`, sk: 'photo', dataUrl, expiresAt: Math.floor(Date.now() / 1000) + this.retentionSeconds },
+      Item: { pk: `photo#${id}`, sk: 'photo', dataUrl, owner, expiresAt: Math.floor(Date.now() / 1000) + this.retentionSeconds },
     }));
   }
 
-  async get(id: string): Promise<string | null> {
+  async get(id: string): Promise<{ dataUrl: string; owner: string } | null> {
     const { Item } = await this.client.send(new GetCommand({ TableName: this.options.tableName, Key: { pk: `photo#${id}`, sk: 'photo' } }));
-    return (Item?.['dataUrl'] as string | undefined) ?? null;
+    return Item ? { dataUrl: Item['dataUrl'] as string, owner: Item['owner'] as string } : null;
   }
 }

@@ -56,7 +56,7 @@ const round = async (
     endsAt: state.startedAt ? new Date(state.startedAt.getTime() + minutes * 60_000).toISOString() : null,
     tables: await Promise.all(state.tables.map(async (t) => ({
       table: t.table, player1: t.player1.name, player2: t.player2.name, color: t.status.color, result: tvResult(t.status),
-      photo1: await photoOf(t.player1.playerId), photo2: await photoOf(t.player2.playerId),
+      ...await Promise.all([photoOf(t.player1.playerId), photoOf(t.player2.playerId)]).then(([photo1, photo2]) => ({ photo1, photo2 })),
     }))),
     byes: state.byes,
     serverTime,

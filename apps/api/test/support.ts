@@ -61,7 +61,7 @@ export const setup = () => {
     registry,
     registrations: new RegistrationService({ registry, registrations, accounts: accountRepository, clock }),
     invites: new JudgeInviteService({ invites: new InMemoryJudgeInviteRepository(), accounts, clock }),
-    photos: new PhotoService({ photos: new InMemoryPhotoStore(), accounts, ids }),
+    photos: new PhotoService({ photos: new InMemoryPhotoStore(), accounts, ids, clock }),
     photoOf,
     clock,
     logError: (e) => errors.push(e),

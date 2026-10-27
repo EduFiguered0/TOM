@@ -15,7 +15,7 @@ const BORDER = { gray: 'border-l-gray', orange: 'border-l-orange', green: 'borde
 const REPORT = { win: 'bg-accent text-accent-text', loss: 'bg-slate-600 text-white', draw: 'border border-line bg-panel text-text' } as const;
 
 /** Mesa, oponente, cronômetro e reporte do jogador. Sucesso só aparece depois do "ok" da API. */
-export const RoundCard = ({ api }: { api: Api }) => {
+export const RoundCard = ({ api, me }: { api: Api; me: { photo: string | null; name: string } }) => {
   const [data, setData] = useState<MyRoundResponse | null>(null);
   const photos = useMemo(() => createPhotoCache(async (id) => { const r = await api.photo(id); return r.ok ? r.body.photo : null; }), [api]);
   const [skew, setSkew] = useState(0);
@@ -87,7 +87,7 @@ export const RoundCard = ({ api }: { api: Api }) => {
         {clock.state === 'over' && seat.color !== 'green' && <span class="text-lg font-bold text-error">Tempo esgotado</span>}
       </div>
       <div class="flex items-center gap-2 text-lg">
-        você <span class="text-muted">x</span>
+        <Avatar photo={me.photo} name={me.name} cache={photos} class="size-8 text-[2rem]" />você <span class="text-muted">x</span>
         <Avatar photo={seat.opponentPhoto} name={seat.opponent} cache={photos} class="size-8 text-[2rem]" />{seat.opponent}
       </div>
       <div class="flex items-center gap-2">

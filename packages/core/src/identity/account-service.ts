@@ -182,6 +182,16 @@ export class AccountService {
     });
   }
 
+  /** Conta pelo id (dono de uma foto); null se não existe. */
+  async byId(accountId: string): Promise<Account | null> {
+    return (await this.deps.accounts.get(accountId))?.account ?? null;
+  }
+
+  /** Id da conta de quem está logado. */
+  async resolveId(identity: Identity): Promise<string> {
+    return (await this.resolve(identity)).account.id;
+  }
+
   /** A própria pessoa põe, troca ou tira a foto (a imagem já foi gravada pelo PhotoService). */
   async setPhoto(identity: Identity, photoId: string | null): Promise<Account> {
     const { account } = await this.resolve(identity);

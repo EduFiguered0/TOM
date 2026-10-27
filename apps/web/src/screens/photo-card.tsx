@@ -1,9 +1,8 @@
 import type { MeResponse } from '@tom/contracts';
 import { useMemo, useState } from 'preact/hooks';
 import type { Api } from '../api.js';
-import { isMinor } from '../flow.js';
 import { Avatar } from '../photo/avatar.js';
-import { createPhotoCache } from '../photo/photo-cache.js';
+import { createPhotoCache, needsImageConsent } from '../photo/photo-cache.js';
 import { shrinkPhoto } from '../photo/shrink.js';
 import { displayName } from '@tom/contracts';
 import { Feedback, ghost, label } from '../ui.js';
@@ -16,7 +15,8 @@ export const PhotoCard = ({ me, api, onSaved }: { me: MeResponse; api: Api; onSa
     const result = await api.photo(id);
     return result.ok ? result.body.photo : null;
   }), [api]);
-  const minor = isMinor(me.profile.birthYear);
+  const minor = needsImageConsent(me.profile.birthYear);
+  const hidden = minor && !me.imageConsent;
 
   const run = (action: () => Promise<{ ok: true; body: MeResponse } | { ok: false; error: { message: string } }>, done: string) => {
     setBusy(true);
@@ -39,7 +39,7 @@ export const PhotoCard = ({ me, api, onSaved }: { me: MeResponse; api: Api; onSa
         <Avatar photo={me.photo} name={displayName(me.profile)} cache={cache} class="size-16 text-[2rem]" />
         <div class="flex flex-col gap-1 text-sm">
           <b>Sua foto</b>
-          <span class="text-muted">Aparece antes do seu nome na mesa.</span>
+          <span class="text-muted">{hidden ? 'Só aparece na mesa com a autorização do responsável.' : 'Aparece antes do seu nome na mesa.'}</span>
         </div>
       </div>
       <div class="flex flex-wrap gap-2">
