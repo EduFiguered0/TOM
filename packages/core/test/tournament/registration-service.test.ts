@@ -163,7 +163,9 @@ describe('entrada tardia e painel do ADM', () => {
     const ana = await account(accounts, 'ana', '100001');
     await service.join(ana, code);
     await service.setPaid(actors.admin, event.id, 'ana', true);
-    await events.cancel(actors.admin, event.id);
+    await events.markRunning(event.id);
+    await events.markFinal(event.id, []);
+    await events.close(actors.admin, event.id);
     const { event: next } = await events.createEvent(actors.admin, { label: 'Segunda', date: '2026-10-30' });
     await service.join(ana, next.code ?? '');
     const record = await registry.get(next.id);
@@ -205,5 +207,25 @@ describe('entrada tardia e painel do ADM', () => {
     await service.dropAccount(event.id, 'ana');
     expect((await service.list(actors.admin, event.id))[0]?.removed).toBe(true);
     await service.dropAccount(event.id, 'ninguem');
+  });
+});
+
+describe('alterações simultâneas na inscrição', () => {
+  it('pago, lançado e remoção ao mesmo tempo: nenhuma desfaz a outra', async () => {
+    const { service, accounts, event, code } = await setup();
+    await service.join(await account(accounts, 'ana', '100001'), code);
+    await Promise.all([
+      service.setPaid(actors.admin, event.id, 'ana', true),
+      service.setLaunched(actors.admin, event.id, 'ana', true),
+      service.remove(actors.admin, event.id, 'ana'),
+    ]);
+    expect((await service.list(actors.admin, event.id))[0]).toMatchObject({ paid: true, launched: true, removed: true });
+  });
+
+  it('evento cancelado não entra no histórico do jogador', async () => {
+    const { service, accounts, events, event, code } = await setup();
+    await service.join(await account(accounts, 'ana', '100001'), code);
+    await events.cancel(actors.admin, event.id);
+    expect(await service.history(actors.admin, 'ana')).toEqual([]);
   });
 });

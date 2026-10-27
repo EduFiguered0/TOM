@@ -16,6 +16,15 @@ export class InMemoryRegistrationRepository implements RegistrationRepository {
     return Promise.resolve(found ? structuredClone(found) : null);
   }
 
+  update(eventId: string, accountId: string, change: Partial<Registration>): Promise<Registration | null> {
+    const key = `${eventId}#${accountId}`;
+    const found = this.items.get(key);
+    if (!found) return Promise.resolve(null);
+    const next = { ...found, ...change };
+    this.items.set(key, structuredClone(next));
+    return Promise.resolve(structuredClone(next));
+  }
+
   listByAccount(accountId: string): Promise<Registration[]> {
     return Promise.resolve([...this.items.values()].filter((r) => r.accountId === accountId).map((r) => structuredClone(r)));
   }

@@ -10,6 +10,7 @@ import {
 } from '@tom/core';
 
 const DAY_SECONDS = 86_400;
+const MAX_ATTEMPTS = 5;
 
 export interface DynamoRegistrationRepositoryOptions {
   /** A mesma tabela do registro de eventos (`Tournaments`): a guarda confere o item do evento. */
@@ -64,6 +65,40 @@ export class DynamoRegistrationRepository implements RegistrationRepository {
   async get(eventId: string, accountId: string): Promise<Registration | null> {
     const { Item } = await this.client.send(new GetCommand({ TableName: this.tableName, Key: key(eventId, accountId), ConsistentRead: true }));
     return Item ? registrationFromStored(Item['registration'] as StoredRegistration) : null;
+  }
+
+  /** Lê com a versão e regrava só se ninguém gravou no meio (senão relê e aplica de novo). */
+  async update(eventId: string, accountId: string, change: Partial<Registration>): Promise<Registration | null> {
+    for (let attempt = 1; ; attempt++) {
+      const { Item } = await this.client.send(new GetCommand({ TableName: this.tableName, Key: key(eventId, accountId), ConsistentRead: true }));
+      if (!Item) return null;
+      const version = Item['version'] as number | undefined;
+      const next = { ...registrationFromStored(Item['registration'] as StoredRegistration), ...change };
+      try {
+        await this.write(next, {
+          ConditionExpression: version === undefined ? 'attribute_not_exists(#v)' : '#v = :v',
+          ExpressionAttributeNames: { '#v': 'version' },
+          ...(version === undefined ? {} : { ExpressionAttributeValues: { ':v': version } }),
+        }, (version ?? 0) + 1);
+        return next;
+      } catch (error) {
+        const raced = error instanceof TransactionCanceledException && error.CancellationReasons?.[0]?.Code === 'ConditionalCheckFailed';
+        if (!raced || attempt >= MAX_ATTEMPTS) throw error;
+      }
+    }
+  }
+
+  /** Inscrição e o índice por conta, juntos; `condition` vale para a inscrição. */
+  private async write(registration: Registration, condition: Record<string, unknown>, version: number): Promise<void> {
+    const expiresAt = Math.floor(Date.now() / 1000) + this.retentionSeconds;
+    const item = { ...key(registration.eventId, registration.accountId), registration: { ...registration, at: registration.at.toISOString() }, version, expiresAt };
+    const index = { ...byAccountKey(registration.accountId, registration.eventId), eventId: registration.eventId, expiresAt };
+    await this.client.send(new TransactWriteCommand({
+      TransactItems: [
+        { Put: { TableName: this.tableName, Item: item, ...condition } },
+        { Put: { TableName: this.tableName, Item: index } },
+      ],
+    }));
   }
 
   async listByAccount(accountId: string): Promise<Registration[]> {

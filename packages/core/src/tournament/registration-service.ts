@@ -139,7 +139,8 @@ export class RegistrationService {
     const kept = (await this.deps.registrations.listByAccount(accountId)).filter((r) => !r.removed);
     const rows = await Promise.all(kept.map(async (r) => {
       const event = (await this.deps.registry.get(r.eventId))?.event;
-      return event ? { eventId: r.eventId, label: event.label, date: event.date, paid: r.paid } : null;
+      // Cancelado foi criado por engano: não entra no histórico.
+      return event && event.status !== 'cancelled' ? { eventId: r.eventId, label: event.label, date: event.date, paid: r.paid } : null;
     }));
     return rows.filter((r) => r !== null).sort((a, b) => b.date.localeCompare(a.date) || b.eventId.localeCompare(a.eventId));
   }
@@ -179,11 +180,13 @@ export class RegistrationService {
     return record.event;
   }
 
-  private async update(eventId: string, accountId: string, change: Partial<Registration>): Promise<Registration> {
-    const registration = await this.deps.registrations.get(eventId, accountId);
-    if (!registration) throw new CommandRejected('account_not_found', 'Inscrição não encontrada');
-    const next = { ...registration, ...change };
-    await this.deps.registrations.put(next, null);
+  private async update(
+    eventId: string,
+    accountId: string,
+    change: Partial<Pick<Registration, 'awaitingApproval' | 'launched' | 'removed' | 'paid'>>,
+  ): Promise<Registration> {
+    const next = await this.deps.registrations.update(eventId, accountId, change);
+    if (!next) throw new CommandRejected('account_not_found', 'Inscrição não encontrada');
     return next;
   }
 }

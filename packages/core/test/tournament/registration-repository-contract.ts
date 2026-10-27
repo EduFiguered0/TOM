@@ -61,6 +61,18 @@ export const registrationRepositoryContract = (name: string, create: () => { reg
       await expect(registrations.put(registration(randomUUID(), '2026-10-24T13:03:00Z'), 'open')).rejects.toThrow(EventStatusChangedError);
     });
 
+    it('altera só os campos pedidos, sobre o que está gravado; inscrição inexistente dá null', async () => {
+      const { registry, registrations } = create();
+      const e = event();
+      await registry.save(e, 0);
+      const r = registration(e.id, '2026-10-24T13:01:00Z');
+      await registrations.put(r, null);
+      await registrations.update(e.id, r.accountId, { paid: true });
+      expect(await registrations.update(e.id, r.accountId, { launched: true })).toEqual({ ...r, paid: true, launched: true });
+      expect(await registrations.get(e.id, r.accountId)).toEqual({ ...r, paid: true, launched: true });
+      expect(await registrations.update(e.id, randomUUID(), { paid: true })).toBeNull();
+    });
+
     it('lista as inscrições de uma conta em vários eventos; regravar não duplica', async () => {
       const { registry, registrations } = create();
       const [a, b] = [event(), event()];

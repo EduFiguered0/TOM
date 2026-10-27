@@ -37,6 +37,11 @@ export interface RegistrationRepository {
   get(eventId: string, accountId: string): Promise<Registration | null>;
   /** Grava (ou regrava). Com `guard`, só grava se o evento ainda estiver nesse status; senão EventStatusChangedError. */
   put(registration: Registration, guard: EventStatus | null): Promise<void>;
+  /**
+   * Altera só os campos pedidos, sobre o que está gravado agora (dois ADMs ao mesmo tempo não se desfazem).
+   * null: inscrição inexistente.
+   */
+  update(eventId: string, accountId: string, change: Partial<Pick<Registration, 'awaitingApproval' | 'launched' | 'removed' | 'paid'>>): Promise<Registration | null>;
   /** Inscrições de uma conta em todos os eventos (histórico do jogador), em qualquer ordem. */
   listByAccount(accountId: string): Promise<Registration[]>;
 }
