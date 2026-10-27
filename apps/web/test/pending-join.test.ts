@@ -33,8 +33,15 @@ describe('inscrição pelo QR só quando a conta está pronta', () => {
   it('sem Player ID o código fica guardado; com Player ID, é usado uma vez', () => {
     const pending = createPendingJoin(memory());
     pending.save('ABCD2345');
-    expect(pending.takeIfReady({ playerId: null })).toBeNull();
-    expect(pending.takeIfReady({ playerId: '100001' })).toBe('ABCD2345');
-    expect(pending.takeIfReady({ playerId: '100001' })).toBeNull();
+    expect(pending.takeIfReady({ playerId: null, nameReviewed: true })).toBeNull();
+    expect(pending.takeIfReady({ playerId: '100001', nameReviewed: true })).toBe('ABCD2345');
+    expect(pending.takeIfReady({ playerId: '100001', nameReviewed: true })).toBeNull();
+  });
+
+  it('conta antiga só se inscreve depois de conferir o nome (a inscrição copia o nome)', () => {
+    const pending = createPendingJoin(memory());
+    pending.save('ABCD2345');
+    expect(pending.takeIfReady({ playerId: '100001', nameReviewed: false })).toBeNull();
+    expect(pending.takeIfReady({ playerId: '100001', nameReviewed: true })).toBe('ABCD2345');
   });
 });

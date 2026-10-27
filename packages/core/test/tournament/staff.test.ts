@@ -3,7 +3,7 @@ import { staffActor, type Account, type Principal, type TournamentEvent } from '
 
 const account = (judge: boolean): Account => ({
   id: 'juiz', email: 'j@example.com', logins: ['l'], playerId: null, activeSession: 's', createdAt: new Date(), judge,
-  profile: { name: 'Juiz', birthYear: 1990, phone: null, guardianConsent: false },
+  profile: { firstName: 'Juiz', lastName: 'Teste', birthYear: 1990, phone: null, guardianConsent: false }, nameReviewed: true,
 });
 const event = (judges: string[]): TournamentEvent => ({
   id: 'ev', label: 'Liga', tournament: 'FODASE', tokenHash: 'h', revoked: false, createdAt: new Date(), createdBy: 'adm', judges,

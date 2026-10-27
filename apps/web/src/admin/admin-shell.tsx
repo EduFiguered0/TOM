@@ -67,7 +67,7 @@ export const AdminShell = ({ api, me, onSignOut }: Props) => {
           );
         })}
         <div class="mt-auto border-t border-line px-2 pt-3 text-xs">
-          <div class="font-bold text-text">{me.profile.name.split(' ')[0]} · {role === 'admin' ? 'ADM' : 'Juiz'}</div>
+          <div class="font-bold text-text">{me.profile.firstName} · {role === 'admin' ? 'ADM' : 'Juiz'}</div>
           <div class="truncate text-muted">{me.email}</div>
           <button type="button" class="mt-2 flex cursor-pointer items-center gap-1 bg-transparent p-0 text-xs text-accent hover:underline" onClick={onSignOut}>
             <LogOut size={14} aria-hidden="true" />Sair deste dispositivo

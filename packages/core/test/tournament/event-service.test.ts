@@ -26,7 +26,7 @@ const setup = () => {
 const member = async (accounts: InMemoryAccountRepository, id: string, judge: boolean) => {
   const account: Account = {
     id, email: `${id}@example.com`, logins: [id], playerId: null, activeSession: null, createdAt: new Date(), judge,
-    profile: { name: id, birthYear: 1990, phone: null, guardianConsent: false },
+    profile: { firstName: id, lastName: 'Teste', birthYear: 1990, phone: null, guardianConsent: false }, nameReviewed: true,
   };
   await accounts.save(account, [], 0);
   return id;

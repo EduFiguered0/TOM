@@ -16,7 +16,7 @@ const event = (): TournamentEvent => ({
 });
 
 const registration = (eventId: string, at: string, accountId = randomUUID()): Registration => ({
-  eventId, accountId, playerId: toPlayerId('100001'), name: 'Ana Souza', birthYear: 1990,
+  eventId, accountId, playerId: toPlayerId('100001'), firstName: 'Ana', lastName: 'Souza', birthYear: 1990,
   at: new Date(at), by: 'self', awaitingApproval: false, launched: false, removed: false,
 });
 

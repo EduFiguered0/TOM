@@ -3,7 +3,16 @@ import { CommandRejected } from '../shared/command-rejected.js';
 import { ConcurrencyError } from '../shared/concurrency-error.js';
 import { InvalidPlayerIdError, toPlayerId } from '../shared/player-id.js';
 import type { Clock, IdGenerator } from '../shared/ports.js';
-import { InvalidProfileError, normalizeEmail, validProfile, type Account, type IdentityEventData, type Profile } from './account.js';
+import {
+  fullName,
+  InvalidProfileError,
+  normalizeEmail,
+  validName,
+  validProfile,
+  type Account,
+  type IdentityEventData,
+  type Profile,
+} from './account.js';
 import { AccountConflictError, PlayerIdTakenError, type AccountRecord, type AccountRepository } from './account-repository.js';
 
 /** O que o token validado (Cognito) diz sobre quem chama. */
@@ -35,7 +44,7 @@ const SEARCH_LIMIT = 20;
 
 /** Sem acento e em minúsculas, para comparar nomes. */
 const fold = (text: string) => text.normalize('NFD').replace(/\p{M}/gu, '').toLowerCase();
-const byName = (accounts: Account[]) => accounts.sort((a, b) => a.profile.name.localeCompare(b.profile.name, 'pt-BR'));
+const byName = (accounts: Account[]) => accounts.sort((a, b) => fullName(a.profile).localeCompare(fullName(b.profile), 'pt-BR'));
 
 const actorFor = (account: Account, groups: readonly string[]): Actor | null => {
   if (groups.includes('admin')) return { role: 'admin', accountId: account.id };
@@ -82,6 +91,7 @@ export class AccountService {
       logins: [identity.login],
       emailProven: identity.provider === 'google',
       profile,
+      nameReviewed: true,
       playerId,
       activeSession: identity.session,
       createdAt: now,
@@ -157,6 +167,20 @@ export class AccountService {
     return { account, actor: actorFor(account, identity.groups) };
   }
 
+  /** Conta antiga confere o nome separado automaticamente (ou corrige nome e sobrenome), uma vez só. */
+  async confirmName(identity: Identity, input: { firstName: string; lastName: string }): Promise<Account> {
+    const name = validated(() => validName(input));
+    const { account } = await this.resolve(identity);
+    return this.execute(account.id, (current) => {
+      if (current.nameReviewed) throw new CommandRejected('name_reviewed', 'Seu nome já foi conferido. Para corrigir, procure o ADM.');
+      return {
+        actor: self(identity),
+        account: { ...current, profile: { ...current.profile, ...name }, nameReviewed: true },
+        data: { type: 'name_confirmed' },
+      };
+    });
+  }
+
   /** Conta sem Player ID informa depois. Para trocar um Player ID já cadastrado, só pelo ADM. */
   async claimPlayerId(identity: Identity, playerId: string): Promise<Account> {
     const value = validated(() => toPlayerId(playerId));
@@ -206,7 +230,7 @@ export class AccountService {
     const text = query.trim();
     if (text.length < 2) throw new CommandRejected('invalid_input', 'Digite pelo menos 2 caracteres');
     const wanted = fold(text);
-    const match = /^\d+$/.test(text) ? (a: Account) => a.playerId === text : (a: Account) => fold(a.profile.name).includes(wanted);
+    const match = /^\d+$/.test(text) ? (a: Account) => a.playerId === text : (a: Account) => fold(fullName(a.profile)).includes(wanted);
     return byName((await this.deps.accounts.all()).filter(match)).slice(0, SEARCH_LIMIT);
   }
 

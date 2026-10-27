@@ -9,6 +9,7 @@ import {
   parseSetJudgeRequest,
   parseExtendRequest,
   parseOverrideRequest,
+  parseNameRequest,
   parsePlayerIdRequest,
   parseStaffReportRequest,
   parseRegisterRequest,
@@ -100,6 +101,7 @@ const STATUS: Record<RejectCode, number> = {
   session_conflict: 409,
   player_id_taken: 409,
   player_id_set: 409,
+  name_reviewed: 409,
   concurrency: 409,
   round_not_paired: 409,
   round_already_started: 409,
@@ -125,7 +127,14 @@ const error = (status: number, code: string, message: string): HttpResponse => (
 const toAccount = (account: Account): AccountResponse => ({
   id: account.id,
   email: account.email,
-  profile: account.profile,
+  // Campo a campo: nada interno do perfil vaza para a resposta.
+  profile: {
+    firstName: account.profile.firstName,
+    lastName: account.profile.lastName,
+    birthYear: account.profile.birthYear,
+    phone: account.profile.phone,
+    guardianConsent: account.profile.guardianConsent,
+  },
   playerId: account.playerId,
   judge: account.judge === true,
   createdAt: account.createdAt.toISOString(),
@@ -137,6 +146,7 @@ const toMe = ({ account, actor }: Principal, judging: boolean): MeResponse => ({
   canAct: actor !== null,
   judge: account.judge === true,
   judging,
+  nameReviewed: account.nameReviewed,
 });
 
 /** `withCode`: só o ADM recebe o código do QR (a TV mostra no QR; o resto não precisa). */
@@ -153,7 +163,8 @@ const toEvent = (event: TournamentEvent, withCode = false): EventDto => ({
 const toRegistration = (r: Registration, inRound: boolean | null): RegistrationDto => ({
   accountId: r.accountId,
   playerId: r.playerId,
-  name: r.name,
+  firstName: r.firstName,
+  lastName: r.lastName,
   birthYear: r.birthYear,
   at: r.at.toISOString(),
   by: r.by,
@@ -292,6 +303,15 @@ export const createApi = ({ tokens, emails, accounts, events, ingest, board, rou
           placement: mine?.registration && !mine.registration.removed ? await placementOf(mine.event, mine.registration.playerId) : null,
         };
         return { status: 200, body };
+      },
+    },
+    {
+      method: 'POST', path: /^\/me\/name$/,
+      handle: async ({ request, identity }) => {
+        const name = parseNameRequest(jsonBody(request));
+        await accounts.authenticate(identity);
+        await accounts.confirmName(identity, name);
+        return { status: 200, body: await me(await accounts.authenticate(identity)) };
       },
     },
     {

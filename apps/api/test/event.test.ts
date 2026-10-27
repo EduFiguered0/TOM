@@ -33,7 +33,7 @@ describe('ciclo do evento pela API', () => {
     expect(joined).toMatchObject({ status: 200, body: { event: { label: 'Liga de Outubro' }, registration: { accountId: ana, awaitingApproval: false } } });
     expect(JSON.stringify(joined.body)).not.toContain(code);
     expect((await call('POST', `/join/${code}`, 'ana-email:c1')).status).toBe(200);
-    expect(await list()).toMatchObject({ total: 1, awaiting: 0, launched: 0, registrations: [{ playerId: '100001', name: 'Ana Souza', birthYear: 1990, inRound: null }] });
+    expect(await list()).toMatchObject({ total: 1, awaiting: 0, launched: 0, registrations: [{ playerId: '100001', firstName: 'Ana', lastName: 'Souza', birthYear: 1990, inRound: null }] });
     expect((await call('GET', '/me/event', 'ana-email:c1')).body as MyEventResponse).toMatchObject({ event: { status: 'open' }, registration: { accountId: ana } });
     expect((await call('POST', '/join/ZZZZZZZZ', 'ana-email:c1')).status).toBe(404);
   });

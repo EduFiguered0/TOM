@@ -63,6 +63,7 @@ export const createApi = (session: Session, base = '/api', fetchFn: typeof fetch
     joinEvent: (code: string) => call<JoinResponse>('POST', `/join/${encodeURIComponent(code)}`),
     myEvent: () => call<MyEventResponse>('GET', '/me/event'),
     claimPlayerId: (playerId: string) => call<MeResponse>('POST', '/me/player-id', { playerId }),
+    confirmName: (firstName: string, lastName: string) => call<MeResponse>('POST', '/me/name', { firstName, lastName }),
     accountByPlayerId: (playerId: string) => call<AccountResponse>('GET', `/player-ids/${encodeURIComponent(playerId)}`),
     unlinkPlayerId: (playerId: string) => call<AccountResponse>('POST', `/player-ids/${encodeURIComponent(playerId)}/unlink`),
     createEvent: (request: CreateEventRequest) => call<CreateEventResponse>('POST', '/events', request),

@@ -92,7 +92,8 @@ Rotas da API (as de conta e ADM exigem `Authorization: Bearer <token de acesso d
 | Rota | Quem | Para quê |
 | --- | --- | --- |
 | `GET /me` | qualquer conta | Dados da própria conta, papel e se já pode agir (404 se ainda não cadastrou) |
-| `POST /me` | qualquer conta | Cadastro (perfil LGPD e Player ID); o e-mail vem do Cognito. Player ID já em uso: 409 |
+| `POST /me` | qualquer conta | Cadastro (nome, sobrenome, ano de nascimento, telefone opcional e Player ID); o e-mail vem do Cognito. Player ID já em uso: 409 |
+| `POST /me/name` | qualquer conta | Confere ou corrige nome e sobrenome (contas antigas tiveram o nome separado no primeiro espaço) |
 | `POST /session` | qualquer conta | Ativa este dispositivo; com outro ativo, exige `{"replace": true}` e revoga o anterior |
 | `POST /me/player-id` | qualquer conta | Conta sem Player ID informa depois; para trocar, só o ADM (409) |
 | `GET /player-ids/{pid}` | ADM | Quem cadastrou esse Player ID |
@@ -115,7 +116,7 @@ Rotas da API (as de conta e ADM exigem `Authorization: Bearer <token de acesso d
 | `PATCH /events/{id}` | ADM | Muda o tempo de rodada e os juízes enquanto o evento não acabou |
 | `POST /events/{id}/close` | ADM | Encerra (só depois do resultado final do TOM) |
 | `POST /events/{id}/cancel` | ADM | Cancela antes de encerrar; não entra no histórico |
-| `GET /events/{id}/registrations` | ADM | Inscritos (Player ID, nome, ano) com os contadores de inscritos, entradas tardias aguardando e lançados no TOM |
+| `GET /events/{id}/registrations` | ADM | Inscritos (Player ID, nome, sobrenome, ano) com os contadores de inscritos, entradas tardias aguardando e lançados no TOM |
 | `POST /events/{id}/registrations` | ADM | Inscreve à mão (`{"accountId"}`), sem esperar aprovação |
 | `POST /events/{id}/registrations/{conta}/approve`, `/remove`, `/launched` | ADM | Aprovar entrada tardia, remover (ou recusar), marcar lançado no TOM |
 | `POST /join/{código}` | qualquer conta | Fim do caminho do QR: inscreve (de novo, só devolve a inscrição) |

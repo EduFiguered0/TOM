@@ -1,7 +1,8 @@
 /** Formato das requisições e respostas da API, compartilhado entre API e telas. Sem dependências. */
 
 export interface ProfileDto {
-  name: string;
+  firstName: string;
+  lastName: string;
   birthYear: number;
   phone: string | null;
   guardianConsent: boolean;
@@ -23,6 +24,15 @@ export interface PlayerIdRequest {
   playerId: string;
 }
 
+/** Conta antiga confere o nome separado automaticamente. */
+export interface NameRequest {
+  firstName: string;
+  lastName: string;
+}
+
+/** Nome completo para exibir; sem espaço sobrando quando o sobrenome está vazio (dado antigo). */
+export const displayName = ({ firstName, lastName }: { firstName: string; lastName: string }): string => `${firstName} ${lastName}`.trim();
+
 /** Conta como o ADM vê ao desfazer um vínculo de Player ID. */
 export interface AccountResponse {
   id: string;
@@ -43,6 +53,8 @@ export interface MeResponse extends AccountResponse {
   judge: boolean;
   /** Juiz escalado no evento atual: abre o painel. */
   judging: boolean;
+  /** false = conta antiga, com o nome separado automaticamente: mostra "Confira seu nome". */
+  nameReviewed: boolean;
 }
 
 /** Equipe: busca por nome ou Player ID. */
@@ -90,7 +102,8 @@ export const parseRegisterRequest = (body: unknown): RegisterRequest => {
   const profile = object(root['profile'], 'profile');
   return {
     profile: {
-      name: field(profile, 'name', 'string'),
+      firstName: field(profile, 'firstName', 'string'),
+      lastName: field(profile, 'lastName', 'string'),
       birthYear: field(profile, 'birthYear', 'number'),
       phone: nullableString(profile, 'phone'),
       guardianConsent: field(profile, 'guardianConsent', 'boolean'),
@@ -102,6 +115,11 @@ export const parseRegisterRequest = (body: unknown): RegisterRequest => {
 export const parsePlayerIdRequest = (body: unknown): PlayerIdRequest => ({
   playerId: field(object(body, 'Corpo'), 'playerId', 'string'),
 });
+
+export const parseNameRequest = (body: unknown): NameRequest => {
+  const root = object(body, 'Corpo');
+  return { firstName: field(root, 'firstName', 'string'), lastName: field(root, 'lastName', 'string') };
+};
 
 export const parseSessionRequest = (body: unknown): SessionRequest => ({
   replace: field(object(body, 'Corpo'), 'replace', 'boolean'),
@@ -237,7 +255,8 @@ export interface ActiveEventResponse {
 export interface RegistrationDto {
   accountId: string;
   playerId: string;
-  name: string;
+  firstName: string;
+  lastName: string;
   birthYear: number;
   /** ISO 8601. */
   at: string;

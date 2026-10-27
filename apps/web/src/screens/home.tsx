@@ -2,6 +2,7 @@ import type { MeResponse } from '@tom/contracts';
 import type { Api } from '../api.js';
 import { card, cardWarn, muted, textButton, title } from '../ui.js';
 import { MyEventCard } from './my-event.js';
+import { NameReviewCard } from './name-review.js';
 import { PlayerIdCard } from './player-id.js';
 import { RoundCard } from '../round/round-card.js';
 
@@ -26,8 +27,9 @@ export const Home = ({ me, api, onSignOut, onChanged, joinError, eventRefresh }:
   {/* No salão o que importa é a mesa: a rodada vem primeiro. */}
   {me.role === 'player' && me.canAct && <RoundCard api={api} />}
   <section class={card}>
-    <h1 class={title}>Olá, {me.profile.name.split(' ')[0]}</h1>
+    <h1 class={title}>Olá, {me.profile.firstName}</h1>
     <p class={muted}>{ROLE[me.role]} · {me.email}</p>
+    {!me.nameReviewed && <NameReviewCard me={me} api={api} onSaved={onChanged} />}
     {me.role === 'player' && (me.playerId
       ? <p class="m-0 font-medium text-ok">Player ID {me.playerId}. {me.judging ? 'Você é juiz deste evento.' : 'Você já pode reportar resultados.'}</p>
       : <PlayerIdCard api={api} onSaved={onChanged} />)}

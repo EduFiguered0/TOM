@@ -16,9 +16,24 @@ describe('API', () => {
     const created = await call('POST', '/me', 'ana-email:s1', { profile, playerId: '100001', email: 'forjado@example.com' });
     expect(created).toMatchObject({
       status: 201,
-      body: { email: 'ana@example.com', role: 'player', canAct: true, playerId: '100001' },
+      body: { email: 'ana@example.com', role: 'player', canAct: true, playerId: '100001', profile: { firstName: 'Ana', lastName: 'Souza' }, nameReviewed: true },
     });
     expect((await call('GET', '/me', 'ana-email:s1')).status).toBe(200);
+  });
+
+  it('POST /me/name: conta antiga confere uma vez (sem sobrenome, 400; de novo, 409; sem login, 401)', async () => {
+    const { call, accountRepository: accounts } = setup();
+    const id = await register(call, 'ana-email:s1');
+    const record = await accounts.get(id);
+    if (!record) throw new Error('conta não gravada');
+    await accounts.save({ ...record.account, nameReviewed: false }, [], record.version);
+    expect((await call('POST', '/me/name', 'ana-email:s1', { firstName: 'Ana', lastName: '' })).status).toBe(400);
+    expect((await call('POST', '/me/name', 'ana-email:s1', { firstName: 'Ana' })).status).toBe(400);
+    expect(await call('POST', '/me/name', 'ana-email:s1', { firstName: 'Ana', lastName: 'Lima' })).toMatchObject({
+      status: 200, body: { profile: { firstName: 'Ana', lastName: 'Lima' }, nameReviewed: true },
+    });
+    expect(await call('POST', '/me/name', 'ana-email:s1', { firstName: 'Outra', lastName: 'Pessoa' })).toMatchObject({ status: 409, body: { error: 'name_reviewed' } });
+    expect((await call('POST', '/me/name', null, { firstName: 'Ana', lastName: 'Lima' })).status).toBe(401);
   });
 
   it('cadastro inválido ou repetido', async () => {
@@ -90,7 +105,7 @@ describe('API', () => {
     const { call } = setup();
     await register(call, 'ana-email:p1', '100001');
     await register(call, 'adm:a1');
-    expect(await call('GET', '/player-ids/100001', 'adm:a1:admin')).toMatchObject({ status: 200, body: { profile: { name: 'Ana Souza' }, playerId: '100001' } });
+    expect(await call('GET', '/player-ids/100001', 'adm:a1:admin')).toMatchObject({ status: 200, body: { profile: { firstName: 'Ana', lastName: 'Souza' }, playerId: '100001' } });
     expect((await call('GET', '/player-ids/100001', 'ana-email:p1')).status).toBe(403);
     expect((await call('POST', '/player-ids/100001/unlink', 'ana-email:p1')).status).toBe(403);
     expect(await call('GET', '/player-ids/999999', 'adm:a1:admin')).toMatchObject({ status: 404, body: { error: 'account_not_found' } });

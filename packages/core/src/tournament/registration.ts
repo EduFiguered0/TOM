@@ -9,7 +9,8 @@ export interface Registration {
   eventId: string;
   accountId: string;
   playerId: PlayerId;
-  name: string;
+  firstName: string;
+  lastName: string;
   birthYear: number;
   at: Date;
   /** Pelo QR ou à mão pelo ADM (atrasado, sem celular). */

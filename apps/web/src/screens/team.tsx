@@ -1,4 +1,4 @@
-import type { AccountResponse } from '@tom/contracts';
+import { displayName, type AccountResponse } from '@tom/contracts';
 import { useEffect, useState } from 'preact/hooks';
 import type { Api } from '../api.js';
 import { box, Feedback, field, ghost, linkButton } from '../ui.js';
@@ -45,7 +45,7 @@ export const TeamCard = ({ api }: { api: Api }) => {
 
   const row = (account: AccountResponse) => (
     <tr key={account.id} class="border-b border-line">
-      <td class="py-2 pr-2 font-semibold">{account.profile.name}</td>
+      <td class="py-2 pr-2 font-semibold">{displayName(account.profile)}</td>
       <td class="py-2 pr-2 text-muted">{account.playerId ?? 'sem Player ID'}</td>
       <td class="py-2 pr-2 text-muted">{account.email}</td>
       <td class="py-2 text-right">

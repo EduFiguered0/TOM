@@ -2,7 +2,9 @@ import { describe, expect, it } from 'vitest';
 import {
   AccountService,
   CommandRejected,
+  fullName,
   InMemoryAccountRepository,
+  splitName,
   type Identity,
   type Profile,
   type RejectCode,
@@ -13,7 +15,7 @@ import { accountRepositoryContract } from './account-repository-contract.js';
 
 accountRepositoryContract('em memória', () => new InMemoryAccountRepository());
 
-const adult: Profile = { name: '  Ana   Souza ', birthYear: 1990, phone: '(11) 98888-7777', guardianConsent: false };
+const adult: Profile = { firstName: '  Ana ', lastName: '  Souza   Lima ', birthYear: 1990, phone: '(11) 98888-7777', guardianConsent: false };
 const admin = { role: 'admin', accountId: 'adm' } as const;
 
 const identity = (overrides: Partial<Identity> = {}): Identity => ({
@@ -37,7 +39,8 @@ describe('cadastro', () => {
     const { service, accounts } = setup();
     const account = await service.register(identity(), ' Ana@Example.com ', { profile: adult, playerId: ' 100001 ' });
     expect(account).toMatchObject({ email: 'ana@example.com', logins: ['login-email'] });
-    expect(account.profile).toEqual({ name: 'Ana Souza', birthYear: 1990, phone: '11988887777', guardianConsent: false });
+    expect(account.profile).toEqual({ firstName: 'Ana', lastName: 'Souza Lima', birthYear: 1990, phone: '11988887777', guardianConsent: false });
+    expect(account.nameReviewed).toBe(true);
     expect(account.playerId).toBe('100001');
     expect(account.activeSession).toBe('celular-1');
     expect(accounts.events.map((e) => e.type)).toEqual(['account_registered', 'player_id_claimed', 'session_activated']);
@@ -51,7 +54,9 @@ describe('cadastro', () => {
   });
 
   it.each([
-    ['nome curto', { name: 'A' }],
+    ['nome vazio', { firstName: '  ' }],
+    ['sobrenome vazio', { lastName: '' }],
+    ['nome longo', { firstName: 'a'.repeat(51) }],
     ['ano no futuro', { birthYear: 2027 }],
     ['telefone curto', { phone: '1234' }],
   ])('recusa %s', async (_, change) => {
@@ -64,6 +69,52 @@ describe('cadastro', () => {
     await service.register(identity(), 'ana@example.com', { profile: adult, playerId: null });
     await rejects(service.register(identity(), 'outro@example.com', { profile: adult, playerId: null }), 'account_exists');
     await rejects(service.register(identity({ login: 'login-google' }), 'ANA@example.com', { profile: adult, playerId: null }), 'account_exists');
+  });
+});
+
+describe('nome e sobrenome', () => {
+  it('separa no primeiro espaço e junta sem espaço sobrando', () => {
+    expect(splitName('João da Silva')).toEqual({ firstName: 'João', lastName: 'da Silva' });
+    expect(splitName('  Madonna ')).toEqual({ firstName: 'Madonna', lastName: '' });
+    expect(fullName({ firstName: 'Madonna', lastName: '' })).toBe('Madonna');
+    expect(fullName({ firstName: 'João', lastName: 'da Silva' })).toBe('João da Silva');
+  });
+
+  it('mensagens de nome e sobrenome inválidos', async () => {
+    const { service } = setup();
+    const register = (change: Partial<Profile>) => service.register(identity(), 'ana@example.com', { profile: { ...adult, ...change }, playerId: null });
+    await expect(register({ firstName: '' })).rejects.toThrow('Nome deve ter de 1 a 50 caracteres');
+    await expect(register({ lastName: ' ' })).rejects.toThrow('Sobrenome deve ter de 1 a 50 caracteres');
+  });
+
+  /** Conta antiga, lida com o nome separado e ainda não conferida. */
+  const legacy = async () => {
+    const ctx = setup();
+    const account = await ctx.service.register(identity(), 'ana@example.com', { profile: adult, playerId: null });
+    const record = await ctx.accounts.get(account.id);
+    await ctx.accounts.save({ ...account, profile: { ...account.profile, firstName: 'Madonna', lastName: '' }, nameReviewed: false }, [], record?.version ?? 0);
+    return { ...ctx, account };
+  };
+
+  it('conta antiga confere o nome uma vez; sem sobrenome não salva', async () => {
+    const { service, accounts } = await legacy();
+    await rejects(service.confirmName(identity(), { firstName: 'Madonna', lastName: '' }), 'invalid_input');
+    const saved = await service.confirmName(identity(), { firstName: ' Madonna ', lastName: ' Ciccone ' });
+    expect(saved).toMatchObject({ profile: { firstName: 'Madonna', lastName: 'Ciccone', birthYear: 1990 }, nameReviewed: true });
+    expect(accounts.events.at(-1)).toMatchObject({ type: 'name_confirmed', actor: { role: 'system', source: 'login:login-email' } });
+  });
+
+  it('conferir o nome vale uma vez só: depois, recusa', async () => {
+    const { service } = await legacy();
+    await service.confirmName(identity(), { firstName: 'Madonna', lastName: 'Ciccone' });
+    await rejects(service.confirmName(identity(), { firstName: 'Outra', lastName: 'Pessoa' }), 'name_reviewed');
+    await rejects(setup().service.confirmName(identity(), { firstName: 'A', lastName: 'B' }), 'account_not_found');
+  });
+
+  it('ativar a sessão não marca o nome como conferido', async () => {
+    const { service } = await legacy();
+    await service.activateSession(identity({ session: 'celular-2' }), true);
+    expect((await service.authenticate(identity({ session: 'celular-2' }))).account.nameReviewed).toBe(false);
   });
 });
 
@@ -229,8 +280,8 @@ describe('equipe', () => {
   const maria = identity({ login: 'l-maria', session: 'sm' });
   const team = async () => {
     const ctx = setup();
-    const j = await ctx.service.register(joao, 'joao@example.com', { profile: { ...adult, name: 'João Silva' }, playerId: '100001' });
-    const m = await ctx.service.register(maria, 'maria@example.com', { profile: { ...adult, name: 'Maria Joana' }, playerId: '100002' });
+    const j = await ctx.service.register(joao, 'joao@example.com', { profile: { ...adult, firstName: 'João', lastName: 'Silva' }, playerId: '100001' });
+    const m = await ctx.service.register(maria, 'maria@example.com', { profile: { ...adult, firstName: 'Maria', lastName: 'Joana' }, playerId: '100002' });
     return { ...ctx, j, m };
   };
 
@@ -262,11 +313,12 @@ describe('equipe', () => {
 
   it('busca por nome sem acento e por Player ID exato', async () => {
     const { service } = await team();
-    const names = async (q: string) => (await service.search(admin, q)).map((a) => a.profile.name);
+    const names = async (q: string) => (await service.search(admin, q)).map((a) => fullName(a.profile));
     expect(await names('joao')).toEqual(['João Silva']);
     expect(await names('JO')).toEqual(['João Silva', 'Maria Joana']);
     expect(await names('100002')).toEqual(['Maria Joana']);
     expect(await names('1000')).toEqual([]);
+    expect(await names('silva')).toEqual(['João Silva']);
     const short = service.search(admin, ' a ');
     await rejects(short, 'invalid_input');
     await expect(short).rejects.toThrow('Digite pelo menos 2 caracteres');

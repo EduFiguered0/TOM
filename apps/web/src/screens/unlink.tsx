@@ -1,4 +1,4 @@
-import type { AccountResponse } from '@tom/contracts';
+import { displayName, type AccountResponse } from '@tom/contracts';
 import { useState } from 'preact/hooks';
 import type { Api } from '../api.js';
 import { box, Feedback, field, ghost } from '../ui.js';
@@ -28,7 +28,7 @@ export const UnlinkCard = ({ api }: { api: Api }) => {
   const unlink = () => {
     const pid = account?.playerId;
     if (!account || !pid) return;
-    if (!confirm(`Tirar o Player ID ${pid} de ${account.profile.name}? A pessoa precisará informar outro Player ID.`)) return;
+    if (!confirm(`Tirar o Player ID ${pid} de ${displayName(account.profile)}? A pessoa precisará informar outro Player ID.`)) return;
     void run(async () => {
       const result = await api.unlinkPlayerId(pid);
       if (!result.ok) { setMessage({ ok: false, text: result.error.message }); return; }
@@ -48,7 +48,7 @@ export const UnlinkCard = ({ api }: { api: Api }) => {
       </form>
       {account && (
         <div class="flex items-center justify-between gap-3 rounded-md border border-line p-3 text-sm">
-          <div><div class="font-semibold">{account.profile.name}</div><div class="text-muted">{account.email}</div></div>
+          <div><div class="font-semibold">{displayName(account.profile)}</div><div class="text-muted">{account.email}</div></div>
           <button type="button" class={`${ghost} text-error`} disabled={busy} onClick={unlink}>Desfazer vínculo</button>
         </div>
       )}
