@@ -4,8 +4,10 @@ import { register, setup, setupRound, upload } from './support.js';
 
 const ADM = 'adm:a1:admin';
 
+/** A TV é do ADM: garante a conta do ADM (cadastrar de novo só dá 409) e lê o quadro com a sessão dele. */
 const board = async (call: ReturnType<typeof setup>['call']) => {
-  const response = await call('GET', '/board', null);
+  await register(call, 'adm:a1');
+  const response = await call('GET', '/board', ADM);
   expect(response.status).toBe(200);
   return response.body as BoardResponse;
 };

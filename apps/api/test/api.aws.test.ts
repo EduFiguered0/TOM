@@ -180,7 +180,7 @@ describe('API real (TomApiTest)', () => {
     const slips = await send('match_slips');
     expect(slips.status).toBe(200);
     // Inscrições abertas: a TV mostra o QR (a rodada aparece quando o ADM inicia).
-    expect(await call('GET', '/board', null)).toMatchObject({ status: 200, body: { state: 'open', code: (created.body['event'] as { code: string }).code } });
+    expect(await call('GET', '/board', adm)).toMatchObject({ status: 200, body: { state: 'open', code: (created.body['event'] as { code: string }).code } });
     // Versão nova do mesmo pareamento: guardada, mas a rodada não muda.
     expect(await send('pairings')).toMatchObject({ status: 200, body: { stored: true, published: [] } });
 
@@ -227,8 +227,8 @@ describe('API real (TomApiTest)', () => {
     expect((await call('POST', `/join/${code}`, player)).status).toBe(200);
     expect((await call('POST', `/join/${code}`, other)).status).toBe(200);
     expect(await call('GET', `/events/${id}/registrations`, adm)).toMatchObject({ status: 200, body: { total: 2, awaiting: 0, launched: 0 } });
-    expect(await call('GET', '/board', null)).toMatchObject({ body: { state: 'open', registered: 2 } });
+    expect(await call('GET', '/board', adm)).toMatchObject({ body: { state: 'open', registered: 2 } });
     expect(await call('POST', `/events/${id}/cancel`, adm)).toMatchObject({ status: 200, body: { status: 'cancelled' } });
-    expect(await call('GET', '/board', null)).toMatchObject({ body: { state: 'idle' } });
+    expect(await call('GET', '/board', adm)).toMatchObject({ body: { state: 'idle' } });
   });
 });
