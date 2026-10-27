@@ -1,10 +1,9 @@
-# Em cada PR e na main: tipos, lint e testes, sem acesso à AWS. O Release chama este mesmo check antes de lançar.
+# Em cada PR: tipos, lint e testes, sem acesso à AWS. O Release chama este mesmo check antes de lançar.
+# Sem push na main: o PR já passou aqui antes do merge, e o Release confere de novo antes de lançar.
 name: Check
 
 on:
   pull_request:
-  push:
-    branches: [main]
   workflow_call:
 
 permissions:
