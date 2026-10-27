@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.4.0](https://github.com/EduFiguered0/TOM/compare/v0.3.0...v0.4.0) (2026-10-27)
+
+
+### Novidades
+
+* botão do Google no padrão escuro oficial, com efeito de hover e clique ([968cf4d](https://github.com/EduFiguered0/TOM/commit/968cf4d529f2c08c8c4df5710045f48e87108eb1))
+* botão do Google no padrão oficial ([bec4a20](https://github.com/EduFiguered0/TOM/commit/bec4a20da94b30909950f8383d95a168312aa116))
+* nomes legíveis nos recursos AWS (tom-prod-*/tom-test-*) ([01eb289](https://github.com/EduFiguered0/TOM/commit/01eb289e6ae8859cafede4013bfd9eadede3b6a8))
+* nomes legíveis nos recursos AWS (tom-prod-*/tom-test-*), stacks renomeadas ([108dbaa](https://github.com/EduFiguered0/TOM/commit/108dbaa432877ed9515826cb5ac823ae1b85c6bc))
+
 ## [0.3.0](https://github.com/EduFiguered0/TOM/compare/v0.2.0...v0.3.0) (2026-10-27)
 
 
