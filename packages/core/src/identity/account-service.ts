@@ -182,6 +182,32 @@ export class AccountService {
     });
   }
 
+  /** A própria pessoa põe, troca ou tira a foto (a imagem já foi gravada pelo PhotoService). */
+  async setPhoto(identity: Identity, photoId: string | null): Promise<Account> {
+    const { account } = await this.resolve(identity);
+    return this.execute(account.id, (current) => (
+      (current.photoId ?? null) === photoId ? null : { actor: self(identity), account: { ...current, photoId }, data: { type: 'photo_set', photoId } }
+    ));
+  }
+
+  /** O ADM tira uma foto inadequada. */
+  async clearPhoto(actor: Actor | null, accountId: string): Promise<Account> {
+    requireAdmin(actor);
+    return this.execute(accountId, (current) => (
+      current.photoId ? { actor, account: { ...current, photoId: null }, data: { type: 'photo_set', photoId: null } } : null
+    ));
+  }
+
+  /** Menor: o responsável autoriza (ou não) mostrar a foto nas mesas. */
+  async setImageConsent(identity: Identity, consent: boolean): Promise<Account> {
+    const { account } = await this.resolve(identity);
+    return this.execute(account.id, (current) => (
+      (current.imageConsent ?? false) === consent
+        ? null
+        : { actor: self(identity), account: { ...current, imageConsent: consent }, data: { type: 'image_consent_set', consent } }
+    ));
+  }
+
   /** Conta sem Player ID informa depois. Para trocar um Player ID já cadastrado, só pelo ADM. */
   async claimPlayerId(identity: Identity, playerId: string): Promise<Account> {
     const value = validated(() => toPlayerId(playerId));
