@@ -16,6 +16,8 @@ Oct 20, 2026 · @Edduardo Souza Figueredo · revisão 2: Oct 21, 2026 · revisã
 
 > **Revisão 8.** A pasta do TOM é conectada pelo navegador do ADM, no próprio painel do evento: sem token nem comando no notebook. O enviador por comando fica como plano B; um executável que roda em segundo plano fica como evolução.
 
+> **Revisão 9.** Sai a confirmação de presença: o QR fica aberto até o encerramento e quem entra depois do início da rodada 1 espera a aprovação do ADM. Trechos marcados com **[R9]**; detalhes em `docs/superpowers/specs/2026-10-26-ajustes-testes-design.md`.
+
 ## Visão e problema
 
 O sistema é uma camada de auditoria de resultados entre os jogadores e o TOM: nenhuma rodada nova começa antes de todos os resultados da anterior estarem validados.
@@ -97,7 +99,7 @@ Os HTMLs reais gerados pelo TOM 1.86 num torneio de teste ficam em `packages/tom
 
 1. **Antes:** o jogador cria a conta online (a qualquer momento, inclusive em casa) entrando com a conta Google ou com e-mail e senha. **[R4]**
 2. **Check-in:** no salão, o jogador faz login pelo QR. O ADM lança os jogadores no TOM. **[R5]** Não há conferência do Player ID pelo ADM.
-   **[R7]** O ADM cria o evento (um ativo por vez) e a TV mostra o QR. Quem escaneia passa pelo login e pelo cadastro e fica inscrito sozinho. O ADM pede a confirmação de presença (o QR fecha na hora), digita no TOM os confirmados pelo painel de inscritos e só inicia a rodada 1 sem pendentes. Os standings da última rodada marcam o resultado final; aí o ADM encerra. A inscrição não decide quem reporta: continua valendo quem está nas guias do TOM.
+   **[R7]** O ADM cria o evento (um ativo por vez) e a TV mostra o QR. Quem escaneia passa pelo login e pelo cadastro e fica inscrito sozinho. O ADM pede a confirmação de presença (o QR fecha na hora), digita no TOM os confirmados pelo painel de inscritos e só inicia a rodada 1 sem pendentes. **[R9]** Não há mais confirmação: o ADM digita os inscritos e inicia a rodada 1; o QR continua aberto e a entrada tardia espera o ADM aprovar. Os standings da última rodada marcam o resultado final; aí o ADM encerra. A inscrição não decide quem reporta: continua valendo quem está nas guias do TOM.
 3. **Rodadas:** o ciclo abaixo, uma vez por rodada.
 4. **Depois:** a TV mostra a classificação final (pontos e desempates do TOM) e cada jogador vê a própria colocação no celular.
 
@@ -379,3 +381,11 @@ Fora de escopo:
 | --- | --- | --- |
 | 1 | Enviador por comando no PowerShell, com token copiado da tela | O ADM conecta a pasta do TOM no painel (Chrome ou Edge) e o site envia sozinho para o evento ativo, com o login do ADM |
 | 2 | — | Evolução: executável no notebook, pareado pelo painel, rodando em segundo plano |
+
+### Revisão 9 — Oct 26, 2026
+
+| # | Antes | Agora |
+| --- | --- | --- |
+| 1 | Confirmação de presença fechava o QR; rodada 1 só sem pendentes | Sem confirmação: rodada 1 inicia direto e o QR fica aberto até o encerramento |
+| 2 | Atrasado só entrava pelas mãos do ADM | Quem escaneia depois da rodada 1 fica aguardando; o ADM aprova ou recusa no painel |
+| 3 | TV com fase de confirmação | TV sem essa fase; durante a rodada, QR no canto para quem chega tarde |

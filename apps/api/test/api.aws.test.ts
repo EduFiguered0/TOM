@@ -213,7 +213,7 @@ describe('API real (TomApiTest)', () => {
     });
   });
 
-  it('ciclo do evento de ponta a ponta: QR, confirmação fecha o QR, presença e contadores', async () => {
+  it('ciclo do evento de ponta a ponta: QR inscreve, contadores, quadro e cancelamento', async () => {
     const [player, adm, other] = await Promise.all([login(), login(adminEmail), login(otherEmail)]);
     await Promise.all([player, adm, other].map((t) => call('POST', '/session', t, { replace: true })));
     await cancelActive(adm);
@@ -221,14 +221,12 @@ describe('API real (TomApiTest)', () => {
     expect(created).toMatchObject({ status: 201, body: { event: { status: 'open', roundMinutes: 40 } } });
     const { id, code } = created.body['event'] as { id: string; code: string };
 
-    expect(await call('POST', `/join/${code}`, player)).toMatchObject({ status: 200, body: { registration: { confirmed: false } } });
+    // A guarda de status de verdade no DynamoDB (QR fora do status esperado) é coberta pelo contrato do repositório.
+    expect(await call('POST', `/join/${code}`, player)).toMatchObject({ status: 200, body: { registration: { awaitingApproval: false } } });
     expect((await call('POST', `/join/${code}`, player)).status).toBe(200);
-    expect(await call('POST', `/events/${id}/confirmation`, adm)).toMatchObject({ status: 200, body: { status: 'confirming' } });
-    // A guarda de status de verdade no DynamoDB: depois de pedir a confirmação, o QR não grava.
-    expect(await call('POST', `/join/${code}`, other)).toMatchObject({ status: 409, body: { message: 'Inscrições encerradas' } });
-    expect((await call('POST', '/me/event/confirm', player)).status).toBe(200);
-    expect(await call('GET', `/events/${id}/registrations`, adm)).toMatchObject({ status: 200, body: { total: 1, confirmed: 1, launched: 0 } });
-    expect(await call('GET', '/board', null)).toMatchObject({ body: { state: 'confirming', registered: 1, confirmed: 1 } });
+    expect((await call('POST', `/join/${code}`, other)).status).toBe(200);
+    expect(await call('GET', `/events/${id}/registrations`, adm)).toMatchObject({ status: 200, body: { total: 2, awaiting: 0, launched: 0 } });
+    expect(await call('GET', '/board', null)).toMatchObject({ body: { state: 'open', registered: 2 } });
     expect(await call('POST', `/events/${id}/cancel`, adm)).toMatchObject({ status: 200, body: { status: 'cancelled' } });
     expect(await call('GET', '/board', null)).toMatchObject({ body: { state: 'idle' } });
   });

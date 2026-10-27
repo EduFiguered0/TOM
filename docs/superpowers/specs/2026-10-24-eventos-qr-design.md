@@ -2,6 +2,8 @@
 
 Oct 24, 2026 · @Edduardo Souza Figueredo · parte de `docs/spec-tom.md` (fases 0–9 concluídas)
 
+> **Atualização (2026-10-26):** a confirmação de presença saiu. O QR fica aberto até o encerramento e a entrada depois da rodada 1 espera a aprovação do ADM. Ver `2026-10-26-ajustes-testes-design.md`, item 1.
+
 ## Por que
 
 Hoje o site inteiro pede login, a inscrição no evento depende do ADM conferir cada Player ID no check-in e o juiz é um grupo no Cognito criado por comando. No dia do evento isso gera fila e trabalho manual. O ADM ainda precisa digitar cada jogador no TOM, um a um, porque o TOM não importa listas.

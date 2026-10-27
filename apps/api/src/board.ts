@@ -9,8 +9,8 @@ export interface BoardDeps {
 }
 
 /**
- * Quadro público da TV, por fase do último evento: espera, QR com inscritos, confirmação de presença,
- * pareamentos da rodada ou classificação final (até o próximo evento ser criado). Só nomes, nunca Player ID.
+ * Quadro público da TV, por fase do último evento: espera, QR com inscritos, pareamentos da rodada (com o QR
+ * para quem chega tarde) ou classificação final (até o próximo evento ser criado). Só nomes, nunca Player ID.
  */
 export const createBoard = ({ registry, rounds, registrations, clock }: BoardDeps) => async (): Promise<BoardResponse> => {
   const serverTime = clock.now().toISOString();
@@ -22,13 +22,11 @@ export const createBoard = ({ registry, rounds, registrations, clock }: BoardDep
   switch (event.status) {
     case 'open':
       return { state: 'open', event: summary, code: event.code ?? '', registered: (await kept()).length, serverTime };
-    case 'confirming': {
-      const list = await kept();
-      return { state: 'confirming', event: summary, registered: list.length, confirmed: list.filter((r) => r.confirmed).length, serverTime };
-    }
     case 'running': {
       const current = await registry.current();
-      return current?.eventId === event.id ? { state: 'running', ...(await round(current, rounds, serverTime)) } : { state: 'idle', serverTime };
+      return current?.eventId === event.id
+        ? { state: 'running', ...(await round(current, rounds, serverTime)), code: event.code ?? '' }
+        : { state: 'idle', serverTime };
     }
     case 'final':
     case 'closed':

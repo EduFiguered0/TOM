@@ -23,22 +23,13 @@ describe('quadro da TV por fase do evento', () => {
     expect(await board(ctx.call)).toMatchObject({ state: 'open', event: { label: 'Liga de Outubro' }, code: active?.code, registered: 1 });
   });
 
-  it('sem QR depois de pedir a confirmação; contador de confirmados', async () => {
+  it('em andamento: pareamentos, cronômetro e o código do QR para quem chega tarde', async () => {
     const ctx = await setupRound();
     const active = ((await ctx.call('GET', '/events/active', ADM)).body as ActiveEventResponse).event;
-    await ctx.call('POST', `/join/${active?.code ?? ''}`, 'p1:c1');
-    await ctx.call('POST', `/join/${active?.code ?? ''}`, 'p2:c2');
-    await ctx.call('POST', `/events/${ctx.eventId}/confirmation`, ADM);
-    await ctx.call('POST', '/me/event/confirm', 'p1:c1');
-    const body = await board(ctx.call);
-    expect(body).toMatchObject({ state: 'confirming', registered: 2, confirmed: 1 });
-    expect(JSON.stringify(body)).not.toContain(active?.code ?? 'nada');
-  });
-
-  it('em andamento: pareamentos e cronômetro', async () => {
-    const ctx = await setupRound();
     await ctx.start();
-    expect(await board(ctx.call)).toMatchObject({ state: 'running', tournament: 'FODASE', round: 3, startedAt: expect.any(String) as unknown });
+    expect(await board(ctx.call)).toMatchObject({
+      state: 'running', tournament: 'FODASE', round: 3, startedAt: expect.any(String) as unknown, code: active?.code,
+    });
   });
 
   it('resultado final e encerrado: classificação, até o próximo evento', async () => {
@@ -61,9 +52,7 @@ describe('quadro da TV por fase do evento', () => {
     const ctx = await setupRound();
     const active = ((await ctx.call('GET', '/events/active', ADM)).body as ActiveEventResponse).event;
     await ctx.call('POST', `/join/${active?.code ?? ''}`, 'p1:c1');
-    await ctx.call('POST', `/events/${ctx.eventId}/confirmation`, ADM);
-    await ctx.call('POST', '/me/event/confirm', 'p1:c1');
-    await ctx.call('POST', '/round/start', ADM, { bestOf: 3, roundMinutes: null });
+    await ctx.start();
     expect(((await ctx.call('GET', '/me/event', 'p1:c1')).body as MyEventResponse).placement).toBeNull();
     await ctx.send(upload('standings'));
     // p1 é o Player ID 100001, "teste2 2" nas guias do TOM.

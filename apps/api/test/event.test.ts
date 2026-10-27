@@ -30,35 +30,32 @@ describe('ciclo do evento pela API', () => {
   it('jogador escaneia e fica inscrito; o ADM vê na lista com Player ID, nome e ano', async () => {
     const { call, code, list, ana } = await opened();
     const joined = await call('POST', `/join/${code}`, 'ana-email:c1');
-    expect(joined).toMatchObject({ status: 200, body: { event: { label: 'Liga de Outubro' }, registration: { accountId: ana, confirmed: false } } });
+    expect(joined).toMatchObject({ status: 200, body: { event: { label: 'Liga de Outubro' }, registration: { accountId: ana, awaitingApproval: false } } });
     expect(JSON.stringify(joined.body)).not.toContain(code);
     expect((await call('POST', `/join/${code}`, 'ana-email:c1')).status).toBe(200);
-    expect(await list()).toMatchObject({ total: 1, confirmed: 0, launched: 0, registrations: [{ playerId: '100001', name: 'Ana Souza', birthYear: 1990, inRound: null }] });
+    expect(await list()).toMatchObject({ total: 1, awaiting: 0, launched: 0, registrations: [{ playerId: '100001', name: 'Ana Souza', birthYear: 1990, inRound: null }] });
     expect((await call('GET', '/me/event', 'ana-email:c1')).body as MyEventResponse).toMatchObject({ event: { status: 'open' }, registration: { accountId: ana } });
     expect((await call('POST', '/join/ZZZZZZZZ', 'ana-email:c1')).status).toBe(404);
   });
 
-  it('pedir confirmação fecha o QR; o jogador confirma pelo celular; contadores', async () => {
-    const { call, code, list, event } = await opened();
-    await call('POST', `/join/${code}`, 'ana-email:c1');
-    expect(await call('POST', `/events/${event.id}/confirmation`, ADM)).toMatchObject({ status: 200, body: { status: 'confirming' } });
-    expect(await call('POST', `/join/${code}`, 'bia:c2')).toMatchObject({ status: 409, body: { message: 'Inscrições encerradas' } });
-    expect((await call('POST', '/me/event/confirm', 'ana-email:c1')).status).toBe(200);
-    expect(await list()).toMatchObject({ total: 1, confirmed: 1 });
+  it('rotas da confirmação de presença não existem mais (404)', async () => {
+    const { call, event, ana } = await opened();
+    expect((await call('POST', `/events/${event.id}/confirmation`, ADM)).status).toBe(404);
+    expect((await call('POST', '/me/event/confirm', 'ana-email:c1')).status).toBe(404);
+    expect((await call('POST', `/events/${event.id}/registrations/${ana}/confirm`, ADM)).status).toBe(404);
   });
 
-  it('ADM remove, confirma por ele, marca lançado e inscreve à mão', async () => {
+  it('ADM remove, marca lançado e inscreve à mão', async () => {
     const { call, code, list, event, ana, bia } = await opened();
     await call('POST', `/join/${code}`, 'ana-email:c1');
     expect((await call('POST', `/events/${event.id}/registrations`, ADM, { accountId: bia })).status).toBe(200);
     expect((await call('POST', `/events/${event.id}/registrations/${ana}/launched`, ADM, { launched: true })).status).toBe(200);
-    expect((await call('POST', `/events/${event.id}/registrations/${bia}/confirm`, ADM)).status).toBe(200);
     expect((await call('POST', `/events/${event.id}/registrations/${ana}/remove`, ADM)).status).toBe(200);
-    expect(await list()).toMatchObject({ total: 1, confirmed: 1, launched: 0 });
+    expect(await list()).toMatchObject({ total: 1, awaiting: 0, launched: 0 });
     expect(await call('POST', `/join/${code}`, 'ana-email:c1')).toMatchObject({ status: 403, body: { message: 'Sua inscrição foi removida, procure o ADM' } });
   });
 
-  it('inRound aponta quem confirmou e não está nas guias', async () => {
+  it('inRound aponta quem está inscrito e não está nas guias', async () => {
     const ctx = await setupRound();
     const p9 = await register(ctx.call, 'p9:c9', '100099');
     for (const token of ['p1:c1', 'p9:c9']) {
@@ -81,8 +78,7 @@ describe('ciclo do evento pela API', () => {
     const { call, event, ana } = await opened();
     expect((await call('GET', '/events/active', 'ana-email:c1')).status).toBe(403);
     expect((await call('GET', `/events/${event.id}/registrations`, 'ana-email:c1')).status).toBe(403);
-    expect((await call('POST', `/events/${event.id}/confirmation`, 'ana-email:c1')).status).toBe(403);
-    expect((await call('POST', `/events/${event.id}/registrations/${ana}/confirm`, 'ana-email:c1')).status).toBe(403);
+    expect((await call('POST', `/events/${event.id}/registrations/${ana}/approve`, 'ana-email:c1')).status).toBe(403);
     expect((await call('POST', `/join/${event.code ?? ''}`, null)).status).toBe(401);
     expect((await call('GET', '/me/event', null)).status).toBe(401);
   });
@@ -115,24 +111,24 @@ describe('resultado final e rodada 1', () => {
     expect(((await ctx.call('GET', '/events/active', ADM)).body as ActiveEventResponse).event?.status).toBe('running');
   });
 
-  it('não inicia a rodada 1 antes de pedir a confirmação', async () => {
-    const ctx = await setupRound();
-    expect(await ctx.call('POST', '/round/start', ADM, { bestOf: 3, roundMinutes: null })).toMatchObject({
-      status: 409, body: { message: 'Peça a confirmação de presença antes de iniciar a rodada 1' },
-    });
-  });
-
-  it('não inicia com pendente; confirmados todos, inicia e o evento fica em andamento', async () => {
+  it('rodada 1 inicia direto com o evento aberto e o evento fica em andamento', async () => {
     const ctx = await setupRound();
     const active = ((await ctx.call('GET', '/events/active', ADM)).body as ActiveEventResponse).event;
     await ctx.call('POST', `/join/${active?.code ?? ''}`, 'p1:c1');
-    await ctx.call('POST', `/events/${ctx.eventId}/confirmation`, ADM);
-    expect(await ctx.call('POST', '/round/start', ADM, { bestOf: 3, roundMinutes: null })).toMatchObject({
-      status: 409, body: { message: 'Ainda há 1 inscrito(s) sem confirmar presença' },
-    });
-    await ctx.call('POST', '/me/event/confirm', 'p1:c1');
     expect((await ctx.call('POST', '/round/start', ADM, { bestOf: 3, roundMinutes: null })).status).toBe(200);
     expect(((await ctx.call('GET', '/events/active', ADM)).body as ActiveEventResponse).event?.status).toBe('running');
+  });
+
+  it('entrada tardia: aguarda, aparece no contador, o ADM aprova', async () => {
+    const ctx = await setupRound();
+    const code = ((await ctx.call('GET', '/events/active', ADM)).body as ActiveEventResponse).event?.code ?? '';
+    await ctx.start();
+    const p9 = await register(ctx.call, 'p9:c9', '100099');
+    const list = async () => (await ctx.call('GET', `/events/${ctx.eventId}/registrations`, ADM)).body as RegistrationsResponse;
+    expect(await ctx.call('POST', `/join/${code}`, 'p9:c9')).toMatchObject({ status: 200, body: { registration: { awaitingApproval: true } } });
+    expect(await list()).toMatchObject({ total: 0, awaiting: 1 });
+    expect(await ctx.call('POST', `/events/${ctx.eventId}/registrations/${p9}/approve`, ADM)).toMatchObject({ status: 200, body: { awaitingApproval: false } });
+    expect(await list()).toMatchObject({ total: 1, awaiting: 0 });
   });
 
   it('rodada usa o tempo do evento quando não vem tempo', async () => {

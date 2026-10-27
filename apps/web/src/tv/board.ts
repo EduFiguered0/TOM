@@ -31,9 +31,5 @@ export const pages = <T>(items: readonly T[], perPage: number): T[][] => {
 export const qrPath = (data: readonly (readonly boolean[])[]): string =>
   data.flatMap((row, y) => row.flatMap((dark, x) => (dark ? [`M${String(x)} ${String(y)}h1v1h-1z`] : []))).join('');
 
-/** Chamada da confirmação: com todos confirmados, a espera passa a ser pelo ADM iniciar a rodada 1. */
-export const confirmCall = ({ confirmed, registered }: { confirmed: number; registered: number }): string =>
-  registered > 0 && confirmed >= registered ? 'Todos confirmados — aguardando o início da rodada 1' : 'Confirme sua presença no celular';
-
 /** Endereço que o QR abre: a inscrição no evento. */
 export const joinUrl = (origin: string, code: string): string => `${origin}/e/${code}`;

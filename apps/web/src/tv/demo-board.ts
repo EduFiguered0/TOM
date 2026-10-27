@@ -13,7 +13,7 @@ const NAMES = [
 
 const COLORS: TableColor[] = ['green', 'green', 'orange', 'gray', 'green', 'red', 'orange', 'green', 'gray', 'green'];
 
-export const demoBoard = (now = Date.now()): RoundBoard => {
+export const demoBoard = (now = Date.now()): RoundBoard & { code: string } => {
   const startedAt = now - 18 * 60_000;
   return {
     tournament: 'Liga Local de Outubro',
@@ -29,5 +29,6 @@ export const demoBoard = (now = Date.now()): RoundBoard => {
     })),
     byes: [NAMES[50] ?? ''],
     serverTime: new Date(now).toISOString(),
+    code: 'DEMOQR23',
   };
 };

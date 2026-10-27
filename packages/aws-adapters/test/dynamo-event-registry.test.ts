@@ -13,4 +13,9 @@ describe('evento lido do DynamoDB', () => {
     expect(fromStored(stored as never)).toMatchObject({ status: 'closed', roundMinutes: 30, code: null, standings: null, date: '2026-10-24' });
     expect(fromStored({ ...stored, createdAt: '2026-10-25T01:00:00.000Z' }).date).toBe('2026-10-24');
   });
+
+  it('evento gravado em "confirmando presença" lê como inscrições abertas', () => {
+    const stored = { id: 'ev', label: 'Liga', tournament: null, tokenHash: 'h', revoked: false, createdAt: '2026-10-24T13:00:00.000Z', createdBy: 'adm' };
+    expect(fromStored({ ...stored, status: 'confirming' } as never).status).toBe('open');
+  });
 });

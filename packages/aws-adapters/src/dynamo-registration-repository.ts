@@ -17,7 +17,7 @@ export interface DynamoRegistrationRepositoryOptions {
   retentionDays?: number;
 }
 
-type StoredRegistration = Omit<Registration, 'at'> & { at: string };
+type StoredRegistration = Omit<Registration, 'at' | 'awaitingApproval'> & { at: string; awaitingApproval?: boolean; confirmed?: boolean };
 
 const eventKey = (id: string) => ({ pk: `event#${id}`, sk: 'event' });
 const key = (eventId: string, accountId: string) => ({ pk: `event#${eventId}`, sk: `reg#${accountId}` });
@@ -43,7 +43,7 @@ export class DynamoRegistrationRepository implements RegistrationRepository {
         ConsistentRead: true,
         ExclusiveStartKey: start,
       }));
-      items.push(...(page.Items ?? []).map((item) => fromStored(item['registration'] as StoredRegistration)));
+      items.push(...(page.Items ?? []).map((item) => registrationFromStored(item['registration'] as StoredRegistration)));
       start = page.LastEvaluatedKey;
     } while (start);
     return items.sort(byInscription);
@@ -51,7 +51,7 @@ export class DynamoRegistrationRepository implements RegistrationRepository {
 
   async get(eventId: string, accountId: string): Promise<Registration | null> {
     const { Item } = await this.client.send(new GetCommand({ TableName: this.tableName, Key: key(eventId, accountId), ConsistentRead: true }));
-    return Item ? fromStored(Item['registration'] as StoredRegistration) : null;
+    return Item ? registrationFromStored(Item['registration'] as StoredRegistration) : null;
   }
 
   async put(registration: Registration, guard: EventStatus | null): Promise<void> {
@@ -65,7 +65,7 @@ export class DynamoRegistrationRepository implements RegistrationRepository {
       return;
     }
     try {
-      // Mesma transação: o QR nunca grava depois de o ADM pedir a confirmação.
+      // Mesma transação: o QR nunca grava fora do status esperado (ex.: depois do resultado final).
       await this.client.send(new TransactWriteCommand({
         TransactItems: [
           {
@@ -89,4 +89,8 @@ export class DynamoRegistrationRepository implements RegistrationRepository {
   }
 }
 
-const fromStored = (stored: StoredRegistration): Registration => ({ ...stored, at: new Date(stored.at) });
+/** Inscrição da época da confirmação de presença: sem `awaitingApproval`, e o `confirmed` sai. */
+export const registrationFromStored = (s: StoredRegistration): Registration => ({
+  eventId: s.eventId, accountId: s.accountId, playerId: s.playerId, name: s.name, birthYear: s.birthYear, at: new Date(s.at),
+  by: s.by, awaitingApproval: s.awaitingApproval ?? false, launched: s.launched, removed: s.removed,
+});

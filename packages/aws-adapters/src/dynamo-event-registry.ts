@@ -18,7 +18,8 @@ type Tiebreaks = 'points' | 'opponentWinPct' | 'opponentsOpponentWinPct';
 /** Eventos gravados antes dos desempates não têm esses campos. */
 type StoredStanding = Omit<FinalStanding, Tiebreaks> & Partial<Pick<FinalStanding, Tiebreaks>>;
 type StoredEvent = Omit<Stored<TournamentEvent, 'createdAt'>, 'judges' | 'date' | 'roundMinutes' | 'status' | 'code' | 'standings'>
-  & Partial<Pick<TournamentEvent, 'judges' | 'date' | 'roundMinutes' | 'status' | 'code'>> & { standings?: StoredStanding[] | null };
+  & Partial<Pick<TournamentEvent, 'judges' | 'date' | 'roundMinutes' | 'code'>>
+  & { status?: TournamentEvent['status'] | 'confirming'; standings?: StoredStanding[] | null };
 type StoredCurrent = Stored<CurrentRound, 'updatedAt'>;
 
 const eventKey = (id: string) => ({ pk: `event#${id}`, sk: 'event' });
@@ -144,7 +145,10 @@ const toStored = (event: TournamentEvent) => ({ ...event, createdAt: event.creat
 
 const localDate = (at: Date) => new Date(at.getTime() + LOCAL_OFFSET_MS).toISOString().slice(0, 10);
 
-/** Evento antigo: sem escala, 30 min, sem código, e encerrado (não bloqueia a criação do próximo). */
+/**
+ * Evento antigo: sem escala, 30 min, sem código, e encerrado (não bloqueia a criação do próximo).
+ * "Confirmando presença" (fase extinta) volta a inscrições abertas.
+ */
 export const eventFromStored = (stored: StoredEvent): TournamentEvent => {
   const createdAt = new Date(stored.createdAt);
   return {
@@ -153,7 +157,7 @@ export const eventFromStored = (stored: StoredEvent): TournamentEvent => {
     judges: stored.judges ?? [],
     date: stored.date ?? localDate(createdAt),
     roundMinutes: stored.roundMinutes ?? DEFAULT_ROUND_MINUTES,
-    status: stored.status ?? 'closed',
+    status: stored.status === 'confirming' ? 'open' : stored.status ?? 'closed',
     code: stored.code ?? null,
     standings: stored.standings?.map((s) => ({
       ...s, points: s.points ?? null, opponentWinPct: s.opponentWinPct ?? null, opponentsOpponentWinPct: s.opponentsOpponentWinPct ?? null,

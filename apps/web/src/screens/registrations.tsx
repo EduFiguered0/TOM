@@ -77,12 +77,16 @@ export const RegistrationsTable = ({ api, event, registrations }: { api: Api; ev
       </td>
       <td class="py-1.5 pr-2">
         {r.removed ? r.name : <button type="button" class={`${action} text-left text-text`} title="Copiar nome" onClick={() => { copy(r.name); }}>{r.name}</button>}
-        {r.confirmed && !r.removed && r.inRound === false && <div class="text-xs text-error">Não está nas guias da rodada atual</div>}
+        {!r.awaitingApproval && !r.removed && r.inRound === false && <div class="text-xs text-error">Não está nas guias da rodada atual</div>}
       </td>
       <td class="whitespace-nowrap py-1.5 pr-2">
-        {r.removed ? 'Removido' : r.confirmed ? <span class="text-ok">Confirmado</span> : (
-          <button type="button" class={`${action} text-warn`} disabled={busy} title="Confirmar por ele"
-            onClick={() => { void run(() => api.registrationAction(event.id, r.accountId, 'confirm')); }}>Confirmar</button>
+        {r.removed ? 'Removido' : r.awaitingApproval && (
+          <span class="flex gap-2">
+            <button type="button" class={`${action} text-ok`} disabled={busy}
+              onClick={() => { void run(() => api.registrationAction(event.id, r.accountId, 'approve')); }}>Aprovar</button>
+            <button type="button" class={`${action} text-error`} disabled={busy}
+              onClick={() => { if (confirm(`Recusar a entrada de ${r.name}?`)) void run(() => api.registrationAction(event.id, r.accountId, 'remove')); }}>Recusar</button>
+          </span>
         )}
       </td>
       <td class="py-1.5 pr-2 text-center">
@@ -92,7 +96,7 @@ export const RegistrationsTable = ({ api, event, registrations }: { api: Api; ev
         )}
       </td>
       <td class="py-1.5 text-right">
-        {!r.removed && (
+        {!r.removed && !r.awaitingApproval && (
           <button type="button" class={`${action} text-error`} disabled={busy}
             onClick={() => { if (confirm(`Remover ${r.name} do evento?`)) void run(() => api.registrationAction(event.id, r.accountId, 'remove')); }}>Remover</button>
         )}
@@ -109,7 +113,7 @@ export const RegistrationsTable = ({ api, event, registrations }: { api: Api; ev
             <thead class="sticky top-0 bg-panel">
               <tr class="border-b border-line text-left text-xs uppercase tracking-wide text-muted">
                 <th class="whitespace-nowrap py-1.5 pr-2 font-semibold">Player ID</th><th class="py-1.5 pr-2 font-semibold">Nome</th>
-                <th class="py-1.5 pr-2 font-semibold">Presença</th><th class="whitespace-nowrap py-1.5 pr-2 font-semibold">No TOM</th><th />
+                <th class="py-1.5 pr-2 font-semibold">Situação</th><th class="whitespace-nowrap py-1.5 pr-2 font-semibold">No TOM</th><th />
               </tr>
             </thead>
             <tbody>{data.registrations.map(row)}</tbody>

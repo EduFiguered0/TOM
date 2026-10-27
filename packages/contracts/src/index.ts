@@ -148,8 +148,8 @@ interface BoardEvent {
 export type BoardResponse =
   | { state: 'idle'; serverTime: string }
   | { state: 'open'; event: BoardEvent; code: string; registered: number; serverTime: string }
-  | { state: 'confirming'; event: BoardEvent; registered: number; confirmed: number; serverTime: string }
-  | ({ state: 'running' } & RoundBoard)
+  /** `code`: o QR continua no canto da TV para quem chega depois da rodada 1. */
+  | ({ state: 'running'; code: string } & RoundBoard)
   | { state: 'final'; event: BoardEvent; standings: FinalStandingDto[]; serverTime: string };
 
 /** Uma versão completa de um HTML do TOM, enviada pelo enviador com o token do evento (cabeçalho `x-upload-token`). */
@@ -192,7 +192,7 @@ export const parseUploadRequest = (body: unknown): UploadRequest => {
   return request;
 };
 
-export type EventStatusDto = 'open' | 'confirming' | 'running' | 'final' | 'closed' | 'cancelled';
+export type EventStatusDto = 'open' | 'running' | 'final' | 'closed' | 'cancelled';
 
 export interface EventDto {
   id: string;
@@ -242,18 +242,20 @@ export interface RegistrationDto {
   /** ISO 8601. */
   at: string;
   by: 'self' | 'admin';
-  confirmed: boolean;
+  /** Entrou pelo QR depois do início da rodada 1 e espera o ADM aprovar. */
+  awaitingApproval: boolean;
   launched: boolean;
   removed: boolean;
   /** Está nas guias da rodada atual deste evento; null antes de o TOM publicar uma rodada. */
   inRound: boolean | null;
 }
 
-/** Painel de inscritos; os contadores não contam os removidos. */
+/** Painel de inscritos; `total` e `launched` não contam os removidos nem quem aguarda aprovação. */
 export interface RegistrationsResponse {
   registrations: RegistrationDto[];
   total: number;
-  confirmed: number;
+  /** Entradas tardias esperando o ADM. */
+  awaiting: number;
   launched: number;
 }
 

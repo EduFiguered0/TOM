@@ -17,7 +17,7 @@ const event = (): TournamentEvent => ({
 
 const registration = (eventId: string, at: string, accountId = randomUUID()): Registration => ({
   eventId, accountId, playerId: toPlayerId('100001'), name: 'Ana Souza', birthYear: 1990,
-  at: new Date(at), by: 'self', confirmed: false, launched: false, removed: false,
+  at: new Date(at), by: 'self', awaitingApproval: false, launched: false, removed: false,
 });
 
 /** Contrato da porta: toda implementação (memória, DynamoDB) deve passar. Ids únicos por execução. */
@@ -37,13 +37,13 @@ export const registrationRepositoryContract = (name: string, create: () => { reg
       expect(await registrations.list(randomUUID())).toEqual([]);
     });
 
-    it('regravar troca os campos (confirmar, lançado, removido)', async () => {
+    it('regravar troca os campos (aprovar, lançado, removido)', async () => {
       const { registry, registrations } = create();
       const e = event();
       await registry.save(e, 0);
       const r = registration(e.id, '2026-10-24T13:01:00Z');
       await registrations.put(r, null);
-      const changed = { ...r, confirmed: true, launched: true, removed: true };
+      const changed = { ...r, awaitingApproval: true, launched: true, removed: true };
       await registrations.put(changed, null);
       expect(await registrations.get(e.id, r.accountId)).toEqual(changed);
       expect(await registrations.list(e.id)).toHaveLength(1);
@@ -54,7 +54,7 @@ export const registrationRepositoryContract = (name: string, create: () => { reg
       const e = event();
       await registry.save(e, 0);
       await registrations.put(registration(e.id, '2026-10-24T13:01:00Z'), 'open');
-      await registry.save({ ...e, status: 'confirming' }, 1);
+      await registry.save({ ...e, status: 'running' }, 1);
       const late = registration(e.id, '2026-10-24T13:02:00Z');
       await expect(registrations.put(late, 'open')).rejects.toThrow(EventStatusChangedError);
       expect(await registrations.get(e.id, late.accountId)).toBeNull();
