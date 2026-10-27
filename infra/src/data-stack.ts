@@ -2,20 +2,20 @@ import { CfnOutput, Duration, RemovalPolicy, Stack, Validations, type StackProps
 import { AttributeType, BillingMode, Table } from 'aws-cdk-lib/aws-dynamodb';
 import { BlockPublicAccess, Bucket, BucketEncryption } from 'aws-cdk-lib/aws-s3';
 import type { Construct } from 'constructs';
+import { nameOf, type Stage } from './names.js';
 
 /** LGPD: tudo expira 24 meses depois (spec, "Retenção"). */
 const RETENTION = Duration.days(730);
 
 export interface DataStackProps extends StackProps {
-  /** true para a stack de testes: pode ser destruída e não guarda nada por muito tempo. */
-  ephemeral: boolean;
+  /** test: pode ser destruída e não guarda nada por muito tempo. */
+  stage: Stage;
   /** Nome fixo do bucket de fotografias: a permissão da API vira um ARN literal, sem referência entre stacks. */
   snapshotsBucketName: string;
 }
 
-/** Nome do bucket de fotografias; único no mundo por incluir a conta e a região. */
-export const snapshotsBucketName = (account: string, region: string, ephemeral: boolean) =>
-  `tom-snapshots${ephemeral ? '-test' : ''}-${account}-${region}`;
+/** Nome do bucket de fotografias; único no mundo por incluir a conta (o projeto só existe em uma região). */
+export const snapshotsBucketName = (account: string, stage: Stage) => nameOf(stage, `snapshots-${account}`);
 
 /** Dados do sistema: eventos das rodadas e contas (DynamoDB) e fotografias dos HTMLs do TOM (S3). */
 export class DataStack extends Stack {
@@ -24,12 +24,14 @@ export class DataStack extends Stack {
   readonly tournaments: Table;
   readonly snapshots: Bucket;
 
-  constructor(scope: Construct, id: string, { ephemeral, snapshotsBucketName: bucketName, ...props }: DataStackProps) {
-    super(scope, id, { terminationProtection: !ephemeral, ...props });
+  constructor(scope: Construct, id: string, { stage, snapshotsBucketName: bucketName, ...props }: DataStackProps) {
+    super(scope, id, { terminationProtection: stage === 'prod', ...props });
+    const ephemeral = stage === 'test';
     const removalPolicy = ephemeral ? RemovalPolicy.DESTROY : RemovalPolicy.RETAIN;
 
     const table = (id: string, sortKey: AttributeType) => {
       const created = new Table(this, id, {
+        tableName: nameOf(stage, id.toLowerCase()),
         partitionKey: { name: 'pk', type: AttributeType.STRING },
         sortKey: { name: 'sk', type: sortKey },
         billingMode: BillingMode.PAY_PER_REQUEST,

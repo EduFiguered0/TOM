@@ -16,14 +16,17 @@ import {
   OriginRequestPolicy,
   PriceClass,
   ResponseHeadersPolicy,
+  S3OriginAccessControl,
   ViewerProtocolPolicy,
 } from 'aws-cdk-lib/aws-cloudfront';
 import { FunctionUrlOrigin, S3BucketOrigin } from 'aws-cdk-lib/aws-cloudfront-origins';
 import type { FunctionUrl } from 'aws-cdk-lib/aws-lambda';
 import { BlockPublicAccess, Bucket, BucketEncryption, type IBucket } from 'aws-cdk-lib/aws-s3';
 import type { Construct } from 'constructs';
+import { nameOf, type Stage } from './names.js';
 
 export interface WebStackProps extends StackProps {
+  stage: Stage;
   api: FunctionUrl;
   region: string;
   /** Domínio de login do Cognito: o site troca nele o código do Google pelo token. */
@@ -35,10 +38,11 @@ export interface WebStackProps extends StackProps {
  * CloudFront: 1 TB e 10 milhões de requisições/mês grátis, permanentemente.
  */
 export class WebStack extends Stack {
-  constructor(scope: Construct, id: string, { api, region, loginDomain, ...props }: WebStackProps) {
+  constructor(scope: Construct, id: string, { stage, api, region, loginDomain, ...props }: WebStackProps) {
     super(scope, id, props);
 
     const site = new Bucket(this, 'Site', {
+      bucketName: nameOf(stage, `site-${this.account}`),
       blockPublicAccess: BlockPublicAccess.BLOCK_ALL,
       encryption: BucketEncryption.S3_MANAGED,
       enforceSSL: true,
@@ -48,6 +52,7 @@ export class WebStack extends Stack {
 
     // Só o próprio site roda scripts; chamadas só para a API (mesmo endereço) e o Cognito. Protege o token guardado no navegador.
     const headers = new ResponseHeadersPolicy(this, 'Security', {
+      responseHeadersPolicyName: nameOf(stage, 'security-headers'),
       securityHeadersBehavior: {
         contentSecurityPolicy: {
           override: true,
@@ -73,6 +78,7 @@ export class WebStack extends Stack {
     // O CloudFront só repassa o Authorization em GET se ele fizer parte da chave de cache.
     // A API responde no-store: nada é guardado, e a chave por token isola os usuários.
     const apiCache = new CachePolicy(this, 'ApiCache', {
+      cachePolicyName: nameOf(stage, 'api-cache'),
       minTtl: Duration.seconds(0),
       defaultTtl: Duration.seconds(0),
       maxTtl: Duration.seconds(1),
@@ -86,20 +92,24 @@ export class WebStack extends Stack {
     // Rotas do app (ex.: /tv, /painel) servem o index.html. Só no site: uma regra de erro do CloudFront
     // valeria também para a API e trocaria os 404/403 dela por HTML. 2 milhões de execuções/mês grátis.
     const spaRoutes = new CloudFrontFunction(this, 'SpaRoutes', {
+      functionName: nameOf(stage, 'spa-routes'),
       runtime: FunctionRuntime.JS_2_0,
       code: FunctionCode.fromInline(
         "function handler(event) { var r = event.request; if (r.uri.indexOf('.') === -1) { r.uri = '/index.html'; } return r; }",
       ),
     });
 
+    const originAccessControl = new S3OriginAccessControl(this, 'SiteAccess', { originAccessControlName: nameOf(stage, 'site-oac') });
+
     const distribution = new Distribution(this, 'Cdn', {
+      comment: nameOf(stage, 'site'),
       defaultRootObject: 'index.html',
       httpVersion: HttpVersion.HTTP2_AND_3,
       // Todas as bordas, inclusive São Paulo: menos latência no 4G do salão. Volume mínimo, coberto pela franquia.
       priceClass: PriceClass.PRICE_CLASS_ALL,
       defaultBehavior: {
         // Conversão só de tipo: a declaração do CDK conflita com exactOptionalPropertyTypes.
-        origin: S3BucketOrigin.withOriginAccessControl(site as IBucket),
+        origin: S3BucketOrigin.withOriginAccessControl(site as IBucket, { originAccessControl }),
         viewerProtocolPolicy: ViewerProtocolPolicy.REDIRECT_TO_HTTPS,
         responseHeadersPolicy: headers,
         compress: true,

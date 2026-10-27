@@ -17,10 +17,11 @@ import { PolicyStatement, Role, ServicePrincipal } from 'aws-cdk-lib/aws-iam';
 import { Architecture, Code, Function as LambdaFunction, Runtime } from 'aws-cdk-lib/aws-lambda';
 import { LogGroup, RetentionDays } from 'aws-cdk-lib/aws-logs';
 import type { Construct } from 'constructs';
+import { nameDefaultPolicy, nameOf, type Stage } from './names.js';
 
 export interface AuthStackProps extends StackProps {
-  /** true para a stack de testes: pode ser destruída e permite login por senha via API de admin. */
-  ephemeral: boolean;
+  /** test: pode ser destruída e permite login por senha via API de admin. */
+  stage: Stage;
   /** Prefixo do domínio de login (`<prefixo>.auth.us-east-2.amazoncognito.com`), usado no retorno do Google. */
   domainPrefix: string;
   /** Liga o Google no cliente do app; só depois de o provedor ser criado no pool (guia de operação). */
@@ -47,11 +48,13 @@ export class AuthStack extends Stack {
   readonly client: UserPoolClient;
   readonly loginDomain: string;
 
-  constructor(scope: Construct, id: string, { ephemeral, domainPrefix, google, callbackUrls, ...props }: AuthStackProps) {
-    super(scope, id, { terminationProtection: !ephemeral, ...props });
+  constructor(scope: Construct, id: string, { stage, domainPrefix, google, callbackUrls, ...props }: AuthStackProps) {
+    super(scope, id, { terminationProtection: stage === 'prod', ...props });
+    const ephemeral = stage === 'test';
 
     // "V2": o pool de antes tinha o e-mail fixo, e atributo de pool existente não muda; o antigo (produção) ficou guardado.
     this.userPool = new UserPool(this, 'UsersV2', {
+      userPoolName: nameOf(stage, 'users'),
       featurePlan: FeaturePlan.ESSENTIALS,
       selfSignUpEnabled: true,
       signInAliases: { email: true },
@@ -82,10 +85,15 @@ export class AuthStack extends Stack {
     );
 
     // Gatilho mínimo, dentro da franquia da Lambda (US$ 0); role própria com logs só no grupo dele.
-    const logGroup = new LogGroup(this, 'PreSignUpLogs', { retention: RetentionDays.TWO_WEEKS, removalPolicy: RemovalPolicy.DESTROY });
-    const role = new Role(this, 'PreSignUpRole', { assumedBy: new ServicePrincipal('lambda.amazonaws.com') });
+    const preSignUpName = nameOf(stage, 'pre-signup');
+    const logGroup = new LogGroup(this, 'PreSignUpLogs', {
+      logGroupName: `/aws/lambda/${preSignUpName}`, retention: RetentionDays.TWO_WEEKS, removalPolicy: RemovalPolicy.DESTROY,
+    });
+    const role = new Role(this, 'PreSignUpRole', { roleName: nameOf(stage, 'pre-signup-role'), assumedBy: new ServicePrincipal('lambda.amazonaws.com') });
     role.addToPolicy(new PolicyStatement({ actions: ['logs:CreateLogStream', 'logs:PutLogEvents'], resources: [logGroup.logGroupArn] }));
+    nameDefaultPolicy(role, nameOf(stage, 'pre-signup-policy'));
     const preSignUp = new LambdaFunction(this, 'PreSignUp', {
+      functionName: preSignUpName,
       code: Code.fromInline(PRE_SIGN_UP_CODE),
       handler: 'index.handler',
       runtime: Runtime.NODEJS_22_X,
@@ -113,6 +121,7 @@ export class AuthStack extends Stack {
     }
 
     this.client = this.userPool.addClient('App', {
+      userPoolClientName: nameOf(stage, 'site'),
       generateSecret: false,
       authFlows: { user: true, adminUserPassword: ephemeral },
       accessTokenValidity: Duration.minutes(15),

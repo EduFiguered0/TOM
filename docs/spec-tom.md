@@ -224,16 +224,16 @@ Tudo em us-east-2 (região única do projeto AWS). Cada recurso de produção te
 
 | Recurso | Stack (produção / testes) | Para quê | Preço | Projeção/mês |
 | --- | --- | --- | --- | --- |
-| DynamoDB `Events` (sob demanda, TTL 24 meses, PITR em produção) | TomData / TomTest | Eventos das rodadas | US$ 0,625 por milhão de escritas, US$ 0,125 por milhão de leituras; 25 GB grátis; PITR US$ 0,20/GB-mês | < US$ 0,10 |
-| DynamoDB `Accounts` (idem) | TomData / TomTest | Contas, auditoria de identidade e trava do Player ID | idem | < US$ 0,01 |
-| DynamoDB `Tournaments` (idem) | TomData / TomTest | Eventos do ADM, trava do token do enviador, rodada atual | idem | < US$ 0,01 |
-| S3 `Snapshots` (nome fixo, privado, SSE-S3, só HTTPS, expira em 24 meses) | TomData / TomTest | Fotografias dos HTMLs do TOM | US$ 0,023/GB-mês; US$ 0,005 por mil gravações | < US$ 0,01 |
-| Cognito user pool, plano Essentials | TomAuth / TomAuthTest | Login (e-mail e senha; Google), grupos admin e judge | 10 mil usuários ativos/mês grátis; depois US$ 0,015 cada | US$ 0 |
-| Lambda `PreSignUp` (Node 22, Arm, 128 MB, inline) **[R4]** | TomAuth / TomAuthTest | Confirma o cadastro com senha na hora, sem e-mail | Franquia mensal da Lambda | US$ 0 |
-| E-mail do Cognito (padrão, sem SES) | TomAuth | Só o código do "Esqueci minha senha" **[R4]** | Grátis; limite de ~50 e-mails/dia | US$ 0 |
-| Lambda `Handler` (Node 22, Arm, 256 MB) | TomApi / TomApiTest | API inteira (roteador único) | US$ 0,20 por milhão + US$ 0,0000133/GB-s; 1 milhão de execuções e 400 mil GB-s grátis por mês | US$ 0 |
-| Lambda Function URL | TomApi / TomApiTest | Endereço HTTPS da API, sem API Gateway | Sem cobrança própria | US$ 0 |
-| CloudWatch Logs (14 dias) | TomApi / TomApiTest | Logs da Lambda | 5 GB/mês grátis; depois ~US$ 0,50/GB | US$ 0 |
+| DynamoDB `Events` (sob demanda, TTL 24 meses, PITR em produção) | tom-prod-data / tom-test-data | Eventos das rodadas | US$ 0,625 por milhão de escritas, US$ 0,125 por milhão de leituras; 25 GB grátis; PITR US$ 0,20/GB-mês | < US$ 0,10 |
+| DynamoDB `Accounts` (idem) | tom-prod-data / tom-test-data | Contas, auditoria de identidade e trava do Player ID | idem | < US$ 0,01 |
+| DynamoDB `Tournaments` (idem) | tom-prod-data / tom-test-data | Eventos do ADM, trava do token do enviador, rodada atual | idem | < US$ 0,01 |
+| S3 `Snapshots` (nome fixo, privado, SSE-S3, só HTTPS, expira em 24 meses) | tom-prod-data / tom-test-data | Fotografias dos HTMLs do TOM | US$ 0,023/GB-mês; US$ 0,005 por mil gravações | < US$ 0,01 |
+| Cognito user pool, plano Essentials | tom-prod-auth / tom-test-auth | Login (e-mail e senha; Google), grupos admin e judge | 10 mil usuários ativos/mês grátis; depois US$ 0,015 cada | US$ 0 |
+| Lambda `PreSignUp` (Node 22, Arm, 128 MB, inline) **[R4]** | tom-prod-auth / tom-test-auth | Confirma o cadastro com senha na hora, sem e-mail | Franquia mensal da Lambda | US$ 0 |
+| E-mail do Cognito (padrão, sem SES) | tom-prod-auth | Só o código do "Esqueci minha senha" **[R4]** | Grátis; limite de ~50 e-mails/dia | US$ 0 |
+| Lambda `Handler` (Node 22, Arm, 256 MB) | tom-prod-api / tom-test-api | API inteira (roteador único) | US$ 0,20 por milhão + US$ 0,0000133/GB-s; 1 milhão de execuções e 400 mil GB-s grátis por mês | US$ 0 |
+| Lambda Function URL | tom-prod-api / tom-test-api | Endereço HTTPS da API, sem API Gateway | Sem cobrança própria | US$ 0 |
+| CloudWatch Logs (14 dias) | tom-prod-api / tom-test-api | Logs da Lambda | 5 GB/mês grátis; depois ~US$ 0,50/GB | US$ 0 |
 | CloudFront + S3 `Site` | TomWeb | Site (celular, TV, ADM) e `/api` no mesmo endereço | 1 TB e 10 milhões de requisições/mês grátis, permanentemente | US$ 0 |
 | CloudFront Function `SpaRoutes` | TomWeb | Rotas do app (`/tv`) servem o `index.html` sem mexer nos erros da API | 2 milhões de execuções/mês grátis | US$ 0 |
 | Bootstrap do CDK (`CDKToolkit`) | — | Bucket de assets e roles de deploy | S3 e ECR mínimos | ~US$ 0 |

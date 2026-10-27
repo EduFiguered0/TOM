@@ -7,9 +7,10 @@ import { NodejsFunction } from 'aws-cdk-lib/aws-lambda-nodejs';
 import { LogGroup, RetentionDays } from 'aws-cdk-lib/aws-logs';
 import type { Construct } from 'constructs';
 import { fileURLToPath } from 'node:url';
+import { nameDefaultPolicy, nameOf, type Stage } from './names.js';
 
 export interface ApiStackProps extends StackProps {
-  ephemeral: boolean;
+  stage: Stage;
   accounts: Table;
   events: Table;
   tournaments: Table;
@@ -28,22 +29,25 @@ const HANDLER = fileURLToPath(new URL('../../apps/api/src/handler.ts', import.me
 export class ApiStack extends Stack {
   readonly functionUrl: FunctionUrl;
 
-  constructor(scope: Construct, id: string, { ephemeral, accounts, events, tournaments, snapshotsBucket, userPool, client, ...props }: ApiStackProps) {
+  constructor(scope: Construct, id: string, { stage, accounts, events, tournaments, snapshotsBucket, userPool, client, ...props }: ApiStackProps) {
     super(scope, id, props);
+    const functionName = nameOf(stage, 'api');
 
     const logGroup = new LogGroup(this, 'Logs', {
+      logGroupName: `/aws/lambda/${functionName}`,
       retention: RetentionDays.TWO_WEEKS,
       removalPolicy: RemovalPolicy.DESTROY,
     });
 
     // Role própria: logs só no grupo desta função, em vez da política gerenciada que libera todos os grupos.
-    const role = new Role(this, 'Role', { assumedBy: new ServicePrincipal('lambda.amazonaws.com') });
+    const role = new Role(this, 'Role', { roleName: nameOf(stage, 'api-role'), assumedBy: new ServicePrincipal('lambda.amazonaws.com') });
     role.addToPolicy(new PolicyStatement({
       actions: ['logs:CreateLogStream', 'logs:PutLogEvents'],
       resources: [logGroup.logGroupArn],
     }));
 
     const fn = new NodejsFunction(this, 'Handler', {
+      functionName,
       entry: HANDLER,
       handler: 'handler',
       runtime: Runtime.NODEJS_22_X,
@@ -60,7 +64,7 @@ export class ApiStack extends Stack {
         USER_POOL_ID: userPool.userPoolId,
         USER_POOL_CLIENT_ID: client.userPoolClientId,
         // Testes não guardam contas por 24 meses.
-        ...(ephemeral ? { RETENTION_DAYS: '1' } : {}),
+        ...(stage === 'test' ? { RETENTION_DAYS: '1' } : {}),
       },
       bundling: {
         minify: true,
@@ -80,6 +84,7 @@ export class ApiStack extends Stack {
     const bucketArn = `arn:aws:s3:::${snapshotsBucket}`;
     role.addToPolicy(new PolicyStatement({ actions: ['s3:PutObject', 's3:GetObject'], resources: [`${bucketArn}/*`] }));
     role.addToPolicy(new PolicyStatement({ actions: ['s3:ListBucket'], resources: [bucketArn] }));
+    nameDefaultPolicy(role, nameOf(stage, 'api-policy'));
 
     const fnUrl = fn.addFunctionUrl({
       authType: FunctionUrlAuthType.NONE,
@@ -98,6 +103,6 @@ export class ApiStack extends Stack {
     });
 
     new CfnOutput(this, 'ApiUrl', { value: fnUrl.url });
-    if (ephemeral) new CfnOutput(this, 'ApiFunctionName', { value: fn.functionName });
+    if (stage === 'test') new CfnOutput(this, 'ApiFunctionName', { value: fn.functionName });
   }
 }

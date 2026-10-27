@@ -47,8 +47,8 @@ describe('ApiStack', () => {
     ]);
     expect(statements.flat().some((a) => a.includes('*'))).toBe(false);
     expect(policy.Properties.PolicyDocument.Statement.slice(-2).map((s) => s.Resource)).toEqual([
-      'arn:aws:s3:::tom-snapshots-123456789012-us-east-2/*',
-      'arn:aws:s3:::tom-snapshots-123456789012-us-east-2',
+      'arn:aws:s3:::tom-prod-snapshots-123456789012/*',
+      'arn:aws:s3:::tom-prod-snapshots-123456789012',
     ]);
     template.hasResourceProperties('AWS::IAM::Role', { ManagedPolicyArns: Match.absent() });
   });

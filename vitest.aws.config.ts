@@ -1,6 +1,6 @@
 import { defineConfig } from 'vitest/config';
 
-/** Testes contra a AWS real (stack TomTest). Precisam de credenciais: `aws login --profile tom`. */
+/** Testes contra a AWS real (stacks tom-test-*). Precisam de credenciais: `aws login --profile tom`. */
 export default defineConfig({
   resolve: { conditions: ['source'] },
   ssr: { resolve: { conditions: ['source'] } },

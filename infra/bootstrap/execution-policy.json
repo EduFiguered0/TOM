@@ -11,8 +11,10 @@
       ],
       "Resource": [
         "arn:aws:dynamodb:us-east-2:*:table/Tom*",
+        "arn:aws:dynamodb:us-east-2:*:table/tom-*",
         "arn:aws:s3:::tom*",
-        "arn:aws:lambda:us-east-2:*:function:Tom*"
+        "arn:aws:lambda:us-east-2:*:function:Tom*",
+        "arn:aws:lambda:us-east-2:*:function:tom-*"
       ]
     },
     {
@@ -55,13 +57,13 @@
         "iam:DeleteRolePolicy",
         "iam:GetRolePolicy"
       ],
-      "Resource": "arn:aws:iam::*:role/Tom*"
+      "Resource": ["arn:aws:iam::*:role/Tom*", "arn:aws:iam::*:role/tom-*"]
     },
     {
       "Sid": "LerOutputsDasStacks",
       "Effect": "Allow",
       "Action": "cloudformation:DescribeStacks",
-      "Resource": "arn:aws:cloudformation:us-east-2:*:stack/Tom*/*"
+      "Resource": ["arn:aws:cloudformation:us-east-2:*:stack/Tom*/*", "arn:aws:cloudformation:us-east-2:*:stack/tom-*/*"]
     },
     {
       "Sid": "LerPacotesDoCdk",

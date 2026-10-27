@@ -7,4 +7,4 @@ import { awsConfig, testStackOutput } from './aws-env.js';
 const client = DynamoDBDocumentClient.from(new DynamoDBClient(awsConfig));
 const tableName = await testStackOutput('TournamentsTableName');
 
-photoStoreContract('DynamoDB (TomTest)', () => new DynamoPhotoStore(client, { tableName, retentionDays: 1 }));
+photoStoreContract('DynamoDB (tom-test-data)', () => new DynamoPhotoStore(client, { tableName, retentionDays: 1 }));
