@@ -1,6 +1,6 @@
 {
   "region": "us-east-2",
-  "userPoolClientId": "1tce8jso6f6vsenfsdprdasj4l",
+  "userPoolClientId": "35pmgksak94ftbptrfir1cmqd1",
   "loginDomain": "https://ggtcg-login-teste.auth.us-east-2.amazoncognito.com",
   "google": false
 }
