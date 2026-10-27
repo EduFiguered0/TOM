@@ -79,6 +79,10 @@ export class RoundService {
       requireStarted(state);
       const table = findTable(state, input.table);
       const side = this.sideOf(actor, table, input.side);
+      // Um reporte por jogador: correção é com o juiz (o ADM, reportando por quem está sem celular, ainda corrige).
+      if (actor.role === 'player' && table.reports[side]) {
+        throw new CommandRejected('table_locked', 'Você já reportou esta mesa. Para corrigir, chame o juiz.');
+      }
       if (!canPlayerReport(table.status, table.keyLaunched)) {
         throw new CommandRejected('table_locked', 'Mesa já validada; só juiz ou ADM corrigem via override');
       }
@@ -91,15 +95,15 @@ export class RoundService {
   async applyOverride(
     actor: Actor,
     ref: RoundRef,
-    input: { table: number; override: Override; reason: string },
+    input: { table: number; override: Override; reason?: string },
   ): Promise<{ state: RoundState; requiresTomFix: boolean }> {
     let requiresTomFix = false;
     const state = await this.execute(ref, (current) => {
       requireRole(actor, 'judge', 'admin');
       requireStarted(current);
       const table = findTable(current, input.table);
-      const reason = input.reason.trim();
-      if (!reason) throw new CommandRejected('invalid_input', 'Override exige motivo');
+      // Motivo é opcional: custava tempo no evento; a auditoria guarda autor e horário.
+      const reason = (input.reason ?? '').trim();
       validated(() => overrideResult(input.override, current.bestOf ?? 3));
       requiresTomFix = overrideRequiresTomFix(table.keyLaunched);
       return { actor, data: { type: 'override_applied', table: table.table, override: input.override, reason } };

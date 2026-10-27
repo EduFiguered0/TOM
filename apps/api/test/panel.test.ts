@@ -83,13 +83,13 @@ describe('painel do ADM e do juiz', () => {
     expect((await act('key-launched')).body).toMatchObject({ error: 'key_already_launched' });
   });
 
-  it('override do juiz exige motivo, prevalece sobre os reportes e avisa se a key já foi lançada', async () => {
+  it('override do juiz (motivo opcional) prevalece sobre os reportes e avisa se a key já foi lançada', async () => {
     const { start, report, table1, act } = await withPanel();
     await start();
     await report('p1:c1', { kind: 'score', own: 2, opponent: 0 });
     await report('p2:c2', { kind: 'score', own: 2, opponent: 0 });
     expect((await table1())?.color).toBe('red');
-    expect((await act('override', { override: { kind: 'win_by_absence', winner: 'player2' }, reason: ' ' }, JUIZ)).status).toBe(400);
+    expect((await act('override', { override: { kind: 'win_by_absence', winner: 'player1' } }, JUIZ)).status).toBe(200);
     const ok = await act('override', { override: { kind: 'win_by_absence', winner: 'player2' }, reason: 'Jogador 1 ausente' }, JUIZ);
     expect(ok.body).toMatchObject({ requiresTomFix: false });
     expect(await table1()).toMatchObject({ color: 'green', override: { reason: 'Jogador 1 ausente', by: expect.stringMatching(/^judge:/) as unknown } });

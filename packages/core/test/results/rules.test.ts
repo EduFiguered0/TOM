@@ -12,8 +12,8 @@ import {
 const start = new Date('2026-10-23T14:00:00Z');
 
 describe('tableDeadline', () => {
-  it('30 minutos por padrão', () => {
-    expect(tableDeadline(start)).toEqual(new Date('2026-10-23T14:30:00Z'));
+  it('50 minutos por padrão', () => {
+    expect(tableDeadline(start)).toEqual(new Date('2026-10-23T14:50:00Z'));
   });
 
   it('tempo ajustado pelo ADM mais acréscimo da mesa', () => {

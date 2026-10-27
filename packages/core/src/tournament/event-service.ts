@@ -231,7 +231,10 @@ export class EventService {
     });
   }
 
-  /** O primeiro envio amarra o torneio do TOM ao evento; depois, outro torneio é recusado. */
+  /**
+   * O primeiro envio amarra o torneio do TOM ao evento; depois, outro torneio é recusado.
+   * O nome do evento passa a ser sempre o do torneio no TOM.
+   */
   private async bind(
     record: { event: TournamentEvent; version: number },
     tournament: string,
@@ -239,9 +242,9 @@ export class EventService {
     retry: () => Promise<TournamentEvent>,
   ): Promise<TournamentEvent> {
     const { event, version } = record;
-    if (event.tournament === tournament) return event;
-    if (event.tournament !== null) throw mismatch();
-    const bound = { ...event, tournament };
+    if (event.tournament !== null && event.tournament !== tournament) throw mismatch();
+    if (event.tournament === tournament && event.label === tournament) return event;
+    const bound = { ...event, tournament, label: tournament };
     try {
       await this.deps.events.save(bound, version);
     } catch (e) {

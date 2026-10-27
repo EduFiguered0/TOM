@@ -470,7 +470,8 @@ export const parseOverrideRequest = (body: unknown): OverrideRequest => {
   const root = object(body, 'Corpo');
   const o = object(root['override'], 'override');
   const kind = field(o, 'kind', 'string');
-  const reason = field(root, 'reason', 'string');
+  // Motivo opcional: ausente vira vazio.
+  const reason = root['reason'] === undefined ? '' : field(root, 'reason', 'string');
   switch (kind) {
     case 'score': return { reason, override: { kind, player1: field(o, 'player1', 'number'), player2: field(o, 'player2', 'number') } };
     case 'intentional_draw':
