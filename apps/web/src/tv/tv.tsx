@@ -1,6 +1,6 @@
 import type { RoundBoard, TableColor } from '@tom/contracts';
-import { useEffect, useState } from 'preact/hooks';
-import { joinUrl, pages, roundClock, tvColumns } from './board.js';
+import { useEffect, useMemo, useState } from 'preact/hooks';
+import { clockSkew, joinUrl, pages, roundClock, tvColumns } from './board.js';
 import { Qr } from './qr.js';
 import { DOT, EDGE, eventTitle, screen, tile } from './styles.js';
 
@@ -43,12 +43,13 @@ const sides = (result: Table['result']): [string, string] => {
 };
 
 /** TV do salão: todas as mesas numa página, em ordem, com o vencedor de cada uma; byes e o QR para quem chega tarde. */
-export const Tv = ({ board }: { board: RoundBoard & { code?: string } }) => {
+export const Tv = ({ board, receivedAt }: { board: RoundBoard & { code?: string }; receivedAt?: number }) => {
   const [now, setNow] = useState(Date.now());
   const [page, setPage] = useState(0);
-  const skew = Date.parse(board.serverTime) - Date.now();
+  // Medida uma vez por resposta (não a cada segundo): senão o cronômetro congela entre as consultas.
+  const skew = useMemo(() => clockSkew(board.serverTime, receivedAt ?? Date.now()), [board.serverTime, receivedAt]);
   const layout = tvColumns(board.tables.length);
-  const all = pages(board.tables, layout.columns * layout.perColumn);
+  const all = pages(board.tables, Math.max(1, layout.perPage));
   const current = all[page % all.length] ?? [];
   const rows = layout.columns === 1 ? Math.min(layout.perColumn, Math.max(current.length, 8)) : layout.perColumn;
   const size = SIZE[layout.columns];
@@ -82,12 +83,22 @@ export const Tv = ({ board }: { board: RoundBoard & { code?: string } }) => {
             const [one, two] = sides(t.result);
             return (
               <li key={t.table} class={`${tile} border-l-[.5vw] ${EDGE[t.color]}`} title={LABEL[t.color]}>
-                <span class={`text-right font-extrabold tabular-nums ${size.number}`}>{t.table}</span>
-                <span class={`flex min-w-0 flex-1 items-baseline gap-[.8vw] ${size.name}`}>
-                  <span class={`flex-1 truncate ${one}`}>{t.player1}</span>
-                  <span class={`text-[.8em] ${t.result === 'tie' ? 'font-bold text-orange' : 'text-muted'}`}>{t.result === 'tie' ? '=' : 'x'}</span>
-                  <span class={`flex-1 truncate text-right ${two}`}>{t.player2}</span>
-                </span>
+                <span class={`text-right font-extrabold leading-none tabular-nums ${size.number}`}>{t.table}</span>
+                {layout.columns === 3
+                  ? (
+                    // Três colunas: um jogador por linha, para o nome inteiro caber.
+                    <span class={`flex min-w-0 flex-1 flex-col justify-center gap-[.3vh] leading-none ${size.name}`}>
+                      <span class={`truncate ${one}`}>{t.player1}</span>
+                      <span class={`truncate ${two}`}>{t.result === 'tie' ? <b class="text-orange">= </b> : null}{t.player2}</span>
+                    </span>
+                  )
+                  : (
+                    <span class={`flex min-w-0 flex-1 items-baseline gap-[.8vw] leading-none ${size.name}`}>
+                      <span class={`flex-1 truncate ${one}`}>{t.player1}</span>
+                      <span class={`text-[.8em] ${t.result === 'tie' ? 'font-bold text-orange' : 'text-muted'}`}>{t.result === 'tie' ? '=' : 'x'}</span>
+                      <span class={`flex-1 truncate text-right ${two}`}>{t.player2}</span>
+                    </span>
+                  )}
                 <span class={`size-[1vw] shrink-0 rounded-full ${DOT[t.color]}`} aria-label={LABEL[t.color]} />
               </li>
             );

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { freshServerTime, joinUrl, pages, qrPath, roundClock, tvColumns } from '../src/tv/board.js';
+import { clockSkew, freshServerTime, joinUrl, pages, qrPath, roundClock, tvColumns } from '../src/tv/board.js';
 
 const endsAt = '2026-10-24T15:30:00.000Z';
 const at = (iso: string) => Date.parse(iso);
@@ -44,11 +44,10 @@ describe('QR da TV', () => {
 
 describe('colunas da TV', () => {
   it('até 15 mesas por coluna e até 3 colunas; acima de 45, páginas', () => {
-    expect(tvColumns(10)).toEqual({ columns: 1, perColumn: 15, pages: 1 });
-    expect(tvColumns(16)).toEqual({ columns: 2, perColumn: 15, pages: 1 });
-    expect(tvColumns(45)).toEqual({ columns: 3, perColumn: 15, pages: 1 });
-    expect(tvColumns(46)).toEqual({ columns: 3, perColumn: 15, pages: 2 });
-    expect(tvColumns(0)).toEqual({ columns: 1, perColumn: 15, pages: 1 });
+    expect(tvColumns(10)).toEqual({ columns: 1, perColumn: 15, pages: 1, perPage: 10 });
+    expect(tvColumns(16)).toEqual({ columns: 2, perColumn: 15, pages: 1, perPage: 16 });
+    expect(tvColumns(45)).toEqual({ columns: 3, perColumn: 15, pages: 1, perPage: 45 });
+    expect(tvColumns(0)).toEqual({ columns: 1, perColumn: 15, pages: 1, perPage: 0 });
   });
 });
 
@@ -57,5 +56,22 @@ describe('relógio do servidor com cache', () => {
     expect(freshServerTime('2026-10-26T20:00:00.000Z', '4')).toBe('2026-10-26T20:00:04.000Z');
     expect(freshServerTime('2026-10-26T20:00:00.000Z', null)).toBe('2026-10-26T20:00:00.000Z');
     expect(freshServerTime('2026-10-26T20:00:00.000Z', 'x')).toBe('2026-10-26T20:00:00.000Z');
+  });
+});
+
+describe('cronômetro anda a cada segundo', () => {
+  it('a diferença de relógio é medida na chegada da resposta, não a cada segundo', () => {
+    const board = { endsAt: '2026-10-26T20:10:00.000Z', serverTime: '2026-10-26T20:00:00.000Z' };
+    const receivedAt = Date.parse('2026-10-26T19:59:58.000Z');
+    const skew = clockSkew(board.serverTime, receivedAt);
+    expect(roundClock(board, receivedAt, skew)).toMatchObject({ text: '10:00' });
+    expect(roundClock(board, receivedAt + 3000, skew)).toMatchObject({ text: '09:57' });
+  });
+});
+
+describe('páginas iguais acima de 45 mesas', () => {
+  it('46 mesas viram duas páginas de 23', () => {
+    expect(tvColumns(46)).toMatchObject({ pages: 2, perPage: 23, columns: 2 });
+    expect(tvColumns(91)).toMatchObject({ pages: 3, perPage: 31, columns: 3 });
   });
 });

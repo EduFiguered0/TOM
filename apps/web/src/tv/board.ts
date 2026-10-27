@@ -23,11 +23,22 @@ export const roundClock = (board: Pick<RoundBoard, 'endsAt'>, nowMs: number, ske
 const PER_COLUMN = 15;
 const MAX_COLUMNS = 3;
 
-/** Mesas numa página só: até 15 por coluna e até 3 colunas; acima de 45, páginas de 45 que trocam sozinhas. */
-export const tvColumns = (count: number): { columns: 1 | 2 | 3; perColumn: number; pages: number } => {
-  const columns = Math.min(MAX_COLUMNS, Math.max(1, Math.ceil(count / PER_COLUMN))) as 1 | 2 | 3;
-  return { columns, perColumn: PER_COLUMN, pages: Math.max(1, Math.ceil(count / (PER_COLUMN * MAX_COLUMNS))) };
+/**
+ * Mesas numa página só: até 15 por coluna e até 3 colunas. Acima de 45, páginas do mesmo tamanho (46 → 23 + 23)
+ * que trocam sozinhas.
+ */
+export const tvColumns = (count: number): { columns: 1 | 2 | 3; perColumn: number; pages: number; perPage: number } => {
+  const pages = Math.max(1, Math.ceil(count / (PER_COLUMN * MAX_COLUMNS)));
+  const perPage = Math.ceil(count / pages);
+  const columns = Math.min(MAX_COLUMNS, Math.max(1, Math.ceil(perPage / PER_COLUMN))) as 1 | 2 | 3;
+  return { columns, perColumn: PER_COLUMN, pages, perPage };
 };
+
+/**
+ * Diferença entre o relógio do servidor e o da TV, medida uma vez na chegada da resposta. Recalcular a cada segundo
+ * congelava o cronômetro até a resposta seguinte (os segundos "atrasavam" e pulavam).
+ */
+export const clockSkew = (serverTime: string, receivedAtMs: number): number => Date.parse(serverTime) - receivedAtMs;
 
 /**
  * O quadro fica até 5 s no cache do CloudFront: o `serverTime` da resposta envelhece. O cabeçalho `Age` diz quanto;
