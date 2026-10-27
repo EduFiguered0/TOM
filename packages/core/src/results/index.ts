@@ -5,3 +5,4 @@ export * from './thermometer.js';
 export * from './deadline.js';
 export * from './locks.js';
 export * from './tom-key.js';
+export * from './tv-result.js';

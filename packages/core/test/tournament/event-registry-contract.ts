@@ -16,6 +16,8 @@ const event = (): TournamentEvent => ({
   status: 'open',
   code: randomUUID().slice(0, 8).toUpperCase(),
   standings: null,
+  partial: null,
+  onTv: false,
 });
 
 /**

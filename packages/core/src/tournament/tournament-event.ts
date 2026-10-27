@@ -45,6 +45,10 @@ export interface TournamentEvent {
   code: string | null;
   /** Classificação final, quando o TOM manda os standings da última rodada. */
   standings: FinalStanding[] | null;
+  /** Último standings intermediário do TOM: a TV mostra entre a rodada `round` e o pareamento seguinte. */
+  partial: { round: number; standings: FinalStanding[] } | null;
+  /** O ADM reexibiu na TV a classificação final deste evento (só o último, já encerrado). */
+  onTv: boolean;
 }
 
 /** Rodada que as telas mostram agora: a última publicada pelo enviador. */
