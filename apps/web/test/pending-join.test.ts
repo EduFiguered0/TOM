@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { createPendingJoin, joinCodeOf } from '../src/pending-join.js';
+import { createPendingJoin, inviteCodeOf, joinCodeOf } from '../src/pending-join.js';
 
 const memory = () => {
   let value: string | null = null;
@@ -43,5 +43,27 @@ describe('inscrição pelo QR só quando a conta está pronta', () => {
     pending.save('ABCD2345');
     expect(pending.takeIfReady({ playerId: '100001', nameReviewed: false })).toBeNull();
     expect(pending.takeIfReady({ playerId: '100001', nameReviewed: true })).toBe('ABCD2345');
+  });
+});
+
+describe('convite de juiz guardado durante o login', () => {
+  it('lê o código do caminho /juiz/<código>', () => {
+    expect(inviteCodeOf('/juiz/ABCDEFGHJK')).toBe('ABCDEFGHJK');
+    expect(inviteCodeOf('/juiz/abcdefghjk/')).toBe('ABCDEFGHJK');
+    expect(inviteCodeOf('/juiz/curto')).toBeNull();
+    expect(inviteCodeOf('/e/ABCD2345')).toBeNull();
+  });
+
+  it('o convite e o QR do evento ficam guardados separados', () => {
+    const storage = (() => {
+      const values = new Map<string, string>();
+      return { getItem: (k: string) => values.get(k) ?? null, setItem: (k: string, v: string) => { values.set(k, v); }, removeItem: (k: string) => { values.delete(k); } };
+    })();
+    const join = createPendingJoin(storage);
+    const invite = createPendingJoin(storage, 'tom.invite');
+    join.save('ABCD2345');
+    invite.save('ABCDEFGHJK');
+    expect(invite.take()).toBe('ABCDEFGHJK');
+    expect(join.take()).toBe('ABCD2345');
   });
 });

@@ -23,12 +23,15 @@ interface Props {
   loginError: string | null;
   /** Código do QR escaneado antes do login: inscreve ao chegar na conta. */
   pendingJoin: PendingJoin;
+  /** Convite de juiz escaneado (`/juiz/<código>`): aceito no fim do login/cadastro. */
+  pendingInvite: PendingJoin;
 }
 
-export const App = ({ cognito, session, api, google, loginError, pendingJoin }: Props) => {
+export const App = ({ cognito, session, api, google, loginError, pendingJoin, pendingInvite }: Props) => {
   const [screen, setScreen] = useState<Screen>({ name: 'loading' });
   const [joinError, setJoinError] = useState<string | null>(null);
   const [eventRefresh, setEventRefresh] = useState(0);
+  const [inviteNotice, setInviteNotice] = useState<{ ok: boolean; text: string } | null>(null);
 
   // Fim do caminho do QR: logado e com cadastro completo (com Player ID), a inscrição acontece sozinha.
   useEffect(() => {
@@ -39,6 +42,19 @@ export const App = ({ cognito, session, api, google, loginError, pendingJoin }: 
       .then((result) => { setJoinError(result.ok ? null : result.error.message); setEventRefresh((n) => n + 1); })
       .catch((e: unknown) => { setJoinError((e as Error).message); });
   }, [screen, api, pendingJoin]);
+
+  // Fim do caminho do convite de juiz: com Player ID e nome conferido, aceita sozinho.
+  useEffect(() => {
+    if (screen.name !== 'home') return;
+    const code = pendingInvite.takeIfReady(screen.me);
+    if (!code) return;
+    void api.acceptInvite(code)
+      .then((result) => {
+        if (result.ok) { setInviteNotice({ ok: true, text: 'Você agora é juiz da equipe.' }); setScreen({ name: 'home', me: result.body }); }
+        else setInviteNotice({ ok: false, text: result.error.message });
+      })
+      .catch((e: unknown) => { setInviteNotice({ ok: false, text: (e as Error).message }); });
+  }, [screen, api, pendingInvite]);
 
   /** Consulta a própria conta e decide a tela; também detecta quando outro dispositivo assumiu. */
   const check = useCallback(async () => {
@@ -74,7 +90,7 @@ export const App = ({ cognito, session, api, google, loginError, pendingJoin }: 
       {screen.name === 'register' && <Register api={api} onRegistered={(me) => { setScreen({ name: 'home', me }); }} />}
       {screen.name === 'device' && <Device api={api} onActivated={(me) => { setScreen({ name: 'home', me }); }} onCancel={signOut} />}
       {screen.name === 'home' && (
-        <Home me={screen.me} api={api} onSignOut={signOut} onChanged={(me) => { setScreen({ name: 'home', me }); }} joinError={joinError} eventRefresh={eventRefresh} />
+        <Home me={screen.me} api={api} onSignOut={signOut} onChanged={(me) => { setScreen({ name: 'home', me }); }} joinError={joinError} eventRefresh={eventRefresh} notice={inviteNotice} />
       )}
       {screen.name === 'error' && (
         <section class={card}>
