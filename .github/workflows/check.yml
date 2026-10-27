@@ -1,10 +1,11 @@
-# Em cada PR e na main: tipos, lint e testes, sem acesso à AWS. O deploy continua manual (README, "AWS").
+# Em cada PR e na main: tipos, lint e testes, sem acesso à AWS. O Release chama este mesmo check antes de lançar.
 name: Check
 
 on:
   pull_request:
   push:
     branches: [main]
+  workflow_call:
 
 permissions:
   contents: read
