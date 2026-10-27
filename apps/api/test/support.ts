@@ -66,7 +66,7 @@ export const setup = () => {
   return { call, accounts, rounds, errors };
 };
 
-export const profile = { name: 'Ana Souza', birthYear: 1990, phone: null, guardianConsent: false };
+export const profile = { firstName: 'Ana', lastName: 'Souza', birthYear: 1990, phone: null, guardianConsent: false };
 
 /** Cadastra e devolve o id da conta. */
 export const register = async (call: ReturnType<typeof setup>['call'], token: string, playerId: string | null = null) =>
