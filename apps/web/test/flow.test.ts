@@ -27,8 +27,8 @@ describe('telas', () => {
   });
 
   it('formulário vira o contrato do cadastro', () => {
-    expect(toRegisterRequest({ name: ' Ana ', birthYear: '2012', phone: ' ', playerId: '', guardianConsent: true })).toEqual({
-      profile: { name: 'Ana', birthYear: 2012, phone: null, guardianConsent: true },
+    expect(toRegisterRequest({ firstName: ' Ana ', lastName: ' Souza ', birthYear: '2012', phone: ' ', playerId: '', guardianConsent: true })).toEqual({
+      profile: { firstName: 'Ana', lastName: 'Souza', birthYear: 2012, phone: null, guardianConsent: true },
       playerId: null,
     });
   });

@@ -13,7 +13,7 @@ import {
   parseSetJudgeRequest,
 } from '../src/index.js';
 
-const valid = { profile: { name: 'Ana', birthYear: 1990, phone: null, guardianConsent: false }, playerId: '100001' };
+const valid = { profile: { firstName: 'Ana', lastName: 'Souza', birthYear: 1990, phone: null, guardianConsent: false }, playerId: '100001' };
 
 describe('contratos da API', () => {
   it('aceita cadastro válido e ignora campos extras (o e-mail nunca vem do corpo)', () => {
@@ -24,7 +24,8 @@ describe('contratos da API', () => {
     ['corpo não objeto', null],
     ['perfil ausente', { playerId: null }],
     ['ano como texto', { ...valid, profile: { ...valid.profile, birthYear: '1990' } }],
-    ['consentimento ausente', { ...valid, profile: { name: 'Ana', birthYear: 1990, phone: null } }],
+    ['consentimento ausente', { ...valid, profile: { firstName: 'Ana', lastName: 'Souza', birthYear: 1990, phone: null } }],
+    ['sobrenome ausente', { ...valid, profile: { firstName: 'Ana', birthYear: 1990, phone: null, guardianConsent: false } }],
     ['Player ID numérico', { ...valid, playerId: 100001 }],
   ])('recusa cadastro com %s', (_, body) => {
     expect(() => parseRegisterRequest(body)).toThrow(InvalidRequestError);

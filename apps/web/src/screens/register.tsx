@@ -10,7 +10,7 @@ interface Props {
 }
 
 export const Register = ({ api, onRegistered }: Props) => {
-  const [form, setForm] = useState<RegisterForm>({ name: '', birthYear: '', phone: '', playerId: '', guardianConsent: false });
+  const [form, setForm] = useState<RegisterForm>({ firstName: '', lastName: '', birthYear: '', phone: '', playerId: '', guardianConsent: false });
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const minor = form.birthYear.length === 4 && isMinor(Number(form.birthYear));
@@ -42,7 +42,8 @@ export const Register = ({ api, onRegistered }: Props) => {
         <a class="text-accent" href="/privacidade" target="_blank" rel="noopener">Política de privacidade</a>
       </p>
       <form class="m-0 flex flex-col gap-3" onSubmit={(e) => { void submit(e); }}>
-        <label class={label}>Nome completo<input class={input} autocomplete="name" required minLength={2} value={form.name} onInput={field('name')} /></label>
+        <label class={label}>Nome<input class={input} autocomplete="given-name" required maxLength={50} value={form.firstName} onInput={field('firstName')} /></label>
+        <label class={label}>Sobrenome<input class={input} autocomplete="family-name" required maxLength={50} value={form.lastName} onInput={field('lastName')} /></label>
         <label class={label}>Ano de nascimento<input class={input} inputmode="numeric" maxLength={4} required value={form.birthYear} onInput={field('birthYear')} /></label>
         <label class={label}>Player ID da Pokémon
           <input class={input} inputmode="numeric" aria-describedby="pid-hint" value={form.playerId} onInput={field('playerId')} />

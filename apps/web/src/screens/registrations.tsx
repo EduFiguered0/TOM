@@ -1,4 +1,4 @@
-import type { AccountResponse, EventDto, RegistrationDto, RegistrationsResponse } from '@tom/contracts';
+import { displayName, type AccountResponse, type EventDto, type RegistrationDto, type RegistrationsResponse } from '@tom/contracts';
 import { useCallback, useEffect, useState } from 'preact/hooks';
 import type { Api } from '../api.js';
 import { field as input, ghost, linkButton as action } from '../ui.js';
@@ -70,35 +70,41 @@ export const RegistrationsTable = ({ api, event, registrations }: { api: Api; ev
     });
   };
 
+  /** Célula com o valor e o botão de copiar (o ADM digita cada campo no TOM). */
+  const copyCell = (r: RegistrationDto, value: string, what: string) =>
+    r.removed ? value : <button type="button" class={`${action} text-left text-text`} title={`Copiar ${what}`} onClick={() => { copy(value); }}>{value}</button>;
+
   const row = (r: RegistrationDto) => (
     <tr key={r.accountId} class={`border-b border-line ${r.removed ? 'text-muted line-through' : ''}`}>
       <td class="whitespace-nowrap py-1.5 pr-2 tabular-nums">
         {r.removed ? r.playerId : <button type="button" class={action} title="Copiar Player ID" onClick={() => { copy(r.playerId); }}>{r.playerId}</button>}
       </td>
       <td class="py-1.5 pr-2">
-        {r.removed ? r.name : <button type="button" class={`${action} text-left text-text`} title="Copiar nome" onClick={() => { copy(r.name); }}>{r.name}</button>}
+        {copyCell(r, r.firstName, 'nome')}
         {!r.awaitingApproval && !r.removed && r.inRound === false && <div class="text-xs text-error">Não está nas guias da rodada atual</div>}
       </td>
+      <td class="py-1.5 pr-2">{copyCell(r, r.lastName, 'sobrenome')}</td>
+      <td class="py-1.5 pr-2 tabular-nums">{copyCell(r, String(r.birthYear), 'ano')}</td>
       <td class="whitespace-nowrap py-1.5 pr-2">
         {r.removed ? 'Removido' : r.awaitingApproval && (
           <span class="flex gap-2">
             <button type="button" class={`${action} text-ok`} disabled={busy}
               onClick={() => { void run(() => api.registrationAction(event.id, r.accountId, 'approve')); }}>Aprovar</button>
             <button type="button" class={`${action} text-error`} disabled={busy}
-              onClick={() => { if (confirm(`Recusar a entrada de ${r.name}?`)) void run(() => api.registrationAction(event.id, r.accountId, 'remove')); }}>Recusar</button>
+              onClick={() => { if (confirm(`Recusar a entrada de ${displayName(r)}?`)) void run(() => api.registrationAction(event.id, r.accountId, 'remove')); }}>Recusar</button>
           </span>
         )}
       </td>
       <td class="py-1.5 pr-2 text-center">
         {!r.removed && (
-          <input type="checkbox" aria-label={`${r.name} lançado no TOM`} class="size-4 accent-accent" checked={r.launched} disabled={busy}
+          <input type="checkbox" aria-label={`${displayName(r)} lançado no TOM`} class="size-4 accent-accent" checked={r.launched} disabled={busy}
             onChange={(e) => { const on = e.currentTarget.checked; void run(() => api.setLaunched(event.id, r.accountId, on)); }} />
         )}
       </td>
       <td class="py-1.5 text-right">
         {!r.removed && !r.awaitingApproval && (
           <button type="button" class={`${action} text-error`} disabled={busy}
-            onClick={() => { if (confirm(`Remover ${r.name} do evento?`)) void run(() => api.registrationAction(event.id, r.accountId, 'remove')); }}>Remover</button>
+            onClick={() => { if (confirm(`Remover ${displayName(r)} do evento?`)) void run(() => api.registrationAction(event.id, r.accountId, 'remove')); }}>Remover</button>
         )}
       </td>
     </tr>
@@ -113,6 +119,7 @@ export const RegistrationsTable = ({ api, event, registrations }: { api: Api; ev
             <thead class="sticky top-0 bg-panel">
               <tr class="border-b border-line text-left text-xs uppercase tracking-wide text-muted">
                 <th class="whitespace-nowrap py-1.5 pr-2 font-semibold">Player ID</th><th class="py-1.5 pr-2 font-semibold">Nome</th>
+                <th class="py-1.5 pr-2 font-semibold">Sobrenome</th><th class="py-1.5 pr-2 font-semibold">Ano</th>
                 <th class="py-1.5 pr-2 font-semibold">Situação</th><th class="whitespace-nowrap py-1.5 pr-2 font-semibold">No TOM</th><th />
               </tr>
             </thead>
@@ -129,7 +136,7 @@ export const RegistrationsTable = ({ api, event, registrations }: { api: Api; ev
         <ul class="m-0 flex max-h-32 flex-col gap-1 overflow-y-auto p-0 text-sm">
           {found.map((a) => (
             <li key={a.id} class="flex items-center justify-between gap-2">
-              <span>{a.profile.name} · {a.playerId ?? 'sem Player ID'}</span>
+              <span>{displayName(a.profile)} · {a.playerId ?? 'sem Player ID'}</span>
               <button type="button" class={action} disabled={busy} onClick={() => { void run(() => api.addRegistration(event.id, a.id)); }}>Inscrever</button>
             </li>
           ))}

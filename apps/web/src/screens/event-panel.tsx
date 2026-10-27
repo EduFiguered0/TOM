@@ -1,4 +1,4 @@
-import type { AccountResponse, EventDto } from '@tom/contracts';
+import { displayName, type AccountResponse, type EventDto } from '@tom/contracts';
 import { useEffect, useState } from 'preact/hooks';
 import type { Api } from '../api.js';
 import { field, ghost, ok, primary } from '../ui.js';
@@ -17,7 +17,7 @@ const JudgesField = ({ team, chosen, onChange }: { team: AccountResponse[]; chos
         <label class="flex items-center gap-2 text-sm text-text" key={j.id}>
           <input type="checkbox" class="size-4 accent-accent" checked={chosen.includes(j.id)}
             onChange={(e) => { onChange(e.currentTarget.checked ? [...chosen, j.id] : chosen.filter((x) => x !== j.id)); }} />
-          {j.profile.name}
+          {displayName(j.profile)}
         </label>
       ))}
   </fieldset>

@@ -5,7 +5,7 @@ import { myEventView } from '../src/screens/my-event-view.js';
 const mine = (status: EventStatusDto, registration: Partial<RegistrationDto> | null, placement: MyEventResponse['placement'] = null): MyEventResponse => ({
   event: { id: 'ev', label: 'Liga', date: '2026-10-26', roundMinutes: 50, status, judges: [] },
   registration: registration && {
-    accountId: 'a1', playerId: '100001', name: 'Ana', birthYear: 1990, at: '2026-10-26T13:00:00.000Z', by: 'self',
+    accountId: 'a1', playerId: '100001', firstName: 'Ana', lastName: 'Souza', birthYear: 1990, at: '2026-10-26T13:00:00.000Z', by: 'self',
     awaitingApproval: false, launched: false, removed: false, inRound: null, ...registration,
   },
   placement,

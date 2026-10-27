@@ -29,7 +29,8 @@ const ADULT_AGE = 18;
 export const isMinor = (birthYear: number, today = new Date()) => today.getFullYear() - birthYear < ADULT_AGE;
 
 export interface RegisterForm {
-  name: string;
+  firstName: string;
+  lastName: string;
   birthYear: string;
   phone: string;
   playerId: string;
@@ -38,7 +39,8 @@ export interface RegisterForm {
 
 export const toRegisterRequest = (form: RegisterForm): { profile: ProfileDto; playerId: string | null } => ({
   profile: {
-    name: form.name.trim(),
+    firstName: form.firstName.trim(),
+    lastName: form.lastName.trim(),
     birthYear: Number(form.birthYear),
     phone: form.phone.trim() || null,
     guardianConsent: form.guardianConsent,
