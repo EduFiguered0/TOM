@@ -119,7 +119,8 @@ Rotas da API (as de conta e ADM exigem `Authorization: Bearer <token de acesso d
 | `POST /events/{id}/cancel` | ADM | Cancela antes de encerrar; não entra no histórico |
 | `GET /events/{id}/registrations` | ADM | Inscritos (Player ID, nome, sobrenome, ano) com os contadores de inscritos, entradas tardias aguardando e lançados no TOM |
 | `POST /events/{id}/registrations` | ADM | Inscreve à mão (`{"accountId"}`), sem esperar aprovação |
-| `POST /events/{id}/registrations/{conta}/approve`, `/remove`, `/launched` | ADM | Aprovar entrada tardia, remover (ou recusar), marcar lançado no TOM |
+| `POST /events/{id}/registrations/{conta}/approve`, `/remove`, `/launched`, `/paid` | ADM | Aprovar entrada tardia, remover (ou recusar), marcar lançado no TOM, marcar pagamento (até o encerramento) |
+| `GET /accounts/{conta}/events` | ADM | Eventos do jogador (nome, data, pago), do mais recente para o mais antigo |
 | `POST /join/{código}` | qualquer conta | Fim do caminho do QR: inscreve (de novo, só devolve a inscrição) |
 | `GET /me/event` | qualquer conta | Evento ativo, a própria inscrição e, no fim, a própria colocação |
 | `PUT /events/{id}/judges` | ADM | Troca os juízes escalados no evento (só juízes da equipe) |

@@ -274,6 +274,8 @@ export interface RegistrationDto {
   awaitingApproval: boolean;
   launched: boolean;
   removed: boolean;
+  /** Pagou (o ADM marca); só vai para o ADM. */
+  paid: boolean;
   /** Está nas guias da rodada atual deste evento; null antes de o TOM publicar uma rodada. */
   inRound: boolean | null;
 }
@@ -285,19 +287,37 @@ export interface RegistrationsResponse {
   /** Entradas tardias esperando o ADM. */
   awaiting: number;
   launched: number;
+  /** Inscritos (sem removidos e sem quem aguarda) que pagaram. */
+  paid: number;
+}
+
+/** A própria inscrição, como o jogador vê: sem o pagamento (só o ADM vê). */
+export type MyRegistrationDto = Omit<RegistrationDto, 'paid'>;
+
+/** Um evento no cadastro do jogador (só o ADM vê). */
+export interface PlayerEventDto {
+  eventId: string;
+  label: string;
+  /** `YYYY-MM-DD`. */
+  date: string;
+  paid: boolean;
+}
+
+export interface SetPaidRequest {
+  paid: boolean;
 }
 
 /** Evento ativo e a inscrição da própria conta; os dois null sem evento ativo. */
 export interface MyEventResponse {
   event: EventDto | null;
-  registration: RegistrationDto | null;
+  registration: MyRegistrationDto | null;
   /** Colocação final do jogador (quando o TOM mandou os standings da última rodada); null antes ou se não jogou. */
   placement: { rank: number; total: number; wins: number; losses: number; ties: number; points: number | null } | null;
 }
 
 export interface JoinResponse {
   event: EventDto;
-  registration: RegistrationDto;
+  registration: MyRegistrationDto;
 }
 
 export interface AddRegistrationRequest {
@@ -341,6 +361,8 @@ export const parseUpdateEventRequest = (body: unknown): UpdateEventRequest => {
 export const parseAddRegistrationRequest = (body: unknown): AddRegistrationRequest => ({ accountId: field(object(body, 'Corpo'), 'accountId', 'string') });
 
 export const parseSetLaunchedRequest = (body: unknown): SetLaunchedRequest => ({ launched: field(object(body, 'Corpo'), 'launched', 'boolean') });
+
+export const parseSetPaidRequest = (body: unknown): SetPaidRequest => ({ paid: field(object(body, 'Corpo'), 'paid', 'boolean') });
 
 export const parseShowOnTvRequest = (body: unknown): ShowOnTvRequest => ({ on: field(object(body, 'Corpo'), 'on', 'boolean') });
 

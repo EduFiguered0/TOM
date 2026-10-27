@@ -101,6 +101,12 @@ export const RegistrationsTable = ({ api, event, registrations }: { api: Api; ev
             onChange={(e) => { const on = e.currentTarget.checked; void run(() => api.setLaunched(event.id, r.accountId, on)); }} />
         )}
       </td>
+      <td class="py-1.5 pr-2 text-center">
+        {!r.removed && (
+          <input type="checkbox" aria-label={`${displayName(r)} pagou`} class="size-4 accent-accent" checked={r.paid} disabled={busy}
+            onChange={(e) => { const on = e.currentTarget.checked; void run(() => api.setPaid(event.id, r.accountId, on)); }} />
+        )}
+      </td>
       <td class="py-1.5 text-right">
         {!r.removed && !r.awaitingApproval && (
           <button type="button" class={`${action} text-error`} disabled={busy}
@@ -120,7 +126,7 @@ export const RegistrationsTable = ({ api, event, registrations }: { api: Api; ev
               <tr class="border-b border-line text-left text-xs uppercase tracking-wide text-muted">
                 <th class="whitespace-nowrap py-1.5 pr-2 font-semibold">Player ID</th><th class="py-1.5 pr-2 font-semibold">Nome</th>
                 <th class="py-1.5 pr-2 font-semibold">Sobrenome</th><th class="py-1.5 pr-2 font-semibold">Ano</th>
-                <th class="py-1.5 pr-2 font-semibold">Situação</th><th class="whitespace-nowrap py-1.5 pr-2 font-semibold">No TOM</th><th />
+                <th class="py-1.5 pr-2 font-semibold">Situação</th><th class="whitespace-nowrap py-1.5 pr-2 font-semibold">No TOM</th><th class="py-1.5 pr-2 font-semibold">Pago</th><th />
               </tr>
             </thead>
             <tbody>{data.registrations.map(row)}</tbody>

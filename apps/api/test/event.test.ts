@@ -45,6 +45,22 @@ describe('ciclo do evento pela API', () => {
     expect((await call('POST', `/events/${event.id}/registrations/${ana}/confirm`, ADM)).status).toBe(404);
   });
 
+  it('pagamento: o ADM marca, conta no painel e aparece no histórico do jogador; o jogador não vê', async () => {
+    const { call, code, list, event, ana } = await opened();
+    await call('POST', `/join/${code}`, 'ana-email:c1');
+    expect(await list()).toMatchObject({ total: 1, paid: 0, registrations: [{ paid: false }] });
+    expect((await call('POST', `/events/${event.id}/registrations/${ana}/paid`, 'ana-email:c1', { paid: true })).status).toBe(403);
+    expect(await call('POST', `/events/${event.id}/registrations/${ana}/paid`, ADM, { paid: true })).toMatchObject({ status: 200, body: { paid: true } });
+    expect(await list()).toMatchObject({ paid: 1 });
+    expect(await call('GET', `/accounts/${ana}/events`, ADM)).toMatchObject({
+      status: 200, body: [{ eventId: event.id, label: 'Liga de Outubro', date: '2026-11-07', paid: true }],
+    });
+    expect((await call('GET', `/accounts/${ana}/events`, 'ana-email:c1')).status).toBe(403);
+    const mine = (await call('GET', '/me/event', 'ana-email:c1')).body as MyEventResponse;
+    expect(mine.registration).not.toHaveProperty('paid');
+    expect((await call('POST', `/join/${code}`, 'ana-email:c1')).body).not.toHaveProperty('registration.paid');
+  });
+
   it('ADM remove, marca lançado e inscreve à mão', async () => {
     const { call, code, list, event, ana, bia } = await opened();
     await call('POST', `/join/${code}`, 'ana-email:c1');

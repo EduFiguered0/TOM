@@ -8,7 +8,7 @@ describe('inscrição lida do DynamoDB', () => {
       by: 'self', confirmed: true, launched: false, removed: false,
     };
     const registration = fromStored(stored as never);
-    expect(registration).toMatchObject({ awaitingApproval: false, at: new Date('2026-10-24T13:00:00Z') });
+    expect(registration).toMatchObject({ awaitingApproval: false, paid: false, at: new Date('2026-10-24T13:00:00Z') });
     expect(registration).not.toHaveProperty('confirmed');
   });
 
