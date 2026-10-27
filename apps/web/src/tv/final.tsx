@@ -11,8 +11,8 @@ const PAGE_MS = 15_000;
 const pct = (value: number | null) => (value === null ? '—' : `${value.toFixed(2)}%`);
 const cell = 'px-[1vw] py-[.8vh]';
 
-/** Classificação (final ou parcial) em uma lista só, com pontos e desempates do TOM. O primeiro em destaque. */
-export const FinalTv = ({ label, standings, title = 'Classificação final' }: { label: string; standings: FinalStandingDto[]; title?: string }) => {
+/** Classificação com pontos e desempates do TOM, em páginas que viram sozinhas. O primeiro em destaque. */
+export const StandingsTable = ({ standings }: { standings: FinalStandingDto[] }) => {
   const [page, setPage] = useState(0);
   const all = pages(standings, PER_PAGE);
   const current = all[page % all.length] ?? [];
@@ -23,11 +23,7 @@ export const FinalTv = ({ label, standings, title = 'Classificação final' }: {
   }, []);
 
   return (
-    <div class={screen}>
-      <header class="flex items-baseline justify-between gap-[2vw]">
-        <div class={eventTitle}>{label} · {title}</div>
-        {all.length > 1 && <div class="text-[1.2vw] text-muted">Página {(page % all.length) + 1} de {all.length}</div>}
-      </header>
+    <div class="flex min-h-0 flex-col gap-[1vh]">
       <table class="w-full border-collapse text-[1.7vw] tabular-nums">
         <thead>
           <tr class="border-b border-line text-left text-[1.1vw] uppercase tracking-wide text-muted">
@@ -45,7 +41,7 @@ export const FinalTv = ({ label, standings, title = 'Classificação final' }: {
               <td class={`${cell} text-right font-extrabold`}>{s.rank}</td>
               <td class={cell}>
                 <span class="flex items-center gap-[.8vw]">
-                  {s.rank === 1 && <Trophy size="1.6vw" aria-label="Campeão" />}{s.name}
+                  {s.rank === 1 && <Trophy size="1.6vw" aria-label="Primeiro" />}{s.name}
                 </span>
               </td>
               <td class={`${cell} text-center`}>{s.wins}-{s.losses}-{s.ties}</td>
@@ -56,6 +52,15 @@ export const FinalTv = ({ label, standings, title = 'Classificação final' }: {
           ))}
         </tbody>
       </table>
+      {all.length > 1 && <div class="text-right text-[1.2vw] text-muted">Página {(page % all.length) + 1} de {all.length}</div>}
     </div>
   );
 };
+
+/** Classificação final em tela cheia, até o próximo evento. */
+export const FinalTv = ({ label, standings }: { label: string; standings: FinalStandingDto[] }) => (
+  <div class={screen}>
+    <header class={eventTitle}>{label} · Classificação final</header>
+    <StandingsTable standings={standings} />
+  </div>
+);

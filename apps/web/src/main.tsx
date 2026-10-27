@@ -8,9 +8,10 @@ import { HomePage } from './public/home-page.js';
 import { PrivacyPage } from './public/privacy-page.js';
 import { createPendingJoin, inviteCodeOf, joinCodeOf } from './pending-join.js';
 import { pageFor } from './routes.js';
-import { demoBoard } from './tv/demo-board.js';
+import { demoBoard, demoStandings } from './tv/demo-board.js';
 import { createPhotoCache } from './photo/photo-cache.js';
 import { LiveTv } from './tv/live.js';
+import { PartialTv } from './tv/partial.js';
 import { Tv } from './tv/tv.js';
 import './theme.css';
 
@@ -33,9 +34,10 @@ const googleStore = {
 const start = async () => {
   const root = document.getElementById('app');
   if (!root) return;
-  // /tv?demo mostra dados fictícios para conferir o layout, sem login.
-  if (pageFor(location.pathname) === 'tv' && new URLSearchParams(location.search).has('demo')) {
-    render(<Tv board={demoBoard()} />, root);
+  // /tv?demo mostra dados fictícios para conferir o layout, sem login (?demo=classificacao: entre rodadas).
+  const demo = new URLSearchParams(location.search).get('demo');
+  if (pageFor(location.pathname) === 'tv' && demo !== null) {
+    render(demo === 'classificacao' ? <PartialTv board={demoStandings()} /> : <Tv board={demoBoard()} />, root);
     return;
   }
   if (pageFor(location.pathname) === 'privacy') {

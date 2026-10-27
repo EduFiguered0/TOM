@@ -8,6 +8,14 @@ import { DOT, EDGE, eventTitle, screen, tile } from './styles.js';
 
 const PAGE_MS = 15_000;
 
+/** QR no canto da TV para quem chega depois da rodada 1. */
+export const LateJoin = ({ code }: { code: string }) => (
+  <div class="mt-auto flex flex-col items-center gap-[.8vh] text-center text-[1vw] text-muted">
+    <Qr url={joinUrl(location.origin, code)} class="h-[11vw]" />
+    <span>Chegou agora?<br />Escaneie para entrar</span>
+  </div>
+);
+
 type Table = RoundBoard['tables'][number];
 
 const LABEL: Record<TableColor, string> = {
@@ -123,12 +131,7 @@ export const Tv = ({ board, receivedAt, photos = null }: { board: RoundBoard & {
               </ul>
             </section>
           )}
-          {board.code && (
-            <div class="mt-auto flex flex-col items-center gap-[.8vh] text-center text-[1vw] text-muted">
-              <Qr url={joinUrl(location.origin, board.code)} class="h-[11vw]" />
-              <span>Chegou agora?<br />Escaneie para entrar</span>
-            </div>
-          )}
+          {board.code && <LateJoin code={board.code} />}
         </aside>
       </div>
 

@@ -2,6 +2,7 @@ import type { BoardResponse } from '@tom/contracts';
 import { useEffect, useState } from 'preact/hooks';
 import type { ApiResult } from '../api.js';
 import type { PhotoCache } from '../photo/photo-cache.js';
+import { PartialTv } from './partial.js';
 import { Tv } from './tv.js';
 import { centered } from './styles.js';
 import { WaitingTv } from './waiting.js';
@@ -53,7 +54,7 @@ export const LiveTv = ({ load, photos = null }: { load: () => Promise<ApiResult<
       {state.kind === 'denied' && <TvDenied />}
       {state.kind === 'board' && (state.board.state === 'running'
         ? <Tv board={state.board} receivedAt={state.receivedAt} photos={photos} />
-        : <WaitingTv board={state.board} />)}
+        : state.board.state === 'standings' ? <PartialTv board={state.board} /> : <WaitingTv board={state.board} />)}
       {sessionLost && state.kind === 'board' && (
         <div class="fixed bottom-[1.5vh] left-[2vw] rounded-[.6vw] bg-red px-[1vw] py-[.4vh] text-[1.1vw] font-semibold text-white" role="alert">
           Sessão do ADM encerrada · entre de novo no painel
