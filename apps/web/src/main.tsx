@@ -9,7 +9,7 @@ import { PrivacyPage } from './public/privacy-page.js';
 import { createPendingJoin, inviteCodeOf, joinCodeOf } from './pending-join.js';
 import { pageFor } from './routes.js';
 import { demoBoard } from './tv/demo-board.js';
-import { LiveTv, TvDenied } from './tv/live.js';
+import { LiveTv } from './tv/live.js';
 import { Tv } from './tv/tv.js';
 import './theme.css';
 
@@ -60,7 +60,7 @@ const start = async () => {
   const session = createSession(cognito, browserStorage);
   // TV do salão: extensão do painel do ADM, com a mesma sessão (aberta em "Abrir TV ↗").
   if (pageFor(location.pathname) === 'tv') {
-    if (!session.loggedIn) { render(<TvDenied />, root); return; }
+    // Sem login, a TV mostra o aviso e segue consultando: entra sozinha quando o ADM fizer login em outra aba.
     render(<LiveTv load={createApi(session).board} />, root);
     return;
   }

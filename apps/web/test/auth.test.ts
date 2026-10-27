@@ -106,6 +106,25 @@ describe('sessão do dispositivo', () => {
     expect(calls.at(-1)).toMatchObject({ action: 'RevokeToken', body: { Token: 'renovacao' } });
   });
 
+  it('falha de rede na renovação não desloga: lança e tenta de novo depois', async () => {
+    const fetchFn = (() => Promise.reject(new TypeError('Failed to fetch'))) as unknown as typeof fetch;
+    const storage = memory();
+    storage.set(JSON.stringify({ access: 'velho', refresh: 'bom', expiresAt: 0 }));
+    const session = createSession(createCognito(config, fetchFn), storage, () => 1);
+    await expect(session.accessToken()).rejects.toThrow();
+    expect(session.loggedIn).toBe(true);
+    expect(storage.value).not.toBeNull();
+  });
+
+  it('sem login nesta aba, aproveita o login feito em outra aba (mesmo armazenamento)', async () => {
+    const { fetchFn } = fakeCognito({});
+    const storage = memory();
+    const session = createSession(createCognito(config, fetchFn), storage, () => 1);
+    expect(await session.accessToken()).toBeNull();
+    storage.set(JSON.stringify({ access: 'da-outra-aba', refresh: 'r', expiresAt: 900_000 }));
+    expect(await session.accessToken()).toBe('da-outra-aba');
+  });
+
   it('renovação recusada (revogada ou expirada) desloga', async () => {
     const { fetchFn } = fakeCognito({ InitiateAuth: { status: 400, body: { __type: 'NotAuthorizedException' } } });
     const storage = memory();

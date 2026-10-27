@@ -21,6 +21,8 @@ type State =
 export const LiveTv = ({ load }: { load: () => Promise<ApiResult<BoardResponse>> }) => {
   const [state, setState] = useState<State>({ kind: 'loading' });
   const [offline, setOffline] = useState(false);
+  /** Sessão caiu no meio do evento: o último quadro fica, com aviso; volta sozinho quando o ADM entrar de novo. */
+  const [sessionLost, setSessionLost] = useState(false);
 
   useEffect(() => {
     let stopped = false;
@@ -29,8 +31,11 @@ export const LiveTv = ({ load }: { load: () => Promise<ApiResult<BoardResponse>>
         const result = await load();
         if (stopped) return;
         setOffline(false);
-        if (result.ok) setState({ kind: 'board', board: result.body, receivedAt: Date.now() });
-        else if (result.status === 401 || result.status === 403) setState({ kind: 'denied' });
+        if (result.ok) { setSessionLost(false); setState({ kind: 'board', board: result.body, receivedAt: Date.now() }); }
+        else if (result.status === 401 || result.status === 403) {
+          setSessionLost(true);
+          setState((s) => (s.kind === 'board' ? s : { kind: 'denied' }));
+        }
         else setOffline(true);
       } catch {
         if (!stopped) setOffline(true);
@@ -48,6 +53,11 @@ export const LiveTv = ({ load }: { load: () => Promise<ApiResult<BoardResponse>>
       {state.kind === 'board' && (state.board.state === 'running'
         ? <Tv board={state.board} receivedAt={state.receivedAt} />
         : <WaitingTv board={state.board} />)}
+      {sessionLost && state.kind === 'board' && (
+        <div class="fixed bottom-[1.5vh] left-[2vw] rounded-[.6vw] bg-red px-[1vw] py-[.4vh] text-[1.1vw] font-semibold text-white" role="alert">
+          Sessão do ADM encerrada · entre de novo no painel
+        </div>
+      )}
       {offline && (
         <div class="fixed bottom-[1.5vh] right-[2vw] rounded-[.6vw] bg-orange-900 px-[1vw] py-[.4vh] text-[1.1vw] font-semibold text-orange-50" role="status">
           Sem conexão · mostrando a última rodada recebida

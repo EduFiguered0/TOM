@@ -81,18 +81,6 @@ export class WebStack extends Stack {
       cookieBehavior: CacheCookieBehavior.none(),
     });
 
-    // Quadro da TV: público e igual para todos. Guardado pelo tempo que a API mandar (5 s):
-    // muitas TVs e celulares olhando viram uma chamada à Lambda a cada 5 s por borda.
-    const boardCache = new CachePolicy(this, 'BoardCache', {
-      minTtl: Duration.seconds(0),
-      defaultTtl: Duration.seconds(0),
-      maxTtl: Duration.seconds(10),
-      headerBehavior: CacheHeaderBehavior.none(),
-      queryStringBehavior: CacheQueryStringBehavior.none(),
-      cookieBehavior: CacheCookieBehavior.none(),
-      enableAcceptEncodingGzip: true,
-      enableAcceptEncodingBrotli: true,
-    });
     const apiOrigin = new FunctionUrlOrigin(api);
 
     // Rotas do app (ex.: /tv, /painel) servem o index.html. Só no site: uma regra de erro do CloudFront
@@ -118,15 +106,7 @@ export class WebStack extends Stack {
         functionAssociations: [{ function: spaRoutes, eventType: FunctionEventType.VIEWER_REQUEST }],
       },
       additionalBehaviors: {
-        // A ordem importa: o caminho mais específico vem antes de /api/*.
-        '/api/board': {
-          origin: apiOrigin,
-          viewerProtocolPolicy: ViewerProtocolPolicy.HTTPS_ONLY,
-          allowedMethods: AllowedMethods.ALLOW_GET_HEAD,
-          cachePolicy: boardCache,
-          responseHeadersPolicy: headers,
-          compress: true,
-        },
+        // O quadro da TV também passa aqui: é do ADM (precisa do Authorization) e não é guardado.
         '/api/*': {
           origin: apiOrigin,
           viewerProtocolPolicy: ViewerProtocolPolicy.HTTPS_ONLY,

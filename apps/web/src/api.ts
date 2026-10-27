@@ -43,7 +43,8 @@ const tablePath = (round: number | undefined, table: number, action: string) => 
 /** API no mesmo endereço do site (`/api`), com o token de acesso do dispositivo. */
 export const createApi = (session: Session, base = '/api', fetchFn: typeof fetch = (...args) => fetch(...args)) => {
   const call = async <T>(method: string, path: string, body?: unknown): Promise<ApiResult<T>> => {
-    const token = await session.accessToken();
+    // Renovar o login sem rede não desloga: vira "sem conexão" e a próxima chamada tenta de novo.
+    const token = await session.accessToken().catch(() => { throw new OfflineError(); });
     if (!token) return { ok: false, status: 401, error: { error: 'unauthorized', message: 'Entre de novo.' } };
     let response: Response;
     try {
