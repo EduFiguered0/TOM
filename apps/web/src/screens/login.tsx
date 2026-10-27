@@ -1,7 +1,8 @@
 import { useState } from 'preact/hooks';
 import { AuthError, type Cognito, type Tokens } from '../auth/cognito.js';
 import type { Google } from '../auth/google.js';
-import { bigGhost, bigPrimary, card, Feedback, input, label, muted, textButton, title } from '../ui.js';
+import { GoogleButton } from './google-button.js';
+import { bigPrimary, card, Feedback, input, label, muted, textButton, title } from '../ui.js';
 
 interface Props {
   cognito: Cognito;
@@ -52,7 +53,7 @@ export const Login = ({ cognito, google, initialError, onSignedIn }: Props) => {
       <h1 class={title}>{TITLE[mode]}</h1>
       {google && (mode === 'signin' || mode === 'signup') && (
         <>
-          <button type="button" class={bigGhost} disabled={busy} onClick={withGoogle}>Entrar com o Google</button>
+          <GoogleButton disabled={busy} onClick={withGoogle} />
           <p class={`${muted} text-center`}>ou com e-mail e senha</p>
         </>
       )}
