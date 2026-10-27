@@ -1,6 +1,6 @@
 /**
  * Publica o site: build, config.json de produção, envio ao S3 e limpeza do cache do CloudFront.
- * Uso: npm run web:deploy (perfil AWS `tom`, ou AWS_PROFILE).
+ * Uso: npm run web:deploy (perfil AWS `tom`, ou AWS_PROFILE; no GitHub Actions, as credenciais do ambiente).
  */
 import { CloudFormationClient, DescribeStacksCommand } from '@aws-sdk/client-cloudformation';
 import { CloudFrontClient, CreateInvalidationCommand } from '@aws-sdk/client-cloudfront';
@@ -11,7 +11,8 @@ import { extname, join, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { REGION } from '../src/build-app.js';
 
-const aws = { region: REGION, profile: process.env['AWS_PROFILE'] ?? 'tom' };
+// No GitHub Actions as credenciais temporárias chegam pelo ambiente; no notebook, o perfil `tom`.
+const aws = process.env['AWS_ACCESS_KEY_ID'] ? { region: REGION } : { region: REGION, profile: process.env['AWS_PROFILE'] ?? 'tom' };
 const root = fileURLToPath(new URL('../..', import.meta.url));
 const dist = join(root, 'apps/web/dist');
 
