@@ -12,6 +12,7 @@ import type {
   ErrorResponse,
   JoinResponse,
   MyEventResponse,
+  PlayerEventDto,
   RegistrationDto,
   MeResponse,
   MyRoundResponse,
@@ -78,6 +79,9 @@ export const createApi = (session: Session, base = '/api', fetchFn: typeof fetch
       call<RegistrationDto>('POST', `/events/${encodeURIComponent(eventId)}/registrations`, { accountId }),
     registrationAction: (eventId: string, accountId: string, action: 'approve' | 'remove') =>
       call<RegistrationDto>('POST', `/events/${encodeURIComponent(eventId)}/registrations/${encodeURIComponent(accountId)}/${action}`),
+    setPaid: (eventId: string, accountId: string, paid: boolean) =>
+      call<RegistrationDto>('POST', `/events/${encodeURIComponent(eventId)}/registrations/${encodeURIComponent(accountId)}/paid`, { paid }),
+    playerEvents: (accountId: string) => call<PlayerEventDto[]>('GET', `/accounts/${encodeURIComponent(accountId)}/events`),
     setLaunched: (eventId: string, accountId: string, launched: boolean) =>
       call<RegistrationDto>('POST', `/events/${encodeURIComponent(eventId)}/registrations/${encodeURIComponent(accountId)}/launched`, { launched }),
     searchAccounts: (query: string) => call<AccountResponse[]>('POST', '/staff/search', { query }),

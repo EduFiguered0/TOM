@@ -72,6 +72,11 @@ export const EventTab = ({ api, event, last = null, reload, folder, registration
 
   const steps = eventSteps(event.status);
   const data = registrations.data;
+  /** Pagamento não bloqueia: ao encerrar com alguém sem pagar, só pergunta. */
+  const unpaidQuestion = () => {
+    const unpaid = (data?.registrations ?? []).filter((r) => !r.removed && !r.awaitingApproval && !r.paid).length;
+    return unpaid > 0 ? `${String(unpaid)} inscrito(s) sem pagamento. Encerrar mesmo assim?` : null;
+  };
   return (
     <div class="flex min-h-0 flex-1 flex-col gap-4">
       <ol class="m-0 flex list-none overflow-hidden rounded-lg border border-line bg-panel p-0 text-sm">
@@ -81,7 +86,7 @@ export const EventTab = ({ api, event, last = null, reload, folder, registration
             <span>{s.state === 'done' ? '✓' : s.state === 'now' ? '●' : '○'} {s.label}</span>
             {i === 3 && event.status === 'final' && (
               <button type="button" class={`${primary} ml-auto px-2 py-1 text-xs`} disabled={busy}
-                onClick={() => { step('close', null, 'Evento encerrado.'); }}>
+                onClick={() => { step('close', unpaidQuestion(), 'Evento encerrado.'); }}>
                 Encerrar evento
               </button>
             )}
@@ -112,7 +117,7 @@ export const EventTab = ({ api, event, last = null, reload, folder, registration
         <section class={box} aria-label="Inscritos">
           <h2 class="m-0 flex justify-between gap-2 text-sm font-bold">
             Inscritos
-            {data && <span class="font-semibold text-muted">{data.total} inscritos · {data.launched} lançados no TOM</span>}
+            {data && <span class="font-semibold text-muted">{data.total} inscritos · {data.launched} lançados no TOM · {data.paid} de {data.total} pagos</span>}
           </h2>
           <RegistrationsTable api={api} event={event} registrations={registrations} />
         </section>
