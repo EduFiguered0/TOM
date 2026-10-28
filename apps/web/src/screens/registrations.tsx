@@ -2,6 +2,7 @@ import { displayName, type EventDto, type RegistrationDto, type RegistrationsRes
 import { useCallback, useEffect, useState } from 'preact/hooks';
 import type { Api } from '../api.js';
 import { field as input, ghost, linkButton as action } from '../ui.js';
+import { loadCopied, rowTone, saveCopied } from './registration-marks.js';
 
 /** O ADM digita no TOM enquanto as pessoas chegam: a lista se atualiza sozinha. */
 const POLL_MS = 10_000;
@@ -32,13 +33,53 @@ export const useRegistrations = (api: Api, eventId: string | null) => {
 export type Registrations = ReturnType<typeof useRegistrations>;
 
 
-/** Tabela de inscritos para digitar no TOM (um a um): presença, lançado, cópia e inscrição à mão. Rola por dentro. */
+const ROW_TONE = { green: 'bg-green/15', orange: 'bg-orange/15' } as const;
+const toneClass = (tone: keyof typeof ROW_TONE | null) => (tone ? ROW_TONE[tone] : '');
+
+/**
+ * Tabela de inscritos para digitar no TOM (um a um): presença, lançado, cópia e inscrição à mão. Rola por dentro.
+ * Copiar o Player ID pinta a linha de laranja; duplo clique na linha marca (verde) ou desmarca o lançado no TOM.
+ */
 export const RegistrationsTable = ({ api, event, registrations }: { api: Api; event: EventDto; registrations: Registrations }) => {
   const { data, reload } = registrations;
   const [query, setQuery] = useState('');
   const [found, setFound] = useState<TeamMemberDto[] | null>(null);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<{ ok: boolean; text: string } | null>(null);
+  const [copied, setCopied] = useState<Set<string>>(() => loadCopied(event.id));
+
+  useEffect(() => { setCopied(loadCopied(event.id)); }, [event.id]);
+
+  const markCopied = (accountId: string, on: boolean) => {
+    setCopied((prev) => {
+      const next = new Set(prev);
+      if (on) next.add(accountId); else next.delete(accountId);
+      saveCopied(event.id, next);
+      return next;
+    });
+  };
+
+  /** Duplo clique na linha: verde = lançado no TOM; numa linha verde, desmarca (e tira o laranja). */
+  const toggleLaunched = (r: RegistrationDto) => {
+    if (r.removed || busy) return;
+    if (r.launched) markCopied(r.accountId, false);
+    void run(() => api.setLaunched(event.id, r.accountId, !r.launched));
+  };
+
+  /** Desfaz o laranja e o verde de todos (confirma antes). */
+  const clearMarks = () => {
+    const launched = data?.registrations.filter((r) => r.launched && !r.removed) ?? [];
+    if (!confirm('Desmarcar todos os inscritos (copiados e lançados no TOM)?')) return;
+    setCopied(new Set());
+    saveCopied(event.id, new Set());
+    void run(async () => {
+      for (const r of launched) {
+        const result = await api.setLaunched(event.id, r.accountId, false);
+        if (!result.ok) return result;
+      }
+      return { ok: true };
+    });
+  };
 
   const run = async (act: () => Promise<{ ok: boolean; error?: { message: string } }>) => {
     setBusy(true);
@@ -75,9 +116,10 @@ export const RegistrationsTable = ({ api, event, registrations }: { api: Api; ev
     r.removed ? value : <button type="button" class={`${action} text-left text-text`} title={`Copiar ${what}`} onClick={() => { copy(value); }}>{value}</button>;
 
   const row = (r: RegistrationDto) => (
-    <tr key={r.accountId} class={`border-b border-line ${r.removed ? 'text-muted line-through' : ''}`}>
+    <tr key={r.accountId} title={r.removed ? undefined : 'Duplo clique: lançado no TOM'} onDblClick={() => { toggleLaunched(r); }}
+      class={`select-none border-b border-line ${r.removed ? 'text-muted line-through' : ''} ${toneClass(rowTone(r, copied))}`}>
       <td class="whitespace-nowrap py-1.5 pr-2 tabular-nums">
-        {r.removed ? r.playerId : <button type="button" class={action} title="Copiar Player ID" onClick={() => { copy(r.playerId); }}>{r.playerId}</button>}
+        {r.removed ? r.playerId : <button type="button" class={action} title="Copiar Player ID" onClick={() => { copy(r.playerId); markCopied(r.accountId, true); }}>{r.playerId}</button>}
       </td>
       <td class="py-1.5 pr-2">
         {copyCell(r, r.firstName, 'nome')}
@@ -133,6 +175,9 @@ export const RegistrationsTable = ({ api, event, registrations }: { api: Api; ev
           </table>
         )}
       </div>
+      {data && (copied.size > 0 || data.registrations.some((r) => r.launched && !r.removed)) && (
+        <button type="button" class={`${ghost} self-start`} disabled={busy} onClick={clearMarks}>Desmarcar todos</button>
+      )}
       <form class="m-0 flex gap-2" onSubmit={search}>
         <input class={input} aria-label="Inscrever à mão (nome ou Player ID)" placeholder="Inscrever à mão (nome ou Player ID)"
           required minLength={2} value={query} onInput={(e) => { setQuery(e.currentTarget.value); }} />
