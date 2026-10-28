@@ -3,7 +3,7 @@ import type { Api } from '../api.js';
 import { box, field, linkButton, primary } from '../ui.js';
 import type { PanelResponse } from '@tom/contracts';
 import { extensionClock, roundClock } from '../tv/board.js';
-import { pickTable, winOverride } from './panel.js';
+import { pickTable, reportsToConfirm, winOverride } from './panel.js';
 import { TableDetail } from './table-detail.js';
 import { TablesList } from './tables-list.js';
 import type { Panel } from './use-panel.js';
@@ -85,6 +85,7 @@ export const RoundTab = ({ api, admin, panel }: { api: Api; admin: boolean; pane
   const [chosen, setChosen] = useState<number | null>(null);
   /** Só o que pede ação: falha ao marcar ou key já lançada no TOM. */
   const [winnerNote, setWinnerNote] = useState<{ ok: boolean; text: string } | null>(null);
+  const [confirming, setConfirming] = useState(false);
   const round = data?.round;
 
   if (!data) return <p class="m-0 text-sm text-muted">Carregando…</p>;
@@ -95,6 +96,32 @@ export const RoundTab = ({ api, admin, panel }: { api: Api; admin: boolean; pane
   const pending = round ? round.tables.length - round.counts.green : 0;
   const table = round ? pickTable(round.tables, chosen) : null;
   const detail = round?.tables.find((t) => t.table === table);
+
+  const toConfirm = round?.startedAt ? reportsToConfirm(round.tables) : [];
+
+  /** Valida de uma vez as mesas com um reporte só, uma a uma; as que falharem ficam como estavam e são listadas. */
+  const confirmReports = async () => {
+    if (!round || !toConfirm.length) return;
+    const list = toConfirm.map((c) => c.table).join(', ');
+    if (!confirm(`Confirmar o reporte de ${String(toConfirm.length)} ${toConfirm.length === 1 ? 'mesa' : 'mesas'} (${list})?`)) return;
+    setConfirming(true);
+    setWinnerNote(null);
+    const failed: number[] = [];
+    let tomFix = false;
+    for (const { table: n, override } of toConfirm) {
+      try {
+        const result = await api.override(n, override, current ? undefined : round.round);
+        if (!result.ok) { failed.push(n); continue; }
+        accept(result.body);
+        tomFix ||= result.body.requiresTomFix;
+      } catch {
+        failed.push(n);
+      }
+    }
+    setConfirming(false);
+    if (failed.length) setWinnerNote({ ok: false, text: `Não confirmadas: mesas ${failed.join(', ')}. Tente de novo.` });
+    else if (tomFix) setWinnerNote({ ok: false, text: 'Alguma key já tinha sido lançada: corrija também no TOM.' });
+  };
 
   /** Duplo clique no nome: vitória daquele jogador, sem confirmação (duplo clique no outro troca). */
   const markWinner = (n: number, side: 'player1' | 'player2') => {
@@ -173,6 +200,11 @@ export const RoundTab = ({ api, admin, panel }: { api: Api; admin: boolean; pane
             {round.byes.length > 0 && <p class="m-0 border-t border-line px-3 py-2 text-sm text-muted">Bye: {round.byes.join(', ')}</p>}
           </section>
           <section class={box} aria-label="Mesa escolhida">
+            {toConfirm.length > 0 && (
+              <button type="button" class={primary} disabled={confirming} onClick={() => { void confirmReports(); }}>
+                {confirming ? 'Confirmando…' : `Confirmar reportes (${String(toConfirm.length)})`}
+              </button>
+            )}
             {detail
               ? <TableDetail api={api} table={detail} admin={admin} started={round.startedAt !== null} round={current ? undefined : round.round}
                   bestOf={round.bestOf} onUpdate={accept} />

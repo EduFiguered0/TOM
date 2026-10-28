@@ -34,6 +34,27 @@ export const winnerOf = (t: PanelTable): Side | null => {
   return null;
 };
 
+/** Reporte de um lado como ajuste da mesa (placar sempre jogador 1 x jogador 2). */
+const asOverride = (report: ReportDto, side: Side): OverrideDto => {
+  if (report.kind === 'intentional_draw') return { kind: 'intentional_draw' };
+  return side === 'player1'
+    ? { kind: 'score', player1: report.own, player2: report.opponent }
+    : { kind: 'score', player1: report.opponent, player2: report.own };
+};
+
+/**
+ * "Confirmar reportes": mesas ainda não verdes com um reporte só viram o que foi reportado.
+ * Reportes que não batem ficam de fora: só o ADM sabe quem venceu (duplo clique no nome).
+ */
+export const reportsToConfirm = (tables: readonly PanelTable[]): { table: number; override: OverrideDto }[] =>
+  tables.flatMap((t) => {
+    const { player1: r1, player2: r2 } = t.reports;
+    if (t.color === 'green' || (r1 && r2)) return [];
+    if (r1) return [{ table: t.table, override: asOverride(r1, 'player1') }];
+    if (r2) return [{ table: t.table, override: asOverride(r2, 'player2') }];
+    return [];
+  });
+
 export const describePlayerReport = (report: ReportDto | null): string =>
   !report ? 'não reportou' : report.kind === 'intentional_draw' ? 'ID' : `${String(report.own)}x${String(report.opponent)}`;
 

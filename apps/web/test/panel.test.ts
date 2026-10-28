@@ -1,6 +1,6 @@
 import type { PanelTable } from '@tom/contracts';
 import { describe, expect, it } from 'vitest';
-import { describeOverride, describePlayerReport, nextAction, overrideScores, pickTable, sortForAction, winnerOf, winOverride } from '../src/panel/panel.js';
+import { describeOverride, describePlayerReport, nextAction, overrideScores, pickTable, reportsToConfirm, sortForAction, winnerOf, winOverride } from '../src/panel/panel.js';
 
 const table = (n: number, over: Partial<PanelTable> = {}): PanelTable => ({
   table: n,
@@ -71,5 +71,30 @@ describe('vencedor com duplo clique', () => {
     expect(winnerOf(table(1, { color: 'green', override: by({ kind: 'score', player1: 1, player2: 1 }) }))).toBeNull();
     expect(winnerOf(table(1, { color: 'green', override: by({ kind: 'intentional_draw' }) }))).toBeNull();
     expect(winnerOf(table(1, { color: 'green', override: by({ kind: 'double_game_loss' }) }))).toBeNull();
+  });
+});
+
+describe('confirmar reportes', () => {
+  const win = { kind: 'score', own: 1, opponent: 0 } as const;
+  const loss = { kind: 'score', own: 0, opponent: 1 } as const;
+
+  it('mesa com um reporte só: o resultado vira o reportado, do ponto de vista do jogador 1', () => {
+    expect(reportsToConfirm([
+      table(2, { color: 'orange', reports: { player1: win, player2: null } }),
+      table(5, { color: 'orange', reports: { player1: null, player2: win } }),
+      table(7, { color: 'red', redReason: 'timeout', reports: { player1: null, player2: { kind: 'intentional_draw' } } }),
+    ])).toEqual([
+      { table: 2, override: { kind: 'score', player1: 1, player2: 0 } },
+      { table: 5, override: { kind: 'score', player1: 0, player2: 1 } },
+      { table: 7, override: { kind: 'intentional_draw' } },
+    ]);
+  });
+
+  it('fora: verdes, sem reporte e reportes que não batem', () => {
+    expect(reportsToConfirm([
+      table(1, { color: 'green', reports: { player1: win, player2: loss } }),
+      table(3, { color: 'gray' }),
+      table(4, { color: 'red', redReason: 'outcome_conflict', reports: { player1: win, player2: win } }),
+    ])).toEqual([]);
   });
 });
