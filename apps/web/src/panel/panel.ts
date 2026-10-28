@@ -55,6 +55,14 @@ export const reportsToConfirm = (tables: readonly PanelTable[]): { table: number
     return [];
   });
 
+/** Marca colorida ao lado do nome: o que o jogador reportou (o ADM vê de relance o que lançar no TOM). */
+export const reportTag = (report: ReportDto | null): { text: string; tone: 'win' | 'loss' | 'draw' } | null => {
+  if (!report) return null;
+  if (report.kind === 'intentional_draw') return { text: 'ID', tone: 'draw' };
+  if (report.own > report.opponent) return { text: 'Vitória', tone: 'win' };
+  return report.own < report.opponent ? { text: 'Derrota', tone: 'loss' } : { text: 'Empate', tone: 'draw' };
+};
+
 export const describePlayerReport = (report: ReportDto | null): string =>
   !report ? 'não reportou' : report.kind === 'intentional_draw' ? 'ID' : `${String(report.own)}x${String(report.opponent)}`;
 

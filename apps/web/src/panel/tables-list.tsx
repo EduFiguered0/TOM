@@ -1,7 +1,14 @@
 import type { PanelTable, TableColor } from '@tom/contracts';
-import { nextAction, sortForAction, winnerOf } from './panel.js';
+import { nextAction, reportTag, sortForAction, winnerOf } from './panel.js';
 
 export const DOT: Record<TableColor, string> = { gray: 'bg-gray', orange: 'bg-orange', green: 'bg-green', red: 'bg-red' };
+
+/** Cores do resultado: vitória verde, derrota vermelha, empate/ID neutro (também nos botões do painel). */
+export const RESULT_TONE = {
+  win: 'border-green bg-green/15 text-ok',
+  loss: 'border-red bg-red/15 text-error',
+  draw: 'border-line bg-bg text-muted',
+} as const;
 
 interface Props {
   tables: readonly PanelTable[];
@@ -15,14 +22,20 @@ interface Props {
 }
 
 /** Mesas da rodada, na ordem de ação; a linha escolhida abre o detalhe ao lado e o duplo clique no nome marca o vencedor. Rola por dentro. */
-/** Nome do jogador; o vencedor da mesa validada fica numa caixa verde. */
-const Name = ({ t, side, onWinner }: { t: PanelTable; side: 'player1' | 'player2'; onWinner: Props['onWinner'] }) => (
-  <span title={onWinner ? 'Duplo clique: vencedor' : undefined}
-    class={`inline-block rounded-md border px-2 py-0.5 ${winnerOf(t) === side ? 'border-green bg-green/20 font-semibold text-ok' : 'border-transparent'} ${onWinner ? 'select-none' : ''}`}
-    onDblClick={onWinner ? (e) => { e.stopPropagation(); onWinner(t.table, side); } : undefined}>
-    {t[side].name}
-  </span>
-);
+/** Nome do jogador, com a marca do que ele reportou; o vencedor da mesa validada fica numa caixa verde. */
+const Name = ({ t, side, onWinner }: { t: PanelTable; side: 'player1' | 'player2'; onWinner: Props['onWinner'] }) => {
+  const tag = reportTag(t.reports[side]);
+  return (
+    <span class="flex flex-wrap items-center gap-1.5">
+      <span title={onWinner ? 'Duplo clique: vencedor' : undefined}
+        class={`inline-block rounded-md border px-2 py-0.5 ${winnerOf(t) === side ? 'border-green bg-green/20 font-semibold text-ok' : 'border-transparent'} ${onWinner ? 'select-none' : ''}`}
+        onDblClick={onWinner ? (e) => { e.stopPropagation(); onWinner(t.table, side); } : undefined}>
+        {t[side].name}
+      </span>
+      {tag && <span class={`rounded border px-1.5 text-xs font-bold ${RESULT_TONE[tag.tone]}`} title="Reportado pelo jogador">{tag.text}</span>}
+    </span>
+  );
+};
 
 export const TablesList = ({ tables, started, selected, onSelect, onWinner, clockOf }: Props) => (
   <div class="min-h-0 flex-1 overflow-y-auto">

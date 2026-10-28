@@ -1,8 +1,9 @@
 import type { OverrideDto, PanelResponse, PanelTable } from '@tom/contracts';
 import { useEffect, useState } from 'preact/hooks';
 import type { Api, ApiResult } from '../api.js';
-import { field, ghost, linkButton, primary } from '../ui.js';
+import { linkButton, primary } from '../ui.js';
 import { reportOptions, type ReportOption } from '../round/round.js';
+import { RESULT_TONE } from './tables-list.js';
 import { describeOverride, describePlayerReport, nextAction, overrideScores } from './panel.js';
 
 interface Props {
@@ -42,8 +43,10 @@ const overrideGroups = (t: PanelTable, bestOf: 1 | 3): { title: string; options:
   ];
 };
 
+/** No painel quem fala é o ADM: Vitória/Derrota do jogador (no celular, o próprio jogador diz Ganhei/Perdi). */
+const STAFF_LABEL: Record<ReportOption['tone'], string> = { win: 'Vitória', loss: 'Derrota', draw: 'Empate' };
+
 const section = 'flex flex-col gap-2 border-t border-line pt-3';
-const small = `${field} py-1.5`;
 
 /** Mesa escolhida: reportes, override vigente e as ações (override, key lançada, reporte por jogador). O acréscimo é da rodada. */
 export const TableDetail = ({ api, table: t, admin, started, round, bestOf, onUpdate }: Props) => {
@@ -74,6 +77,7 @@ export const TableDetail = ({ api, table: t, admin, started, round, bestOf, onUp
   };
 
   const name = (s: 'player1' | 'player2') => t[s].name;
+  const firstName = (s: 'player1' | 'player2') => name(s).split(' ')[0] ?? name(s);
   const row = (label: string, value: string) => (
     <div class="flex justify-between gap-3 text-sm"><span class="text-muted">{label}</span><span class="text-right">{value}</span></div>
   );
@@ -138,19 +142,19 @@ export const TableDetail = ({ api, table: t, admin, started, round, bestOf, onUp
       {admin && started && bestOf && t.color !== 'green' && !t.keyLaunched && (
         <div class={section}>
           <h3 class="m-0 text-sm font-bold">Reportar por jogador sem celular</h3>
-          <select class={small} aria-label="Jogador" value={side} onChange={(e) => { setSide(e.currentTarget.value as 'player1' | 'player2'); setPending(null); }}>
-            <option value="player1">Por {name('player1')}</option>
-            <option value="player2">Por {name('player2')}</option>
-          </select>
           {!pending ? (
-            <div class="grid grid-cols-2 gap-1.5">
-              {reportOptions().map((o) => (
-                <button key={o.label} type="button" class={`${ghost} px-2 py-1.5 text-xs`} onClick={() => { setPending(o); }}>{o.label}</button>
-              ))}
+            <div class="grid grid-cols-[1fr_auto_auto] items-center gap-1.5">
+              {(['player1', 'player2'] as const).map((s) => [
+                <span key={`${s}-name`} class="truncate text-sm">{firstName(s)}</span>,
+                ...reportOptions().map((o) => (
+                  <button key={`${s}-${o.label}`} type="button" class={`rounded-md border px-3 py-1.5 text-xs font-semibold hover:brightness-125 ${RESULT_TONE[o.tone]}`} aria-label={`${firstName(s)}: ${STAFF_LABEL[o.tone]}`}
+                    onClick={() => { setSide(s); setPending(o); }}>{STAFF_LABEL[o.tone]}</button>
+                )),
+              ])}
             </div>
           ) : (
             <div class="flex flex-wrap items-center gap-2 rounded-md border border-dashed border-warn p-2 text-sm">
-              <span>Por <b>{name(side)}</b>: <b>{pending.label}</b>?</span>
+              <span><b>{name(side)}</b>: <b>{STAFF_LABEL[pending.tone]}</b>?</span>
               <button type="button" class={primary} disabled={busy} onClick={() => { void run(() => api.staffReport(t.table, side, pending.report, round), 'Reporte registrado.'); }}>Confirmar</button>
               <button type="button" class={linkButton} onClick={() => { setPending(null); }}>Voltar</button>
             </div>
