@@ -1,6 +1,6 @@
 import type { PanelTable } from '@tom/contracts';
 import { describe, expect, it } from 'vitest';
-import { describeOverride, describePlayerReport, nextAction, overrideScores, pickTable, reportsToConfirm, sortForAction, winnerOf, winOverride } from '../src/panel/panel.js';
+import { describeOverride, describePlayerReport, nextAction, overrideScores, pickTable, reportsToConfirm, reportTag, sortForAction, winnerOf, winOverride } from '../src/panel/panel.js';
 
 const table = (n: number, over: Partial<PanelTable> = {}): PanelTable => ({
   table: n,
@@ -96,5 +96,15 @@ describe('confirmar reportes', () => {
       table(3, { color: 'gray' }),
       table(4, { color: 'red', redReason: 'outcome_conflict', reports: { player1: win, player2: win } }),
     ])).toEqual([]);
+  });
+});
+
+describe('marca do reporte na lista de mesas', () => {
+  it('o que cada jogador reportou, para lançar no TOM', () => {
+    expect(reportTag(null)).toBeNull();
+    expect(reportTag({ kind: 'score', own: 1, opponent: 0 })).toEqual({ text: 'Vitória', tone: 'win' });
+    expect(reportTag({ kind: 'score', own: 0, opponent: 1 })).toEqual({ text: 'Derrota', tone: 'loss' });
+    expect(reportTag({ kind: 'score', own: 1, opponent: 1 })).toEqual({ text: 'Empate', tone: 'draw' });
+    expect(reportTag({ kind: 'intentional_draw' })).toEqual({ text: 'ID', tone: 'draw' });
   });
 });

@@ -1,8 +1,9 @@
 import type { OverrideDto, PanelResponse, PanelTable } from '@tom/contracts';
 import { useEffect, useState } from 'preact/hooks';
 import type { Api, ApiResult } from '../api.js';
-import { ghost, linkButton, primary } from '../ui.js';
+import { linkButton, primary } from '../ui.js';
 import { reportOptions, type ReportOption } from '../round/round.js';
+import { RESULT_TONE } from './tables-list.js';
 import { describeOverride, describePlayerReport, nextAction, overrideScores } from './panel.js';
 
 interface Props {
@@ -146,7 +147,7 @@ export const TableDetail = ({ api, table: t, admin, started, round, bestOf, onUp
               {(['player1', 'player2'] as const).map((s) => [
                 <span key={`${s}-name`} class="truncate text-sm">{firstName(s)}</span>,
                 ...reportOptions().map((o) => (
-                  <button key={`${s}-${o.label}`} type="button" class={`${ghost} px-3 py-1.5 text-xs`} aria-label={`${firstName(s)}: ${STAFF_LABEL[o.tone]}`}
+                  <button key={`${s}-${o.label}`} type="button" class={`rounded-md border px-3 py-1.5 text-xs font-semibold hover:brightness-125 ${RESULT_TONE[o.tone]}`} aria-label={`${firstName(s)}: ${STAFF_LABEL[o.tone]}`}
                     onClick={() => { setSide(s); setPending(o); }}>{STAFF_LABEL[o.tone]}</button>
                 )),
               ])}
