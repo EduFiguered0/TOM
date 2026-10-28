@@ -42,6 +42,9 @@ const overrideGroups = (t: PanelTable, bestOf: 1 | 3): { title: string; options:
   ];
 };
 
+/** No painel quem fala é o ADM: Vitória/Derrota do jogador (no celular, o próprio jogador diz Ganhei/Perdi). */
+const STAFF_LABEL: Record<ReportOption['tone'], string> = { win: 'Vitória', loss: 'Derrota', draw: 'Empate' };
+
 const section = 'flex flex-col gap-2 border-t border-line pt-3';
 
 /** Mesa escolhida: reportes, override vigente e as ações (override, key lançada, reporte por jogador). O acréscimo é da rodada. */
@@ -143,14 +146,14 @@ export const TableDetail = ({ api, table: t, admin, started, round, bestOf, onUp
               {(['player1', 'player2'] as const).map((s) => [
                 <span key={`${s}-name`} class="truncate text-sm">{firstName(s)}</span>,
                 ...reportOptions().map((o) => (
-                  <button key={`${s}-${o.label}`} type="button" class={`${ghost} px-3 py-1.5 text-xs`} aria-label={`${firstName(s)}: ${o.label}`}
-                    onClick={() => { setSide(s); setPending(o); }}>{o.label}</button>
+                  <button key={`${s}-${o.label}`} type="button" class={`${ghost} px-3 py-1.5 text-xs`} aria-label={`${firstName(s)}: ${STAFF_LABEL[o.tone]}`}
+                    onClick={() => { setSide(s); setPending(o); }}>{STAFF_LABEL[o.tone]}</button>
                 )),
               ])}
             </div>
           ) : (
             <div class="flex flex-wrap items-center gap-2 rounded-md border border-dashed border-warn p-2 text-sm">
-              <span>Por <b>{name(side)}</b>: <b>{pending.label}</b>?</span>
+              <span><b>{name(side)}</b>: <b>{STAFF_LABEL[pending.tone]}</b>?</span>
               <button type="button" class={primary} disabled={busy} onClick={() => { void run(() => api.staffReport(t.table, side, pending.report, round), 'Reporte registrado.'); }}>Confirmar</button>
               <button type="button" class={linkButton} onClick={() => { setPending(null); }}>Voltar</button>
             </div>
