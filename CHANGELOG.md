@@ -1,5 +1,23 @@
 # Changelog
 
+## [0.5.0](https://github.com/EduFiguered0/TOM/compare/v0.4.0...v0.5.0) (2026-10-28)
+
+
+### Novidades
+
+* ADM corrige os dados do jogador na guia Jogadores, e o jogador é avisado ([864ce52](https://github.com/EduFiguered0/TOM/commit/864ce525d876d75a3e7f7ae084a7db499044fb71))
+* ADM corrige os dados do jogador, e o jogador é avisado ([a12da9c](https://github.com/EduFiguered0/TOM/commit/a12da9c980911da9d585894d45c5d0734a835241))
+* ADM escolhe o arquivo do torneio do TOM na pasta ([a729742](https://github.com/EduFiguered0/TOM/commit/a729742e0b910f0bde95b3d047922c86e1fa3c26))
+* ADM escolhe o arquivo do torneio do TOM na pasta, mesmo com a rodada começada ([521d9c3](https://github.com/EduFiguered0/TOM/commit/521d9c316af244650a2a24d87bb57bda5dbef421))
+
+
+### Correções
+
+* nas inscrições, torneio mais novo na pasta troca o torneio do evento ([5f8ce5c](https://github.com/EduFiguered0/TOM/commit/5f8ce5c8433370e391882a28e354232214963678))
+* nas inscrições, torneio mais novo na pasta troca o torneio do evento ([a16bb73](https://github.com/EduFiguered0/TOM/commit/a16bb7367cfbc4e2603101bf58ff4e72d1b8b923))
+* proxy de desenvolvimento aponta para a API de testes atual ([b92aa09](https://github.com/EduFiguered0/TOM/commit/b92aa09b9cefbbecde9cd937d121e99961cf1717))
+* proxy de desenvolvimento aponta para a API de testes atual (tom-test-api) ([a6665b8](https://github.com/EduFiguered0/TOM/commit/a6665b81d8d9d8686abe8d1046372e584276086a))
+
 ## [0.4.0](https://github.com/EduFiguered0/TOM/compare/v0.3.0...v0.4.0) (2026-10-27)
 
 
