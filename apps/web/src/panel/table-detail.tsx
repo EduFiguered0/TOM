@@ -1,7 +1,7 @@
 import type { OverrideDto, PanelResponse, PanelTable } from '@tom/contracts';
 import { useEffect, useState } from 'preact/hooks';
 import type { Api, ApiResult } from '../api.js';
-import { field, ghost, linkButton, primary } from '../ui.js';
+import { ghost, linkButton, primary } from '../ui.js';
 import { reportOptions, type ReportOption } from '../round/round.js';
 import { describeOverride, describePlayerReport, nextAction, overrideScores } from './panel.js';
 
@@ -43,7 +43,6 @@ const overrideGroups = (t: PanelTable, bestOf: 1 | 3): { title: string; options:
 };
 
 const section = 'flex flex-col gap-2 border-t border-line pt-3';
-const small = `${field} py-1.5`;
 
 /** Mesa escolhida: reportes, override vigente e as ações (override, key lançada, reporte por jogador). O acréscimo é da rodada. */
 export const TableDetail = ({ api, table: t, admin, started, round, bestOf, onUpdate }: Props) => {
@@ -74,6 +73,7 @@ export const TableDetail = ({ api, table: t, admin, started, round, bestOf, onUp
   };
 
   const name = (s: 'player1' | 'player2') => t[s].name;
+  const firstName = (s: 'player1' | 'player2') => name(s).split(' ')[0] ?? name(s);
   const row = (label: string, value: string) => (
     <div class="flex justify-between gap-3 text-sm"><span class="text-muted">{label}</span><span class="text-right">{value}</span></div>
   );
@@ -138,15 +138,15 @@ export const TableDetail = ({ api, table: t, admin, started, round, bestOf, onUp
       {admin && started && bestOf && t.color !== 'green' && !t.keyLaunched && (
         <div class={section}>
           <h3 class="m-0 text-sm font-bold">Reportar por jogador sem celular</h3>
-          <select class={small} aria-label="Jogador" value={side} onChange={(e) => { setSide(e.currentTarget.value as 'player1' | 'player2'); setPending(null); }}>
-            <option value="player1">Por {name('player1')}</option>
-            <option value="player2">Por {name('player2')}</option>
-          </select>
           {!pending ? (
-            <div class="grid grid-cols-2 gap-1.5">
-              {reportOptions().map((o) => (
-                <button key={o.label} type="button" class={`${ghost} px-2 py-1.5 text-xs`} onClick={() => { setPending(o); }}>{o.label}</button>
-              ))}
+            <div class="grid grid-cols-[1fr_auto_auto] items-center gap-1.5">
+              {(['player1', 'player2'] as const).map((s) => [
+                <span key={`${s}-name`} class="truncate text-sm">{firstName(s)}</span>,
+                ...reportOptions().map((o) => (
+                  <button key={`${s}-${o.label}`} type="button" class={`${ghost} px-3 py-1.5 text-xs`} aria-label={`${firstName(s)}: ${o.label}`}
+                    onClick={() => { setSide(s); setPending(o); }}>{o.label}</button>
+                )),
+              ])}
             </div>
           ) : (
             <div class="flex flex-wrap items-center gap-2 rounded-md border border-dashed border-warn p-2 text-sm">
