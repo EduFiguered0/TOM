@@ -20,6 +20,7 @@ import {
   parseSessionRequest,
   parseSetPaidRequest,
   parseChooseTournamentRequest,
+  parseEditPlayerRequest,
   parseShowOnTvRequest,
   parseUploadRequest,
   type AccountResponse,
@@ -31,6 +32,7 @@ import {
   type MyRegistrationDto,
   type PlayerEventDto,
   type PhotoResponse,
+  type PlayerDetailDto,
   type PlayerRowDto,
   type TeamMemberDto,
   type RegistrationDto,
@@ -173,6 +175,12 @@ const toPlayerRow = (account: Account): PlayerRowDto => ({
   photo: visiblePhoto(account, new Date()),
 });
 
+const toPlayerDetail = (account: Account): PlayerDetailDto => ({
+  ...toPlayerRow(account),
+  lastName: account.profile.lastName,
+  birthYear: account.profile.birthYear,
+});
+
 const toTeamMember = (account: Account): TeamMemberDto => ({ ...toPlayerRow(account), judge: account.judge === true });
 
 const toMe = ({ account, actor }: Principal, judging: boolean): MeResponse => ({
@@ -184,6 +192,7 @@ const toMe = ({ account, actor }: Principal, judging: boolean): MeResponse => ({
   nameReviewed: account.nameReviewed,
   photo: account.photoId ?? null,
   imageConsent: account.imageConsent === true,
+  adminChanges: account.adminChanges ?? [],
 });
 
 /** `withCode`: só o ADM recebe o código do QR (a TV mostra no QR; o resto não precisa). */
@@ -406,6 +415,14 @@ export const createApi = ({ tokens, emails, accounts, events, ingest, board, rou
       },
     },
     {
+      method: 'POST', path: /^\/me\/admin-changes\/seen$/,
+      handle: async ({ identity }) => {
+        await accounts.authenticate(identity);
+        await accounts.dismissAdminChanges(identity);
+        return { status: 200, body: await me(await accounts.authenticate(identity)) };
+      },
+    },
+    {
       method: 'POST', path: /^\/me\/player-id$/,
       handle: async ({ request, identity }) => {
         const { playerId } = parsePlayerIdRequest(jsonBody(request));
@@ -452,6 +469,28 @@ export const createApi = ({ tokens, emails, accounts, events, ingest, board, rou
       handle: async ({ identity, params: [accountId = ''] }) => {
         const { actor } = await accounts.authenticate(identity);
         return { status: 200, body: toPlayerRow(await photos.removeByAdmin(actor, accountId)) };
+      },
+    },
+    {
+      method: 'GET', path: new RegExp(`^/players/${ACCOUNT_ID}$`),
+      handle: async ({ identity, params: [accountId = ''] }) => {
+        await requireAdmin(identity);
+        const account = await accounts.byId(accountId);
+        if (!account) throw new CommandRejected('account_not_found', 'Conta não cadastrada');
+        return { status: 200, body: toPlayerDetail(account) };
+      },
+    },
+    {
+      method: 'PATCH', path: new RegExp(`^/players/${ACCOUNT_ID}$`),
+      handle: async ({ request, identity, params: [accountId = ''] }) => {
+        const edit = parseEditPlayerRequest(jsonBody(request));
+        const { actor } = await accounts.authenticate(identity);
+        const before = await accounts.byId(accountId);
+        const account = await accounts.editPlayer(actor, accountId, edit);
+        // Player ID trocado: a inscrição antiga saiu do evento ativo, como no "Desfazer vínculo".
+        const active = await events.active();
+        if (active && before?.playerId !== account.playerId) await registrations.dropAccount(active.id, account.id);
+        return { status: 200, body: toPlayerDetail(account) };
       },
     },
     {

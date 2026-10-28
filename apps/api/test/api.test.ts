@@ -127,6 +127,26 @@ describe('API', () => {
     expect(await call('GET', '/me', 'ana-email:p1')).toMatchObject({ body: { canAct: false, playerId: null } });
   });
 
+  it('ADM vê e corrige os dados do jogador; Player ID de outra conta é recusado sem dizer de quem', async () => {
+    const { call } = setup();
+    const id = await register(call, 'ana-email:p1', '100001');
+    await register(call, 'bia-email:p2', '100002');
+    await register(call, 'adm:a1');
+    const detail = await call('GET', `/players/${id}`, 'adm:a1:admin');
+    expect(detail).toMatchObject({ status: 200, body: { id, firstName: 'Ana', lastName: 'Souza', playerId: '100001', email: 'ana•••@example.com' } });
+    expect(JSON.stringify(detail.body)).not.toMatch(/ana@example/);
+    expect((await call('GET', `/players/${id}`, 'ana-email:p1')).status).toBe(403);
+
+    const edit = { firstName: 'Ana', lastName: 'Lima', birthYear: 1990, playerId: '100009' };
+    expect((await call('PATCH', `/players/${id}`, 'ana-email:p1', edit)).status).toBe(403);
+    expect(await call('PATCH', `/players/${id}`, 'adm:a1:admin', { ...edit, playerId: '100002' }))
+      .toMatchObject({ status: 409, body: { error: 'player_id_taken', message: 'Este Player ID já está cadastrado em outra conta.' } });
+    expect(await call('PATCH', `/players/${id}`, 'adm:a1:admin', edit)).toMatchObject({ status: 200, body: { lastName: 'Lima', playerId: '100009' } });
+
+    expect(await call('GET', '/me', 'ana-email:p1')).toMatchObject({ body: { playerId: '100009', adminChanges: ['lastName', 'playerId'] } });
+    expect(await call('POST', '/me/admin-changes/seen', 'ana-email:p1')).toMatchObject({ status: 200, body: { adminChanges: [] } });
+  });
+
   it('rotas antigas de check-in não existem mais; Player ID malformado não casa rota', async () => {
     const { call } = setup();
     await register(call, 'adm:a1');

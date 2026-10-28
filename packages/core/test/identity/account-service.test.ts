@@ -275,6 +275,69 @@ describe('papéis e Player ID', () => {
   });
 });
 
+describe('ADM edita os dados do jogador', () => {
+  const edit = { firstName: 'Ana', lastName: 'Souza Lima', birthYear: 1990, phone: '11988887777', playerId: '100001' };
+  const bia = identity({ login: 'l-bia', session: 'sb' });
+
+  it('corrige o Player ID e o nome; a conta guarda os campos alterados para avisar o jogador', async () => {
+    const { service, accounts } = setup();
+    const { id } = await service.register(identity(), 'ana@example.com', { profile: adult, playerId: '100001' });
+    const edited = await service.editPlayer(admin, id, { ...edit, firstName: ' Ana Maria ', playerId: ' 100009 ' });
+    expect(edited).toMatchObject({ playerId: '100009', profile: { firstName: 'Ana Maria' }, adminChanges: ['firstName', 'playerId'] });
+    expect(accounts.events.at(-1)).toMatchObject({ type: 'player_edited', fields: ['firstName', 'playerId'], actor: admin });
+    expect((await service.register(bia, 'bia@example.com', { profile: adult, playerId: '100001' })).playerId).toBe('100001');
+  });
+
+  it('sem telefone no pedido, mantém o atual (o ADM só vê o telefone mascarado)', async () => {
+    const { service } = setup();
+    const { id } = await service.register(identity(), 'ana@example.com', { profile: adult, playerId: '100001' });
+    const { firstName, birthYear, playerId } = edit;
+    expect(await service.editPlayer(admin, id, { firstName, birthYear, playerId, lastName: 'Lima' }))
+      .toMatchObject({ profile: { phone: '11988887777', lastName: 'Lima' }, adminChanges: ['lastName'] });
+  });
+
+  it('Player ID vazio desfaz o vínculo', async () => {
+    const { service } = setup();
+    const { id } = await service.register(identity(), 'ana@example.com', { profile: adult, playerId: '100001' });
+    expect(await service.editPlayer(admin, id, { ...edit, playerId: null })).toMatchObject({ playerId: null, adminChanges: ['playerId'] });
+  });
+
+  it('Player ID de outra conta: recusa sem dizer de quem é', async () => {
+    const { service } = setup();
+    const { id } = await service.register(identity(), 'ana@example.com', { profile: adult, playerId: '100001' });
+    await service.register(bia, 'bia@example.com', { profile: adult, playerId: '100002' });
+    const attempt = service.editPlayer(admin, id, { ...edit, playerId: '100002' });
+    await rejects(attempt, 'player_id_taken');
+    await expect(service.editPlayer(admin, id, { ...edit, playerId: '100002' })).rejects.toThrow('Este Player ID já está cadastrado em outra conta.');
+  });
+
+  it('mesmas validações do cadastro; sem mudança, nada é gravado nem avisado', async () => {
+    const { service, accounts } = setup();
+    const { id } = await service.register(identity(), 'ana@example.com', { profile: adult, playerId: '100001' });
+    await rejects(service.editPlayer(admin, id, { ...edit, firstName: ' ' }), 'invalid_input');
+    await rejects(service.editPlayer(admin, id, { ...edit, playerId: 'abc' }), 'invalid_input');
+    const before = accounts.events.length;
+    expect((await service.editPlayer(admin, id, edit)).adminChanges).toBeUndefined();
+    expect(accounts.events).toHaveLength(before);
+  });
+
+  it('só o ADM edita', async () => {
+    const { service } = setup();
+    const { id } = await service.register(identity(), 'ana@example.com', { profile: adult, playerId: '100001' });
+    const player = { role: 'player', accountId: id, playerId: toPlayerId('100001') } as const;
+    await rejects(service.editPlayer(player, id, { ...edit, firstName: 'X' }), 'forbidden');
+    await rejects(service.editPlayer(null, id, { ...edit, firstName: 'X' }), 'forbidden');
+  });
+
+  it('o aviso junta as alterações até o jogador dar OK', async () => {
+    const { service } = setup();
+    const { id } = await service.register(identity(), 'ana@example.com', { profile: adult, playerId: '100001' });
+    await service.editPlayer(admin, id, { ...edit, phone: '11977776666' });
+    expect((await service.editPlayer(admin, id, { ...edit, phone: '11977776666', birthYear: 1991 })).adminChanges).toEqual(['phone', 'birthYear']);
+    expect((await service.dismissAdminChanges(identity())).adminChanges).toBeNull();
+  });
+});
+
 describe('equipe', () => {
   const joao = identity({ login: 'l-joao', session: 'sj' });
   const maria = identity({ login: 'l-maria', session: 'sm' });

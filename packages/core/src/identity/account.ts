@@ -12,6 +12,9 @@ export interface Profile {
   guardianConsent: boolean;
 }
 
+/** Dados do jogador que o ADM pode corrigir (o e-mail é o login e fica de fora). */
+export type PlayerField = 'firstName' | 'lastName' | 'birthYear' | 'phone' | 'playerId';
+
 export interface Account {
   id: string;
   /** E-mail verificado, em minúsculas: uma conta por e-mail. */
@@ -34,6 +37,8 @@ export interface Account {
   photoId?: string | null;
   /** Menor: o responsável autoriza mostrar a foto nas mesas (consentimento específico de imagem). */
   imageConsent?: boolean;
+  /** Campos que o ADM alterou e o jogador ainda não viu (aviso só informativo); ausente/null = nada a avisar. */
+  adminChanges?: PlayerField[] | null;
   /** Sessão do dispositivo ativo (`origin_jti` do token); tokens de outra sessão são recusados. */
   activeSession: string | null;
   createdAt: Date;
@@ -54,7 +59,11 @@ export type IdentityEventData =
   /** Foto posta, trocada ou tirada (null), pela pessoa ou pelo ADM. */
   | { type: 'photo_set'; photoId: string | null }
   /** Autorização de imagem do responsável (menor) marcada ou desmarcada. */
-  | { type: 'image_consent_set'; consent: boolean };
+  | { type: 'image_consent_set'; consent: boolean }
+  /** O ADM corrigiu dados do jogador. */
+  | { type: 'player_edited'; fields: PlayerField[] }
+  /** O jogador viu o aviso das correções do ADM. */
+  | { type: 'admin_changes_seen' };
 
 /** Fato gravado junto com a conta, para auditoria. */
 export type IdentityEvent = IdentityEventData & {
