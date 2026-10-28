@@ -59,7 +59,12 @@ export interface MeResponse extends AccountResponse {
   photo: string | null;
   /** Menor: o responsável autorizou mostrar a foto nas mesas. */
   imageConsent: boolean;
+  /** Campos que o ADM corrigiu e a pessoa ainda não viu: aviso só informativo. */
+  adminChanges: PlayerFieldDto[];
 }
+
+/** Dados do jogador que o ADM pode corrigir (o e-mail é o login e fica de fora). */
+export type PlayerFieldDto = 'firstName' | 'lastName' | 'birthYear' | 'phone' | 'playerId';
 
 /** Foto já recortada e reduzida no celular (data URL); null tira a foto. */
 export interface PhotoRequest {
@@ -109,6 +114,17 @@ const field = <K extends keyof FieldTypes>(obj: Json, key: string, type: K): Fie
 };
 
 const nullableString = (obj: Json, key: string): string | null => (obj[key] === null ? null : field(obj, key, 'string'));
+
+export const parseEditPlayerRequest = (body: unknown): EditPlayerRequest => {
+  const root = object(body, 'Corpo');
+  return {
+    firstName: field(root, 'firstName', 'string'),
+    lastName: field(root, 'lastName', 'string'),
+    birthYear: field(root, 'birthYear', 'number'),
+    ...('phone' in root ? { phone: nullableString(root, 'phone') } : {}),
+    playerId: nullableString(root, 'playerId'),
+  };
+};
 
 export const parseRegisterRequest = (body: unknown): RegisterRequest => {
   const root = object(body, 'Corpo');
@@ -332,6 +348,21 @@ export interface PlayerRowDto {
   phone: string | null;
   /** Chave da foto visível; null sem foto (ou menor sem autorização). */
   photo: string | null;
+}
+
+/** Jogador escolhido, para o ADM corrigir: nome completo e ano; e-mail e telefone continuam mascarados. */
+export interface PlayerDetailDto extends PlayerRowDto {
+  lastName: string;
+  birthYear: number;
+}
+
+/** Correção do ADM. Sem `phone`, mantém o atual; `playerId` vazio ou null desfaz o vínculo. */
+export interface EditPlayerRequest {
+  firstName: string;
+  lastName: string;
+  birthYear: number;
+  phone?: string | null;
+  playerId: string | null;
 }
 
 /** Conta na guia Equipe (busca, juízes, escala): mascarada como na guia Jogadores, com a marca de juiz. */

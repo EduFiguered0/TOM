@@ -3,6 +3,7 @@ import type { Api } from '../api.js';
 import { card, cardWarn, Feedback, muted, textButton, title } from '../ui.js';
 import { MyEventCard } from './my-event.js';
 import { NameReviewCard } from './name-review.js';
+import { AdminChangesCard } from './player-edit.js';
 import { PhotoCard } from './photo-card.js';
 import { PlayerIdCard } from './player-id.js';
 import { RoundCard } from '../round/round-card.js';
@@ -25,6 +26,7 @@ const ROLE: Record<MeResponse['role'], string> = { player: 'Jogador', admin: 'AD
 
 export const Home = ({ me, api, onSignOut, onChanged, joinError, eventRefresh, notice = null }: Props) => (
   <>
+  {me.adminChanges.length > 0 && <AdminChangesCard me={me} api={api} onSeen={onChanged} />}
   {joinError && <section class={cardWarn}><p class="m-0 font-medium text-error" role="alert">{joinError}</p></section>}
   {notice && <section class={notice.ok ? card : cardWarn}><Feedback message={notice} /></section>}
   {me.role === 'player' && <MyEventCard api={api} refresh={eventRefresh} />}

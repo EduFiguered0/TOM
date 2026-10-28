@@ -90,6 +90,15 @@ describe('ciclo do evento pela API', () => {
     expect(await list()).toMatchObject({ total: 0, registrations: [{ removed: true }] });
   });
 
+  it('ADM troca o Player ID: a inscrição sai do evento ativo; corrigir só o nome, não', async () => {
+    const { call, code, list, ana } = await opened();
+    await call('POST', `/join/${code}`, 'ana-email:c1');
+    await call('PATCH', `/players/${ana}`, ADM, { firstName: 'Ana Maria', lastName: 'Souza', birthYear: 1990, playerId: '100001' });
+    expect(await list()).toMatchObject({ total: 1 });
+    await call('PATCH', `/players/${ana}`, ADM, { firstName: 'Ana Maria', lastName: 'Souza', birthYear: 1990, playerId: '100009' });
+    expect(await list()).toMatchObject({ total: 0, registrations: [{ removed: true }] });
+  });
+
   it('jogador não usa as rotas do ADM (403); visitante sem login recebe 401', async () => {
     const { call, event, ana } = await opened();
     expect((await call('GET', '/events/active', 'ana-email:c1')).status).toBe(403);

@@ -11,6 +11,7 @@ import {
   validProfile,
   type Account,
   type IdentityEventData,
+  type PlayerField,
   type Profile,
 } from './account.js';
 import { AccountConflictError, PlayerIdTakenError, type AccountRecord, type AccountRepository } from './account-repository.js';
@@ -251,6 +252,40 @@ export class AccountService {
     });
   }
 
+  /**
+   * O ADM corrige os dados do jogador, com as validações do cadastro. Player ID vazio desfaz o vínculo;
+   * de outra conta, recusa sem dizer de quem é. O jogador é avisado dos campos alterados.
+   */
+  async editPlayer(actor: Actor | null, accountId: string, input: PlayerEdit): Promise<Account> {
+    requireAdmin(actor);
+    const now = this.deps.clock.now();
+    const playerId = input.playerId?.trim() ? validated(() => toPlayerId(input.playerId ?? '')) : null;
+    try {
+      return await this.execute(accountId, (current) => {
+        const { firstName, lastName, birthYear } = input;
+        const phone = input.phone === undefined ? current.profile.phone : input.phone;
+        const profile = validated(() => validProfile({ ...current.profile, firstName, lastName, birthYear, phone }, now));
+        const fields = PLAYER_FIELDS.filter((f) => (f === 'playerId' ? current.playerId !== playerId : current.profile[f] !== profile[f]));
+        if (!fields.length) return null;
+        const adminChanges = [...new Set([...(current.adminChanges ?? []), ...fields])];
+        return { actor, account: { ...current, profile, playerId, nameReviewed: true, adminChanges }, data: { type: 'player_edited', fields } };
+      });
+    } catch (e) {
+      if (e instanceof CommandRejected && e.code === 'player_id_taken') {
+        throw new CommandRejected('player_id_taken', 'Este Player ID já está cadastrado em outra conta.');
+      }
+      throw e;
+    }
+  }
+
+  /** O jogador deu OK no aviso das correções do ADM. */
+  async dismissAdminChanges(identity: Identity): Promise<Account> {
+    const { account } = await this.resolve(identity);
+    return this.execute(account.id, (current) => (
+      current.adminChanges?.length ? { actor: self(identity), account: { ...current, adminChanges: null }, data: { type: 'admin_changes_seen' } } : null
+    ));
+  }
+
   /** Equipe: o ADM marca ou desmarca o juiz. O juiz é uma conta de jogador, então precisa de Player ID. */
   async setJudge(actor: Actor | null, accountId: string, judge: boolean): Promise<Account> {
     requireAdmin(actor);
@@ -341,6 +376,19 @@ export class AccountService {
     }
   }
 }
+
+/** O que o ADM corrige; o e-mail fica de fora (é o login). */
+export interface PlayerEdit {
+  firstName: string;
+  lastName: string;
+  birthYear: number;
+  /** Ausente mantém o atual: o ADM só vê o telefone mascarado. */
+  phone?: string | null;
+  /** Vazio ou null desfaz o vínculo. */
+  playerId: string | null;
+}
+
+const PLAYER_FIELDS: readonly PlayerField[] = ['firstName', 'lastName', 'birthYear', 'phone', 'playerId'];
 
 interface Change {
   actor: Actor;

@@ -1,15 +1,16 @@
-import type { PlayerEventDto, PlayerRowDto } from '@tom/contracts';
+import type { PlayerDetailDto, PlayerEventDto, PlayerRowDto } from '@tom/contracts';
 import { useEffect, useMemo, useRef, useState } from 'preact/hooks';
 import type { Api } from '../api.js';
 import { Avatar } from '../photo/avatar.js';
 import { createPhotoCache } from '../photo/photo-cache.js';
 import { box, Feedback, field, ghost } from '../ui.js';
+import { PlayerEditor } from './player-edit.js';
 
 const cell = 'py-1.5 pr-3';
 
 /**
  * Guia Jogadores: todos os cadastrados, com busca por Player ID, nome ou e-mail. Os dados chegam mascarados do
- * servidor. Ao abrir um jogador: eventos com pagamento e "Desfazer vínculo".
+ * servidor. Ao abrir um jogador: eventos com pagamento, "Editar" (correção do ADM) e "Desfazer vínculo".
  */
 export const PlayersTab = ({ api }: { api: Api }) => {
   const [query, setQuery] = useState('');
@@ -17,6 +18,8 @@ export const PlayersTab = ({ api }: { api: Api }) => {
   const [open, setOpen] = useState<PlayerRowDto | null>(null);
   const [events, setEvents] = useState<PlayerEventDto[] | null>(null);
   const [busy, setBusy] = useState(false);
+  /** Dados completos do jogador aberto, só enquanto o ADM edita. */
+  const [editing, setEditing] = useState<PlayerDetailDto | null>(null);
   const [message, setMessage] = useState<{ ok: boolean; text: string } | null>(null);
   /** Jogador aberto agora: resposta de um clique anterior que chegue atrasada é descartada. */
   const selected = useRef<string | null>(null);
@@ -39,6 +42,7 @@ export const PlayersTab = ({ api }: { api: Api }) => {
   const select = (row: PlayerRowDto) => {
     selected.current = row.id;
     setOpen(row);
+    setEditing(null);
     setEvents(null);
     void api.playerEvents(row.id)
       .then((result) => {
@@ -64,6 +68,23 @@ export const PlayersTab = ({ api }: { api: Api }) => {
       })
       .catch((e: unknown) => { setMessage({ ok: false, text: (e as Error).message }); })
       .finally(() => { setBusy(false); });
+  };
+
+  const edit = () => {
+    if (!open) return;
+    setBusy(true);
+    setMessage(null);
+    void api.playerDetail(open.id)
+      .then((result) => { if (result.ok) setEditing(result.body); else setMessage({ ok: false, text: result.error.message }); })
+      .catch((e: unknown) => { setMessage({ ok: false, text: (e as Error).message }); })
+      .finally(() => { setBusy(false); });
+  };
+
+  const saved = (player: PlayerDetailDto) => {
+    setEditing(null);
+    setOpen(player);
+    setMessage({ ok: true, text: 'Dados salvos. O jogador verá um aviso ao entrar.' });
+    void search(query, true);
   };
 
   const unlink = () => {
@@ -129,6 +150,9 @@ export const PlayersTab = ({ api }: { api: Api }) => {
               <button type="button" class={`${ghost} self-start text-error`} disabled={busy} onClick={removePhoto}>Remover foto</button>
             )}
             <p class="m-0 text-sm text-muted">{open.playerId ?? 'sem Player ID'} · {open.email}{open.phone ? ` · ${open.phone}` : ''}</p>
+            {editing
+              ? <PlayerEditor player={editing} api={api} onSaved={saved} onCancel={() => { setEditing(null); }} />
+              : <button type="button" class={`${ghost} self-start`} disabled={busy} onClick={edit}>Editar dados</button>}
             <h3 class="m-0 mt-2 text-sm font-bold">Eventos</h3>
             {events === null && <p class="m-0 text-sm text-muted">Carregando…</p>}
             {events?.length === 0 && <p class="m-0 text-sm text-muted">Nenhum evento registrado.</p>}
