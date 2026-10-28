@@ -282,6 +282,11 @@ export interface ShowOnTvRequest {
   on: boolean;
 }
 
+/** O ADM aponta na pasta o arquivo do torneio do TOM que o evento passa a usar. */
+export interface ChooseTournamentRequest {
+  tournament: string;
+}
+
 export interface RegistrationDto {
   accountId: string;
   playerId: string;
@@ -417,6 +422,14 @@ export const parsePhotoRequest = (body: unknown): PhotoRequest => {
 export const parseImageConsentRequest = (body: unknown): { consent: boolean } => ({ consent: field(object(body, 'Corpo'), 'consent', 'boolean') });
 
 export const parseShowOnTvRequest = (body: unknown): ShowOnTvRequest => ({ on: field(object(body, 'Corpo'), 'on', 'boolean') });
+
+const MAX_TOURNAMENT_CHARS = 200;
+
+export const parseChooseTournamentRequest = (body: unknown): ChooseTournamentRequest => {
+  const tournament = field(object(body, 'Corpo'), 'tournament', 'string');
+  if (tournament.length > MAX_TOURNAMENT_CHARS) throw new InvalidRequestError('Nome de torneio grande demais');
+  return { tournament };
+};
 
 export const parseJudgesRequest = (body: unknown): JudgesRequest => ({ judges: judgeList(object(body, 'Corpo')) });
 

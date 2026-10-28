@@ -84,6 +84,8 @@ export const createApi = (session: Session, base = '/api', fetchFn: typeof fetch
     activeEvent: () => call<ActiveEventResponse>('GET', '/events/active'),
     showOnTv: (eventId: string, on: boolean) => call<ActiveEventResponse>('POST', `/events/${encodeURIComponent(eventId)}/tv`, { on }),
     uploadAsAdmin: (request: UploadRequest) => call<UploadResponse>('POST', '/events/active/uploads', request),
+    chooseTournament: (eventId: string, tournament: string) =>
+      call<EventDto>('POST', `/events/${encodeURIComponent(eventId)}/tournament`, { tournament }),
     updateEvent: (eventId: string, change: UpdateEventRequest) => call<EventDto>('PATCH', `/events/${encodeURIComponent(eventId)}`, change),
     eventAction: (eventId: string, action: 'close' | 'cancel') =>
       call<EventDto>('POST', `/events/${encodeURIComponent(eventId)}/${action}`),

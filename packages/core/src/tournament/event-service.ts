@@ -177,6 +177,22 @@ export class EventService {
     return this.change(eventId, (current) => (current.onTv === on ? null : { ...current, onTv: on }));
   }
 
+  /**
+   * O ADM aponta na pasta o torneio que vale (por exemplo, o TOM abriu outro com a rodada 1 já começada).
+   * A rodada e a classificação parcial do torneio anterior saem; as do escolhido chegam pela pasta.
+   */
+  async chooseTournament(actor: Actor | null, eventId: string, tournament: string): Promise<TournamentEvent> {
+    requireAdmin(actor);
+    const name = tournament.trim();
+    if (!name) throw new CommandRejected('invalid_input', 'Escolha um arquivo de torneio do TOM');
+    return this.change(eventId, (event) => {
+      if (event.status !== 'open' && event.status !== 'running') {
+        throw new CommandRejected('event_state', 'Com o resultado final, o torneio do evento não muda');
+      }
+      return event.tournament === name && event.label === name ? null : { ...event, tournament: name, label: name, partial: null };
+    });
+  }
+
   /** Evento criado por engano ou que nunca recebeu o resultado: não entra no histórico. */
   async cancel(actor: Actor | null, eventId: string): Promise<TournamentEvent> {
     requireAdmin(actor);

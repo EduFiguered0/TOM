@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { browserFolder, type DirectoryLike } from '../src/tom-folder/browser-folder.js';
-import { afterPermission, folderStatus, isRetryable } from '../src/tom-folder/status.js';
+import { afterPermission, folderStatus, isRetryable, tournamentChoice } from '../src/tom-folder/status.js';
 import { idbSentLog } from '../src/tom-folder/stores.js';
 
 /** Pasta falsa no formato da File System Access API. */
@@ -80,5 +80,30 @@ describe('falhas no envio e na leitura', () => {
     expect(folderStatus({ kind: 'trouble', name: 'TOM_DATA', reason: 'network' })).toEqual({
       text: 'Sem conexão com o site. Tentando de novo…', tone: 'warn',
     });
+  });
+});
+
+describe('escolher o arquivo do torneio', () => {
+  it('lê o torneio pelo nome do arquivo do TOM e pergunta antes de trocar', () => {
+    expect(tournamentChoice('testepairings.html', { label: 'Teste', status: 'open' })).toEqual({
+      tournament: 'teste', question: 'O evento passa a usar o torneio teste. Continuar?',
+    });
+  });
+
+  it('com a rodada começada, avisa que a rodada do torneio anterior sai', () => {
+    expect(tournamentChoice('testepairings.html', { label: 'Teste', status: 'running' })).toEqual({
+      tournament: 'teste',
+      question: 'O evento passa a usar o torneio teste. A rodada em andamento do torneio Teste sai do painel e da TV. Continuar?',
+    });
+  });
+
+  it('arquivo que não é relatório do TOM: explica', () => {
+    expect(tournamentChoice('notas.html', { label: 'Teste', status: 'open' }))
+      .toEqual({ error: 'Esse arquivo não é um relatório do TOM. Escolha um arquivo da pasta reports, como <torneio>pairings.html.' });
+  });
+
+  it('mesmo torneio do evento: nada a trocar', () => {
+    expect(tournamentChoice('Testepairings.html', { label: 'Teste', status: 'running' }))
+      .toEqual({ error: 'O evento já usa o torneio Teste.' });
   });
 });

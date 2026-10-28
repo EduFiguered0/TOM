@@ -19,6 +19,7 @@ import {
   parseStartRoundRequest,
   parseSessionRequest,
   parseSetPaidRequest,
+  parseChooseTournamentRequest,
   parseShowOnTvRequest,
   parseUploadRequest,
   type AccountResponse,
@@ -506,6 +507,14 @@ export const createApi = ({ tokens, emails, accounts, events, ingest, board, rou
       handle: async ({ identity }) => {
         await requireAdmin(identity);
         return { status: 200, body: await activeResponse() };
+      },
+    },
+    {
+      method: 'POST', path: new RegExp(`^/events/${EVENT_ID}/tournament$`),
+      handle: async ({ request, identity, params: [id = ''] }) => {
+        const { tournament } = parseChooseTournamentRequest(jsonBody(request));
+        const { actor } = await accounts.authenticate(identity);
+        return { status: 200, body: toEvent(await events.chooseTournament(actor, id, tournament), true) };
       },
     },
     {
