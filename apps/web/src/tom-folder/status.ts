@@ -1,3 +1,6 @@
+import type { EventDto } from '@tom/contracts';
+import { identifyReportFile } from '@tom/uploader/core';
+
 export type FolderState =
   | { kind: 'unsupported' }
   | { kind: 'no-event' }
@@ -46,3 +49,18 @@ export const afterPermission = (
 
 /** Erro do servidor ou excesso de pedidos passa sozinho: tenta de novo. Recusa de regra (4xx) para e mostra. */
 export const isRetryable = (status: number): boolean => status >= 500 || status === 429;
+
+/**
+ * "Escolher arquivo": o torneio vem do nome do arquivo do TOM; com a rodada começada, avisa o que sai.
+ * O nome do evento é o do torneio amarrado (o primeiro envio troca um pelo outro).
+ */
+export const tournamentChoice = (
+  fileName: string,
+  event: Pick<EventDto, 'label' | 'status'>,
+): { tournament: string; question: string } | { error: string } => {
+  const tournament = identifyReportFile(fileName)?.tournament;
+  if (!tournament) return { error: 'Esse arquivo não é um relatório do TOM. Escolha um arquivo da pasta reports, como <torneio>pairings.html.' };
+  if (tournament === event.label) return { error: `O evento já usa o torneio ${tournament}.` };
+  const round = event.status === 'running' ? ` A rodada em andamento do torneio ${event.label} sai do painel e da TV.` : '';
+  return { tournament, question: `O evento passa a usar o torneio ${tournament}.${round} Continuar?` };
+};

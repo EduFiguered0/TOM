@@ -63,6 +63,19 @@ describe('ingestão: TOM → enviador → API', () => {
     expect((await send(upload('match_slips'))).status).toBe(401);
   });
 
+  it('com a rodada 1 começada, só o ADM escolhe outro torneio, e os envios dele passam', async () => {
+    const { send, call, eventId } = await withEvent();
+    await send(upload('pairings'));
+    await send(upload('match_slips'));
+    await call('POST', '/round/start', 'adm:a1:admin', { bestOf: 3, roundMinutes: null });
+    const other = { ...upload('pairings'), tournament: 'OUTRO', fileName: 'OUTROpairings.html' };
+    await register(call, 'ana-email:s1', '100001');
+    expect((await call('POST', `/events/${eventId}/tournament`, 'ana-email:s1', { tournament: 'OUTRO' })).status).toBe(403);
+    expect(await call('POST', `/events/${eventId}/tournament`, 'adm:a1:admin', { tournament: 'OUTRO' }))
+      .toMatchObject({ status: 200, body: { label: 'OUTRO' } });
+    expect((await send(other)).body).toMatchObject({ stored: true });
+  });
+
   it('conteúdo adulterado ou nome de arquivo inconsistente é recusado', async () => {
     const { send } = await withEvent();
     expect((await send({ ...upload('pairings'), content: '<html>adulterado</html>' })).status).toBe(400);

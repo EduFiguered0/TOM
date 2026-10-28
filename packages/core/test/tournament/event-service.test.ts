@@ -236,6 +236,41 @@ describe('escala de juízes', () => {
   });
 });
 
+describe('ADM escolhe o torneio do TOM', () => {
+  it('com a rodada 1 começada, troca o torneio e o nome e libera os envios do torneio escolhido', async () => {
+    const { service } = setup();
+    const { event } = await service.createEvent(actors.admin, { label: 'Liga' });
+    await service.authorizeAdminUpload(actors.admin, 'Teste');
+    await service.markRunning(event.id);
+    await service.markPartial(event.id, 1, []);
+    expect(await service.chooseTournament(actors.admin, event.id, 'teste'))
+      .toMatchObject({ tournament: 'teste', label: 'teste', status: 'running', partial: null });
+    expect((await service.authorizeAdminUpload(actors.admin, 'teste'))?.tournament).toBe('teste');
+  });
+
+  it('só o ADM escolhe', async () => {
+    const { service } = setup();
+    const { event } = await service.createEvent(actors.admin, { label: 'Liga' });
+    await rejects(service.chooseTournament(actors.judge, event.id, 'teste'), 'forbidden');
+  });
+
+  it('nome vazio é recusado', async () => {
+    const { service } = setup();
+    const { event } = await service.createEvent(actors.admin, { label: 'Liga' });
+    await rejects(service.chooseTournament(actors.admin, event.id, '  '), 'invalid_input');
+  });
+
+  it('com o resultado final ou evento encerrado, recusa', async () => {
+    const { service } = setup();
+    const { event } = await service.createEvent(actors.admin, { label: 'Liga' });
+    await service.markRunning(event.id);
+    await service.markFinal(event.id, []);
+    await rejects(service.chooseTournament(actors.admin, event.id, 'teste'), 'event_state');
+    await service.cancel(actors.admin, event.id);
+    await rejects(service.chooseTournament(actors.admin, event.id, 'teste'), 'event_state');
+  });
+});
+
 describe('envio pelo navegador do ADM', () => {
   it('ADM envia para o evento ativo e amarra o torneio', async () => {
     const { service } = setup();

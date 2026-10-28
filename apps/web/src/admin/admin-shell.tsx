@@ -30,7 +30,7 @@ export const AdminShell = ({ api, me, onSignOut }: Props) => {
   const [tab, setTab] = useState<AdminTab>(tabFor(location.pathname, role));
   const { event, last, reload } = useActiveEvent(api, role === 'admin');
   const panel = usePanel(api);
-  const folder = useTomFolder(api, event ?? null);
+  const folder = useTomFolder(api, event ?? null, () => { void reload(); });
   const registrations = useRegistrations(api, event?.id ?? null);
 
   useEffect(() => {

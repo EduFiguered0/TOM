@@ -9,7 +9,7 @@ const SHORT: Record<Exclude<FolderState['kind'], 'connected' | 'no-event'>, stri
 
 const button = 'rounded-md border border-line bg-panel px-3 py-1.5 text-sm font-semibold text-text hover:border-accent';
 
-/** Bloco "Pasta do TOM" da aba Evento: estado e os botões de conectar, permitir, tentar de novo e trocar. */
+/** Bloco "Pasta do TOM" da aba Evento: estado e os botões de conectar, permitir, tentar de novo, trocar e escolher o arquivo. */
 export const FolderBox = ({ folder }: { folder: TomFolder }) => {
   const { state } = folder;
   const status = folderStatus(state);
@@ -26,6 +26,7 @@ export const FolderBox = ({ folder }: { folder: TomFolder }) => {
         {state.kind === 'needs-permission' && <button type="button" class={button} onClick={folder.allow}>Permitir acesso à pasta {state.name}</button>}
         {folder.canRetry && <button type="button" class={button} onClick={folder.retry}>Tentar de novo</button>}
         {folder.canChange && <button type="button" class={button} onClick={folder.connect}>Trocar pasta</button>}
+        {folder.canChoose && <button type="button" class={button} onClick={folder.choose}>Escolher arquivo</button>}
       </div>
     </div>
   );

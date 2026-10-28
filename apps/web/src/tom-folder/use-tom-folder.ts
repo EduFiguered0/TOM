@@ -3,7 +3,7 @@ import { DEFAULT_QUIET_MS, FatalSinkError, Uploader, type Sink } from '@tom/uplo
 import { useEffect, useRef, useState } from 'preact/hooks';
 import type { Api } from '../api.js';
 import { browserFolder, type DirectoryLike } from './browser-folder.js';
-import { afterPermission, isRetryable, type FolderState } from './status.js';
+import { afterPermission, isRetryable, tournamentChoice, type FolderState } from './status.js';
 import { idbSentLog, loadHandle, saveHandle } from './stores.js';
 
 /** Mesma cadência do enviador do notebook; o TOM grava um arquivo por vez. */
@@ -20,6 +20,10 @@ type Last = Extract<FolderState, { kind: 'connected' }>['last'];
 
 const picker = (): Picker | null => (window as unknown as { showDirectoryPicker?: Picker }).showDirectoryPicker ?? null;
 
+type FilePicker = (options: { startIn?: Handle; types: { description: string; accept: Record<string, string[]> }[] }) => Promise<{ name: string }[]>;
+
+const filePicker = (): FilePicker | null => (window as unknown as { showOpenFilePicker?: FilePicker }).showOpenFilePicker ?? null;
+
 const sha256 = async (content: string): Promise<string> =>
   Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(content))), (b) => b.toString(16).padStart(2, '0')).join('');
 
@@ -28,7 +32,7 @@ const sha256 = async (content: string): Promise<string> =>
  * para o evento ativo com o login do ADM. Sem token e sem comando. Nunca diz "conectado" sem estar enviando.
  * Vive na casca do ADM: continua enviando em qualquer aba.
  */
-export const useTomFolder = (api: Api, event: EventDto | null) => {
+export const useTomFolder = (api: Api, event: EventDto | null, onChosen: () => void = () => undefined) => {
   const [folder, setState] = useState<FolderState>(picker() ? { kind: 'disconnected' } : { kind: 'unsupported' });
   const eventId = event?.id ?? null;
   const state: FolderState = eventId || folder.kind === 'unsupported' ? folder : { kind: 'no-event' };
@@ -137,10 +141,28 @@ export const useTomFolder = (api: Api, event: EventDto | null) => {
       .catch(() => { setState({ kind: 'needs-permission', name: dir.name }); });
   };
 
+  /** Escolher arquivo: o ADM aponta o torneio do TOM que vale, mesmo com a rodada começada, e o envio recomeça. */
+  const choose = () => {
+    const pick = filePicker();
+    if (!pick || !event) return;
+    void pick({ ...(handle.current ? { startIn: handle.current } : {}), types: [{ description: 'Relatórios do TOM', accept: { 'text/html': ['.html'] } }] })
+      .then(async ([file]) => {
+        if (!file) return;
+        const choice = tournamentChoice(file.name, event);
+        if ('error' in choice) { alert(choice.error); return; }
+        if (!confirm(choice.question)) return;
+        const result = await api.chooseTournament(event.id, choice.tournament);
+        if (!result.ok) { setState({ kind: 'error', message: result.error.message }); return; }
+        onChosen();
+        if (handle.current) { setState({ kind: 'connected', name: handle.current.name, last: last.current }); setFolderVersion((v) => v + 1); }
+      })
+      .catch(() => undefined); // O ADM fechou a janela sem escolher.
+  };
+
   const retry = () => { setState({ kind: 'connected', name: handle.current?.name ?? '', last: last.current }); };
   /** Trocar pasta: enquanto envia, sem permissão ou depois de um erro. */
   const canChange = sending || state.kind === 'needs-permission' || state.kind === 'error';
-  return { state, connect, allow, retry, canRetry: state.kind === 'error' && handle.current !== null, canChange };
+  return { state, connect, allow, retry, choose, canRetry: state.kind === 'error' && handle.current !== null, canChange, canChoose: canChange && filePicker() !== null && event !== null };
 };
 
 export type TomFolder = ReturnType<typeof useTomFolder>;
