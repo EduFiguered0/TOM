@@ -51,10 +51,12 @@ describe('ingestão: TOM → enviador → API', () => {
     expect((await send(upload('standings'))).body).toEqual({ stored: true, published: [], note: null });
   });
 
-  it('token errado, revogado ou de outro torneio é recusado', async () => {
+  it('token errado, revogado ou de outro torneio (rodada 1 começada) é recusado', async () => {
     const { send, call, eventId } = await withEvent();
     expect((await send(upload('pairings'), 'inventado')).status).toBe(401);
     await send(upload('pairings'));
+    await send(upload('match_slips'));
+    expect((await call('POST', '/round/start', 'adm:a1:admin', { bestOf: 3, roundMinutes: null })).status).toBe(200);
     const other = { ...upload('pairings'), tournament: 'OUTRO', fileName: 'OUTROpairings.html' };
     expect((await send(other)).body).toMatchObject({ error: 'tournament_mismatch' });
     expect((await call('POST', `/events/${eventId}/revoke`, 'adm:a1:admin')).status).toBe(200);

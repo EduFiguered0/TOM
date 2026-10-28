@@ -232,7 +232,8 @@ export class EventService {
   }
 
   /**
-   * O primeiro envio amarra o torneio do TOM ao evento; depois, outro torneio é recusado.
+   * O primeiro envio amarra o torneio do TOM ao evento. O TOM da loja cuida de um torneio por vez e o leitor
+   * manda só o mais novo da pasta: nas inscrições, outro torneio troca o amarrado; da rodada 1 em diante, é recusado.
    * O nome do evento passa a ser sempre o do torneio no TOM.
    */
   private async bind(
@@ -242,7 +243,7 @@ export class EventService {
     retry: () => Promise<TournamentEvent>,
   ): Promise<TournamentEvent> {
     const { event, version } = record;
-    if (event.tournament !== null && event.tournament !== tournament) throw mismatch();
+    if (event.tournament !== null && event.tournament !== tournament && event.status !== 'open') throw mismatch();
     if (event.tournament === tournament && event.label === tournament) return event;
     const bound = { ...event, tournament, label: tournament };
     try {
