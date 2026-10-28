@@ -162,12 +162,20 @@ describe('evento e token do enviador', () => {
     await rejects(service.update(actors.admin, event.id, { roundMinutes: 500 }), 'invalid_input');
   });
 
-  it('primeiro envio amarra o torneio do TOM; outro torneio com o mesmo token é recusado', async () => {
+  it('primeiro envio amarra o torneio do TOM; com a rodada 1 começada, outro torneio é recusado', async () => {
+    const { service } = setup();
+    const { event, token } = await service.createEvent(actors.admin, { label: 'Liga' });
+    expect((await service.authorizeUpload(token, 'FODASE')).tournament).toBe('FODASE');
+    expect((await service.authorizeUpload(token, 'FODASE')).tournament).toBe('FODASE');
+    await service.markRunning(event.id);
+    await rejects(service.authorizeUpload(token, 'Outro torneio'), 'tournament_mismatch');
+  });
+
+  it('nas inscrições, torneio mais novo na pasta troca o torneio e o nome do evento', async () => {
     const { service } = setup();
     const { token } = await service.createEvent(actors.admin, { label: 'Liga' });
-    expect((await service.authorizeUpload(token, 'FODASE')).tournament).toBe('FODASE');
-    expect((await service.authorizeUpload(token, 'FODASE')).tournament).toBe('FODASE');
-    await rejects(service.authorizeUpload(token, 'Outro torneio'), 'tournament_mismatch');
+    await service.authorizeUpload(token, 'Pre-Release');
+    expect(await service.authorizeUpload(token, 'Pre-release')).toMatchObject({ tournament: 'Pre-release', label: 'Pre-release' });
   });
 
   it('token desconhecido, vazio ou revogado é recusado', async () => {
@@ -244,10 +252,18 @@ describe('envio pelo navegador do ADM', () => {
     await rejects(service.authorizeAdminUpload(actors.admin, 'FODASE'), 'event_state', 'Crie o evento para começar a enviar');
   });
 
-  it('torneio diferente do amarrado: mensagem com os dois nomes', async () => {
+  it('nas inscrições, torneio mais novo troca o torneio amarrado', async () => {
     const { service } = setup();
     await service.createEvent(actors.admin, { label: 'Liga' });
+    await service.authorizeAdminUpload(actors.admin, 'Pre-Release');
+    expect(await service.authorizeAdminUpload(actors.admin, 'Pre-release')).toMatchObject({ tournament: 'Pre-release', label: 'Pre-release' });
+  });
+
+  it('com a rodada 1 começada, torneio diferente do amarrado: mensagem com os dois nomes', async () => {
+    const { service } = setup();
+    const { event } = await service.createEvent(actors.admin, { label: 'Liga' });
     await service.authorizeAdminUpload(actors.admin, 'FODASE');
+    await service.markRunning(event.id);
     await rejects(service.authorizeAdminUpload(actors.admin, 'TESTE'), 'tournament_mismatch',
       'A pasta está com o torneio TESTE, mas este evento é do torneio FODASE. Abra o torneio FODASE no TOM.');
   });
