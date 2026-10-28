@@ -1,9 +1,10 @@
 import { useState } from 'preact/hooks';
 import type { Api } from '../api.js';
 import { box, field, linkButton, primary } from '../ui.js';
-import type { PanelResponse } from '@tom/contracts';
+import type { OverrideDto, PanelResponse } from '@tom/contracts';
 import { extensionClock, roundClock } from '../tv/board.js';
-import { pickTable, reportsToConfirm, winOverride } from './panel.js';
+import { pickTable, reportsToConfirm, resultOverride, winOverride } from './panel.js';
+import { ResultsList } from './results-list.js';
 import { TableDetail } from './table-detail.js';
 import { TablesList } from './tables-list.js';
 import type { Panel } from './use-panel.js';
@@ -124,11 +125,14 @@ export const RoundTab = ({ api, admin, panel }: { api: Api; admin: boolean; pane
   };
 
   /** Duplo clique no nome: vitória daquele jogador, sem confirmação (duplo clique no outro troca). */
-  const markWinner = (n: number, side: 'player1' | 'player2') => {
+  const markWinner = (n: number, side: 'player1' | 'player2') => { applyOverride(n, winOverride(side)); };
+
+  /** Resultado decidido pelo ADM (duplo clique ou lista de resultados): sem confirmação; outro clique troca. */
+  const applyOverride = (n: number, override: OverrideDto) => {
     if (!round) return;
     setChosen(n);
     setWinnerNote(null);
-    void api.override(n, winOverride(side), current ? undefined : round.round)
+    void api.override(n, override, current ? undefined : round.round)
       .then((result) => {
         if (!result.ok) { setWinnerNote({ ok: false, text: `Vencedor não marcado: ${result.error.message}` }); return; }
         accept(result.body);
@@ -209,6 +213,8 @@ export const RoundTab = ({ api, admin, panel }: { api: Api; admin: boolean; pane
               ? <TableDetail api={api} table={detail} admin={admin} started={round.startedAt !== null} round={current ? undefined : round.round}
                   bestOf={round.bestOf} onUpdate={accept} />
               : <p class="m-0 text-sm text-muted">Rodada sem mesas.</p>}
+            {round.startedAt && <ResultsList tables={round.tables} busy={confirming}
+              onResult={(n, side, outcome) => { applyOverride(n, resultOverride(side, outcome)); }} />}
           </section>
         </div>
       )}
