@@ -15,6 +15,25 @@ export const pickTable = (tables: readonly PanelTable[], selected: number | null
 /** Placares do ajuste do ADM (games do jogador 1 x do jogador 2): vitórias, derrotas e empates; sem o ID. */
 export const overrideScores = (bestOf: 1 | 3): [number, number][] => scoreOptions(bestOf);
 
+type Side = 'player1' | 'player2';
+
+/** Duplo clique no nome: vitória daquele jogador (1x0, como o reporte do jogador; o TOM não recebe placar). */
+export const winOverride = (side: Side): OverrideDto =>
+  ({ kind: 'score', player1: side === 'player1' ? 1 : 0, player2: side === 'player2' ? 1 : 0 });
+
+const scoreWinner = (p1: number, p2: number): Side | null => (p1 > p2 ? 'player1' : p2 > p1 ? 'player2' : null);
+
+/** Quem venceu a mesa validada (a caixa do nome fica verde): pelo ajuste ou pelos reportes. Empate, ID e DGL: ninguém. */
+export const winnerOf = (t: PanelTable): Side | null => {
+  if (t.color !== 'green') return null;
+  const o = t.override?.override;
+  if (o) return o.kind === 'score' ? scoreWinner(o.player1, o.player2) : o.kind === 'win_by_absence' ? o.winner : null;
+  const { player1: r1, player2: r2 } = t.reports;
+  if (r1?.kind === 'score') return scoreWinner(r1.own, r1.opponent);
+  if (r2?.kind === 'score') return scoreWinner(r2.opponent, r2.own);
+  return null;
+};
+
 export const describePlayerReport = (report: ReportDto | null): string =>
   !report ? 'não reportou' : report.kind === 'intentional_draw' ? 'ID' : `${String(report.own)}x${String(report.opponent)}`;
 

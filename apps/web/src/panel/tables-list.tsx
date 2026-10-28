@@ -1,5 +1,5 @@
 import type { PanelTable, TableColor } from '@tom/contracts';
-import { nextAction, sortForAction } from './panel.js';
+import { nextAction, sortForAction, winnerOf } from './panel.js';
 
 export const DOT: Record<TableColor, string> = { gray: 'bg-gray', orange: 'bg-orange', green: 'bg-green', red: 'bg-red' };
 
@@ -8,12 +8,23 @@ interface Props {
   started: boolean;
   selected: number | null;
   onSelect: (table: number) => void;
+  /** Duplo clique no nome marca o vencedor; ausente fora da rodada iniciada. */
+  onWinner?: ((table: number, side: 'player1' | 'player2') => void) | undefined;
   /** Relógio de cada mesa (com acréscimo), já formatado; null fora do tempo. */
   clockOf: (t: PanelTable) => { text: string; warning: boolean } | null;
 }
 
-/** Mesas da rodada, na ordem de ação; a linha escolhida abre o detalhe ao lado. Rola por dentro. */
-export const TablesList = ({ tables, started, selected, onSelect, clockOf }: Props) => (
+/** Mesas da rodada, na ordem de ação; a linha escolhida abre o detalhe ao lado e o duplo clique no nome marca o vencedor. Rola por dentro. */
+/** Nome do jogador; o vencedor da mesa validada fica numa caixa verde. */
+const Name = ({ t, side, onWinner }: { t: PanelTable; side: 'player1' | 'player2'; onWinner: Props['onWinner'] }) => (
+  <span title={onWinner ? 'Duplo clique: vencedor' : undefined}
+    class={`inline-block rounded-md border px-2 py-0.5 ${winnerOf(t) === side ? 'border-green bg-green/20 font-semibold text-ok' : 'border-transparent'} ${onWinner ? 'select-none' : ''}`}
+    onDblClick={onWinner ? (e) => { e.stopPropagation(); onWinner(t.table, side); } : undefined}>
+    {t[side].name}
+  </span>
+);
+
+export const TablesList = ({ tables, started, selected, onSelect, onWinner, clockOf }: Props) => (
   <div class="min-h-0 flex-1 overflow-y-auto">
     <table class="w-full border-collapse text-sm">
       <thead class="sticky top-0 bg-panel">
@@ -32,8 +43,8 @@ export const TablesList = ({ tables, started, selected, onSelect, clockOf }: Pro
               onClick={() => { onSelect(t.table); }}
               onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onSelect(t.table); } }}>
               <td class="px-3 py-2 text-base font-extrabold tabular-nums">{t.table}</td>
-              <td class="py-2 pr-2">{t.player1.name}</td>
-              <td class="py-2 pr-2">{t.player2.name}</td>
+              <td class="py-1 pr-2"><Name t={t} side="player1" onWinner={onWinner} /></td>
+              <td class="py-1 pr-2"><Name t={t} side="player2" onWinner={onWinner} /></td>
               <td class="py-2 pr-2">
                 <span class="flex items-center gap-2">
                   <span class={`size-2.5 shrink-0 rounded-full ${DOT[t.color]}`} aria-hidden="true" />
