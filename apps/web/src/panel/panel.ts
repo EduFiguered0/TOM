@@ -1,5 +1,5 @@
 import type { OverrideDto, PanelTable, ReportDto } from '@tom/contracts';
-import { reportOptions } from '../round/round.js';
+import { scoreOptions } from '../round/round.js';
 
 /** O que precisa de ação vem primeiro: vermelho (juiz), laranja, cinza, verde a lançar; key lançada por último. */
 const PRIORITY = { red: 0, orange: 1, gray: 2, green: 3 } as const;
@@ -12,9 +12,8 @@ export const sortForAction = (tables: readonly PanelTable[]): PanelTable[] =>
 export const pickTable = (tables: readonly PanelTable[], selected: number | null): number | null =>
   tables.some((t) => t.table === selected) ? selected : (sortForAction(tables)[0]?.table ?? null);
 
-/** Placares do ajuste (games do jogador 1 x do jogador 2), na mesma ordem dos botões do jogador; sem o ID. */
-export const overrideScores = (bestOf: 1 | 3): [number, number][] =>
-  reportOptions(bestOf).flatMap((o) => (o.report.kind === 'score' ? [[o.report.own, o.report.opponent] as [number, number]] : []));
+/** Placares do ajuste do ADM (games do jogador 1 x do jogador 2): vitórias, derrotas e empates; sem o ID. */
+export const overrideScores = (bestOf: 1 | 3): [number, number][] => scoreOptions(bestOf);
 
 export const describePlayerReport = (report: ReportDto | null): string =>
   !report ? 'não reportou' : report.kind === 'intentional_draw' ? 'ID' : `${String(report.own)}x${String(report.opponent)}`;

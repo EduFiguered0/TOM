@@ -144,8 +144,8 @@ export const TableDetail = ({ api, table: t, admin, started, round, bestOf, onUp
             <option value="player2">Por {name('player2')}</option>
           </select>
           {!pending ? (
-            <div class="grid grid-cols-3 gap-1.5">
-              {reportOptions(bestOf).map((o) => (
+            <div class="grid grid-cols-2 gap-1.5">
+              {reportOptions().map((o) => (
                 <button key={o.label} type="button" class={`${ghost} px-2 py-1.5 text-xs`} onClick={() => { setPending(o); }}>{o.label}</button>
               ))}
             </div>

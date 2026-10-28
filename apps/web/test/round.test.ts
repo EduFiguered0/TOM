@@ -8,20 +8,17 @@ const seat = (over: Partial<TableSeat>): TableSeat => ({
 });
 
 describe('opções de reporte', () => {
-  it('melhor de 3: vitórias, derrotas, empates e ID, sem placar impossível', () => {
-    expect(reportOptions(3).map((o) => o.label)).toEqual([
-      'Ganhei 2x0', 'Ganhei 2x1', 'Ganhei 1x0',
-      'Perdi 0x2', 'Perdi 1x2', 'Perdi 0x1',
-      'Empate 1x1', 'Empate 0x0', 'Intentional draw (ID)',
+  it('só Ganhei ou Perdi: o TOM não recebe placar', () => {
+    expect(reportOptions()).toEqual([
+      { label: 'Ganhei', report: { kind: 'score', own: 1, opponent: 0 }, tone: 'win' },
+      { label: 'Perdi', report: { kind: 'score', own: 0, opponent: 1 }, tone: 'loss' },
     ]);
   });
 
-  it('melhor de 1', () => {
-    expect(reportOptions(1).map((o) => o.label)).toEqual(['Ganhei 1x0', 'Perdi 0x1', 'Empate 0x0', 'Intentional draw (ID)']);
-  });
-
-  it('descreve o reporte', () => {
-    expect(describeReport({ kind: 'score', own: 2, opponent: 1 })).toBe('2x1');
+  it('descreve o reporte sem placar', () => {
+    expect(describeReport({ kind: 'score', own: 1, opponent: 0 })).toBe('Ganhei');
+    expect(describeReport({ kind: 'score', own: 1, opponent: 2 })).toBe('Perdi');
+    expect(describeReport({ kind: 'score', own: 1, opponent: 1 })).toBe('Empate');
     expect(describeReport({ kind: 'intentional_draw' })).toBe('Intentional draw (ID)');
   });
 });

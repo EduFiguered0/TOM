@@ -6,36 +6,34 @@ export interface ReportOption {
   tone: 'win' | 'loss' | 'draw';
 }
 
-/** Placares possíveis do ponto de vista do jogador (mesma regra do servidor: ninguém passa da vitória, total ≤ melhor de). */
-export const reportOptions = (bestOf: 1 | 3): ReportOption[] => {
+/** O jogador só diz se ganhou ou perdeu: o TOM não recebe placar. O servidor confere com o reporte do oponente. */
+export const reportOptions = (): ReportOption[] => [
+  { label: 'Ganhei', report: { kind: 'score', own: 1, opponent: 0 }, tone: 'win' },
+  { label: 'Perdi', report: { kind: 'score', own: 0, opponent: 1 }, tone: 'loss' },
+];
+
+/** Placares possíveis do ponto de vista de um jogador (regra do servidor: ninguém passa da vitória, total ≤ melhor de). */
+export const scoreOptions = (bestOf: 1 | 3): [number, number][] => {
   const max = Math.ceil(bestOf / 2);
-  const scores: ReportOption[] = [];
+  const scores: [number, number][] = [];
   for (let own = max; own >= 0; own--) {
     for (let opponent = 0; opponent <= max; opponent++) {
       if ((own === max && opponent === max) || own + opponent > bestOf) continue;
-      const tone = own > opponent ? 'win' : own < opponent ? 'loss' : 'draw';
-      const verb = tone === 'win' ? 'Ganhei' : tone === 'loss' ? 'Perdi' : 'Empate';
-      scores.push({ label: `${verb} ${String(own)}x${String(opponent)}`, report: { kind: 'score', own, opponent }, tone });
+      scores.push([own, opponent]);
     }
   }
   // Vitórias 2x0, 2x1, 1x0; derrotas espelhadas (0x2, 1x2, 0x1); empates.
-  const order = { win: 0, loss: 1, draw: 2 };
-  const key = ({ report, tone }: ReportOption) => {
-    const [own, opp] = report.kind === 'score' ? [report.own, report.opponent] : [0, 0];
-    return tone === 'loss' ? [opp, -own] : [own, -opp];
-  };
-  const byScore = (a: ReportOption, b: ReportOption) => {
+  const tone = ([own, opp]: [number, number]) => (own > opp ? 0 : own < opp ? 1 : 2);
+  const key = ([own, opp]: [number, number]) => (own < opp ? [opp, -own] : [own, -opp]);
+  return scores.sort((a, b) => {
     const [ka, kb] = [key(a), key(b)];
-    return (kb[0] ?? 0) - (ka[0] ?? 0) || (kb[1] ?? 0) - (ka[1] ?? 0);
-  };
-  return [
-    ...scores.sort((a, b) => order[a.tone] - order[b.tone] || byScore(a, b)),
-    { label: 'Intentional draw (ID)', report: { kind: 'intentional_draw' }, tone: 'draw' },
-  ];
+    return tone(a) - tone(b) || (kb[0] ?? 0) - (ka[0] ?? 0) || (kb[1] ?? 0) - (ka[1] ?? 0);
+  });
 };
 
 export const describeReport = (report: ReportDto): string =>
-  report.kind === 'intentional_draw' ? 'Intentional draw (ID)' : `${String(report.own)}x${String(report.opponent)}`;
+  report.kind === 'intentional_draw' ? 'Intentional draw (ID)'
+    : report.own > report.opponent ? 'Ganhei' : report.own < report.opponent ? 'Perdi' : 'Empate';
 
 type TableSeat = Extract<SeatDto, { kind: 'table' }>;
 
