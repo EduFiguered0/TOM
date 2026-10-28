@@ -19,13 +19,11 @@ interface Props {
 
 const sameOverride = (a: OverrideDto, b: OverrideDto): boolean => JSON.stringify(a) === JSON.stringify(b);
 
-/** Botões do ajuste, agrupados por quem venceu: o placar sempre do ponto de vista de quem venceu. */
+/** Ajustes que não são "fulano venceu" (esse é o duplo clique no nome, na lista de mesas): empates, ausência e DGL. */
 const overrideGroups = (t: PanelTable, bestOf: 1 | 3): { title: string; options: { label: string; value: OverrideDto }[] }[] => {
   const scores = overrideScores(bestOf);
   const score = (a: number, b: number): OverrideDto => ({ kind: 'score', player1: a, player2: b });
   return [
-    { title: `${t.player1.name} venceu`, options: scores.filter(([a, b]) => a > b).map(([a, b]) => ({ label: `${String(a)}x${String(b)}`, value: score(a, b) })) },
-    { title: `${t.player2.name} venceu`, options: scores.filter(([a, b]) => a < b).map(([a, b]) => ({ label: `${String(b)}x${String(a)}`, value: score(a, b) })) },
     {
       title: 'Empate',
       options: [
@@ -114,6 +112,7 @@ export const TableDetail = ({ api, table: t, admin, started, round, bestOf, onUp
           if (choice) void run(() => api.override(t.table, choice, round), 'Resultado ajustado.');
         }}>
           <h3 class="m-0 text-sm font-bold">Ajustar resultado</h3>
+          <p class="m-0 text-xs text-muted">Vencedor: duplo clique no nome dele, na lista de mesas.</p>
           {overrideGroups(t, bestOf ?? 3).map((g) => (
             <div key={g.title} class="flex flex-col gap-1">
               <span class="text-xs text-muted">{g.title}</span>
@@ -144,8 +143,8 @@ export const TableDetail = ({ api, table: t, admin, started, round, bestOf, onUp
             <option value="player2">Por {name('player2')}</option>
           </select>
           {!pending ? (
-            <div class="grid grid-cols-3 gap-1.5">
-              {reportOptions(bestOf).map((o) => (
+            <div class="grid grid-cols-2 gap-1.5">
+              {reportOptions().map((o) => (
                 <button key={o.label} type="button" class={`${ghost} px-2 py-1.5 text-xs`} onClick={() => { setPending(o); }}>{o.label}</button>
               ))}
             </div>

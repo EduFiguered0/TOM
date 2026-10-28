@@ -3,7 +3,7 @@ import type { Api } from '../api.js';
 import { box, field, linkButton, primary } from '../ui.js';
 import type { PanelResponse } from '@tom/contracts';
 import { extensionClock, roundClock } from '../tv/board.js';
-import { pickTable } from './panel.js';
+import { pickTable, winOverride } from './panel.js';
 import { TableDetail } from './table-detail.js';
 import { TablesList } from './tables-list.js';
 import type { Panel } from './use-panel.js';
@@ -83,6 +83,7 @@ const ExtendRound = ({ api, onDone }: { api: Api; onDone: (body: PanelResponse) 
 export const RoundTab = ({ api, admin, panel }: { api: Api; admin: boolean; panel: Panel }) => {
   const { data, offline, now, skew, selected: roundSelected, latest, current, open, accept } = panel;
   const [chosen, setChosen] = useState<number | null>(null);
+  const [winnerNote, setWinnerNote] = useState<{ ok: boolean; text: string } | null>(null);
   const round = data?.round;
 
   if (!data) return <p class="m-0 text-sm text-muted">Carregando…</p>;
@@ -93,6 +94,21 @@ export const RoundTab = ({ api, admin, panel }: { api: Api; admin: boolean; pane
   const pending = round ? round.tables.length - round.counts.green : 0;
   const table = round ? pickTable(round.tables, chosen) : null;
   const detail = round?.tables.find((t) => t.table === table);
+
+  /** Duplo clique no nome: vitória daquele jogador, sem confirmação (duplo clique no outro troca). */
+  const markWinner = (n: number, side: 'player1' | 'player2') => {
+    const t = round?.tables.find((x) => x.table === n);
+    if (!round || !t) return;
+    setChosen(n);
+    setWinnerNote(null);
+    void api.override(n, winOverride(side), current ? undefined : round.round)
+      .then((result) => {
+        if (!result.ok) { setWinnerNote({ ok: false, text: `Vencedor não marcado: ${result.error.message}` }); return; }
+        accept(result.body);
+        setWinnerNote({ ok: true, text: `Mesa ${String(n)}: ${t[side].name} venceu.${result.body.requiresTomFix ? ' A key já tinha sido lançada: corrija também no TOM.' : ''}` });
+      })
+      .catch((e: unknown) => { setWinnerNote({ ok: false, text: (e as Error).message }); });
+  };
 
   return (
     <div class="flex min-h-0 flex-1 flex-col gap-3">
@@ -147,10 +163,12 @@ export const RoundTab = ({ api, admin, panel }: { api: Api; admin: boolean; pane
           {roundSelected === null ? 'Nenhuma rodada publicada pelo TOM ainda. Imprima os pareamentos da rodada no TOM.' : `A rodada ${String(roundSelected)} não chegou do TOM para o site.`}
         </p>
       )}
+      {winnerNote && <p class={`${note} ${winnerNote.ok ? 'border-green text-ok' : 'border-red text-error'}`} role="status">{winnerNote.text}</p>}
       {round && (
         <div class="grid min-h-0 flex-1 grid-cols-[1fr_380px] gap-4">
           <section class={`${box} p-0`} aria-label="Mesas">
             <TablesList tables={round.tables} started={round.startedAt !== null} selected={table} onSelect={setChosen}
+              onWinner={round.startedAt ? markWinner : undefined}
               clockOf={(t) => { const c = roundClock({ endsAt: t.deadline }, now, skew); return c.state === 'running' ? c : null; }} />
             {round.byes.length > 0 && <p class="m-0 border-t border-line px-3 py-2 text-sm text-muted">Bye: {round.byes.join(', ')}</p>}
           </section>

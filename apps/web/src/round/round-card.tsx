@@ -101,7 +101,7 @@ export const RoundCard = ({ api, me }: { api: Api; me: { photo: string | null; n
 
       {canReport && !choice && round.bestOf && (
         <div class="grid grid-cols-2 gap-2">
-          {reportOptions(round.bestOf).map((o) => (
+          {reportOptions().map((o) => (
             <button key={o.label} type="button" class={`rounded-lg px-2 py-3 font-semibold ${REPORT[o.tone]}`} onClick={() => { setChoice(o); setError(null); }}>{o.label}</button>
           ))}
         </div>

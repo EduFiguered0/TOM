@@ -1,6 +1,6 @@
 import type { PanelTable } from '@tom/contracts';
 import { describe, expect, it } from 'vitest';
-import { describeOverride, describePlayerReport, nextAction, overrideScores, pickTable, sortForAction } from '../src/panel/panel.js';
+import { describeOverride, describePlayerReport, nextAction, overrideScores, pickTable, sortForAction, winnerOf, winOverride } from '../src/panel/panel.js';
 
 const table = (n: number, over: Partial<PanelTable> = {}): PanelTable => ({
   table: n,
@@ -48,5 +48,28 @@ describe('painel', () => {
   it('placares do ajuste, do ponto de vista do jogador 1: vitórias, derrotas, empates', () => {
     expect(overrideScores(3)).toEqual([[2, 0], [2, 1], [1, 0], [0, 2], [1, 2], [0, 1], [1, 1], [0, 0]]);
     expect(overrideScores(1)).toEqual([[1, 0], [0, 1], [0, 0]]);
+  });
+});
+
+describe('vencedor com duplo clique', () => {
+  const by = (override: Parameters<typeof describeOverride>[0]) => ({ override, reason: '', by: 'adm', at: '2026-10-28T00:00:00Z' });
+
+  it('duplo clique no nome: vitória daquele jogador', () => {
+    expect(winOverride('player1')).toEqual({ kind: 'score', player1: 1, player2: 0 });
+    expect(winOverride('player2')).toEqual({ kind: 'score', player1: 0, player2: 1 });
+  });
+
+  it('a caixa verde é do vencedor da mesa validada, pelo ajuste ou pelos reportes', () => {
+    expect(winnerOf(table(1, { color: 'green', override: by({ kind: 'score', player1: 0, player2: 1 }) }))).toBe('player2');
+    expect(winnerOf(table(1, { color: 'green', override: by({ kind: 'win_by_absence', winner: 'player1' }) }))).toBe('player1');
+    expect(winnerOf(table(1, { color: 'green', reports: { player1: { kind: 'score', own: 0, opponent: 1 }, player2: { kind: 'score', own: 1, opponent: 0 } } }))).toBe('player2');
+    expect(winnerOf(table(1, { color: 'green', reports: { player1: null, player2: { kind: 'score', own: 0, opponent: 1 } } }))).toBe('player1');
+  });
+
+  it('sem vencedor: mesa não validada, empate, ID ou DGL', () => {
+    expect(winnerOf(table(1, { color: 'orange', reports: { player1: { kind: 'score', own: 1, opponent: 0 }, player2: null } }))).toBeNull();
+    expect(winnerOf(table(1, { color: 'green', override: by({ kind: 'score', player1: 1, player2: 1 }) }))).toBeNull();
+    expect(winnerOf(table(1, { color: 'green', override: by({ kind: 'intentional_draw' }) }))).toBeNull();
+    expect(winnerOf(table(1, { color: 'green', override: by({ kind: 'double_game_loss' }) }))).toBeNull();
   });
 });
