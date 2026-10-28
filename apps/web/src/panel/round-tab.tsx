@@ -83,6 +83,7 @@ const ExtendRound = ({ api, onDone }: { api: Api; onDone: (body: PanelResponse) 
 export const RoundTab = ({ api, admin, panel }: { api: Api; admin: boolean; panel: Panel }) => {
   const { data, offline, now, skew, selected: roundSelected, latest, current, open, accept } = panel;
   const [chosen, setChosen] = useState<number | null>(null);
+  /** Só o que pede ação: falha ao marcar ou key já lançada no TOM. */
   const [winnerNote, setWinnerNote] = useState<{ ok: boolean; text: string } | null>(null);
   const round = data?.round;
 
@@ -97,15 +98,15 @@ export const RoundTab = ({ api, admin, panel }: { api: Api; admin: boolean; pane
 
   /** Duplo clique no nome: vitória daquele jogador, sem confirmação (duplo clique no outro troca). */
   const markWinner = (n: number, side: 'player1' | 'player2') => {
-    const t = round?.tables.find((x) => x.table === n);
-    if (!round || !t) return;
+    if (!round) return;
     setChosen(n);
     setWinnerNote(null);
     void api.override(n, winOverride(side), current ? undefined : round.round)
       .then((result) => {
         if (!result.ok) { setWinnerNote({ ok: false, text: `Vencedor não marcado: ${result.error.message}` }); return; }
         accept(result.body);
-        setWinnerNote({ ok: true, text: `Mesa ${String(n)}: ${t[side].name} venceu.${result.body.requiresTomFix ? ' A key já tinha sido lançada: corrija também no TOM.' : ''}` });
+        // A caixa verde já mostra o vencedor; só avisa o que pede ação.
+        if (result.body.requiresTomFix) setWinnerNote({ ok: false, text: `Mesa ${String(n)}: a key já tinha sido lançada. Corrija também no TOM.` });
       })
       .catch((e: unknown) => { setWinnerNote({ ok: false, text: (e as Error).message }); });
   };
@@ -155,7 +156,6 @@ export const RoundTab = ({ api, admin, panel }: { api: Api; admin: boolean; pane
         </p>
       ))}
       {round?.closed && <p class={`${note} border-green text-ok`}>Todas as keys lançadas: a próxima rodada já pode ser gerada no TOM.</p>}
-      {round && !round.closed && round.allGreen && <p class={`${note} border-green text-ok`}>Todas as mesas verdes: lance as keys no TOM e marque cada uma.</p>}
       {round && !current && !round.startedAt && <p class={`${note} border-line text-muted`}>Rodada não iniciada no site: foi resolvida direto no TOM.</p>}
 
       {!round && (
