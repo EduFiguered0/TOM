@@ -1,6 +1,6 @@
 import type { PanelTable } from '@tom/contracts';
 import { describe, expect, it } from 'vitest';
-import { describeOverride, describePlayerReport, nextAction, overrideScores, pickTable, reportsToConfirm, reportTag, sortForAction, winnerOf, winOverride } from '../src/panel/panel.js';
+import { describeOverride, describePlayerReport, nextAction, overrideScores, pickTable, reportsToConfirm, reportTag, resultOverride, resultsToShow, sortForAction, winnerOf, winOverride } from '../src/panel/panel.js';
 
 const table = (n: number, over: Partial<PanelTable> = {}): PanelTable => ({
   table: n,
@@ -21,7 +21,8 @@ describe('painel', () => {
 
   it('descreve reportes e overrides', () => {
     expect(describePlayerReport(null)).toBe('não reportou');
-    expect(describePlayerReport({ kind: 'score', own: 2, opponent: 1 })).toBe('2x1');
+    expect(describePlayerReport({ kind: 'score', own: 2, opponent: 1 })).toBe('Vitória');
+    expect(describePlayerReport({ kind: 'score', own: 0, opponent: 1 })).toBe('Derrota');
     expect(describePlayerReport({ kind: 'intentional_draw' })).toBe('ID');
     expect(describeOverride({ kind: 'win_by_absence', winner: 'player1' }, table(1))).toBe('Vitória por ausência de Bia');
     expect(describeOverride({ kind: 'score', player1: 0, player2: 2 }, table(1))).toBe('Bia venceu 2x0');
@@ -106,5 +107,17 @@ describe('marca do reporte na lista de mesas', () => {
     expect(reportTag({ kind: 'score', own: 0, opponent: 1 })).toEqual({ text: 'Derrota', tone: 'loss' });
     expect(reportTag({ kind: 'score', own: 1, opponent: 1 })).toEqual({ text: 'Empate', tone: 'draw' });
     expect(reportTag({ kind: 'intentional_draw' })).toEqual({ text: 'ID', tone: 'draw' });
+  });
+});
+
+describe('lista de resultados do painel lateral', () => {
+  it('Vitória num jogador: ele vence; Derrota: vence o oponente (nunca dois vencedores)', () => {
+    expect(resultOverride('player1', 'win')).toEqual(winOverride('player1'));
+    expect(resultOverride('player1', 'loss')).toEqual(winOverride('player2'));
+    expect(resultOverride('player2', 'loss')).toEqual(winOverride('player1'));
+  });
+
+  it('todas as mesas em ordem de número, menos as de key já lançada no TOM', () => {
+    expect(resultsToShow([table(3), table(1, { keyLaunched: true, color: 'green' }), table(2, { color: 'green' })]).map((t) => t.table)).toEqual([2, 3]);
   });
 });

@@ -21,6 +21,14 @@ type Side = 'player1' | 'player2';
 export const winOverride = (side: Side): OverrideDto =>
   ({ kind: 'score', player1: side === 'player1' ? 1 : 0, player2: side === 'player2' ? 1 : 0 });
 
+/** Lista de resultados: o ADM decide. Vitória num jogador = ele vence; Derrota = vence o oponente. */
+export const resultOverride = (side: Side, outcome: 'win' | 'loss'): OverrideDto =>
+  winOverride(outcome === 'win' ? side : side === 'player1' ? 'player2' : 'player1');
+
+/** Mesas da lista de resultados, por número; key já lançada fica de fora (mudar exige corrigir no TOM). */
+export const resultsToShow = (tables: readonly PanelTable[]): PanelTable[] =>
+  tables.filter((t) => !t.keyLaunched).sort((a, b) => a.table - b.table);
+
 const scoreWinner = (p1: number, p2: number): Side | null => (p1 > p2 ? 'player1' : p2 > p1 ? 'player2' : null);
 
 /** Quem venceu a mesa validada (a caixa do nome fica verde): pelo ajuste ou pelos reportes. Empate, ID e DGL: ninguém. */
@@ -63,8 +71,7 @@ export const reportTag = (report: ReportDto | null): { text: string; tone: 'win'
   return report.own < report.opponent ? { text: 'Derrota', tone: 'loss' } : { text: 'Empate', tone: 'draw' };
 };
 
-export const describePlayerReport = (report: ReportDto | null): string =>
-  !report ? 'não reportou' : report.kind === 'intentional_draw' ? 'ID' : `${String(report.own)}x${String(report.opponent)}`;
+export const describePlayerReport = (report: ReportDto | null): string => reportTag(report)?.text ?? 'não reportou';
 
 export const describeOverride = (o: OverrideDto, table: Pick<PanelTable, 'player1' | 'player2'>): string => {
   switch (o.kind) {

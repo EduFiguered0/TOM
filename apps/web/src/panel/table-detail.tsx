@@ -1,9 +1,7 @@
 import type { OverrideDto, PanelResponse, PanelTable } from '@tom/contracts';
 import { useEffect, useState } from 'preact/hooks';
 import type { Api, ApiResult } from '../api.js';
-import { linkButton, primary } from '../ui.js';
-import { reportOptions, type ReportOption } from '../round/round.js';
-import { RESULT_TONE } from './tables-list.js';
+import { primary } from '../ui.js';
 import { describeOverride, describePlayerReport, nextAction, overrideScores } from './panel.js';
 
 interface Props {
@@ -43,21 +41,16 @@ const overrideGroups = (t: PanelTable, bestOf: 1 | 3): { title: string; options:
   ];
 };
 
-/** No painel quem fala é o ADM: Vitória/Derrota do jogador (no celular, o próprio jogador diz Ganhei/Perdi). */
-const STAFF_LABEL: Record<ReportOption['tone'], string> = { win: 'Vitória', loss: 'Derrota', draw: 'Empate' };
-
 const section = 'flex flex-col gap-2 border-t border-line pt-3';
 
-/** Mesa escolhida: reportes, override vigente e as ações (override, key lançada, reporte por jogador). O acréscimo é da rodada. */
+/** Mesa escolhida: reportes, override vigente e as ações (override, key lançada). Vencedor: lista de resultados e duplo clique. */
 export const TableDetail = ({ api, table: t, admin, started, round, bestOf, onUpdate }: Props) => {
   const [message, setMessage] = useState<{ ok: boolean; text: string } | null>(null);
   const [busy, setBusy] = useState(false);
   const [choice, setChoice] = useState<OverrideDto | null>(null);
-  const [side, setSide] = useState<'player1' | 'player2'>('player1');
-  const [pending, setPending] = useState<ReportOption | null>(null);
 
   // Outra mesa: o formulário começa limpo.
-  useEffect(() => { setMessage(null); setPending(null); setChoice(null); }, [t.table, round]);
+  useEffect(() => { setMessage(null); setChoice(null); }, [t.table, round]);
 
   const run = async (action: () => Promise<ApiResult<PanelResponse & { requiresTomFix?: boolean }>>, done: string) => {
     setBusy(true);
@@ -67,7 +60,6 @@ export const TableDetail = ({ api, table: t, admin, started, round, bestOf, onUp
       if (!result.ok) { setMessage({ ok: false, text: `Não foi feito: ${result.error.message}` }); return; }
       onUpdate(result.body);
       setMessage({ ok: true, text: result.body.requiresTomFix ? `${done} A key já tinha sido lançada: corrija também no TOM.` : done });
-      setPending(null);
       setChoice(null);
     } catch (e) {
       setMessage({ ok: false, text: (e as Error).message });
@@ -76,8 +68,6 @@ export const TableDetail = ({ api, table: t, admin, started, round, bestOf, onUp
     }
   };
 
-  const name = (s: 'player1' | 'player2') => t[s].name;
-  const firstName = (s: 'player1' | 'player2') => name(s).split(' ')[0] ?? name(s);
   const row = (label: string, value: string) => (
     <div class="flex justify-between gap-3 text-sm"><span class="text-muted">{label}</span><span class="text-right">{value}</span></div>
   );
@@ -116,7 +106,7 @@ export const TableDetail = ({ api, table: t, admin, started, round, bestOf, onUp
           if (choice) void run(() => api.override(t.table, choice, round), 'Resultado ajustado.');
         }}>
           <h3 class="m-0 text-sm font-bold">Ajustar resultado</h3>
-          <p class="m-0 text-xs text-muted">Vencedor: duplo clique no nome dele, na lista de mesas.</p>
+          <p class="m-0 text-xs text-muted">Vencedor: duplo clique no nome, ou Vitória/Derrota em Resultados, abaixo.</p>
           {overrideGroups(t, bestOf ?? 3).map((g) => (
             <div key={g.title} class="flex flex-col gap-1">
               <span class="text-xs text-muted">{g.title}</span>
@@ -137,29 +127,6 @@ export const TableDetail = ({ api, table: t, admin, started, round, bestOf, onUp
             {choice ? `Aplicar: ${describeOverride(choice, t)}` : 'Escolha o resultado'}
           </button>
         </form>
-      )}
-
-      {admin && started && bestOf && t.color !== 'green' && !t.keyLaunched && (
-        <div class={section}>
-          <h3 class="m-0 text-sm font-bold">Reportar por jogador sem celular</h3>
-          {!pending ? (
-            <div class="grid grid-cols-[1fr_auto_auto] items-center gap-1.5">
-              {(['player1', 'player2'] as const).map((s) => [
-                <span key={`${s}-name`} class="truncate text-sm">{firstName(s)}</span>,
-                ...reportOptions().map((o) => (
-                  <button key={`${s}-${o.label}`} type="button" class={`rounded-md border px-3 py-1.5 text-xs font-semibold hover:brightness-125 ${RESULT_TONE[o.tone]}`} aria-label={`${firstName(s)}: ${STAFF_LABEL[o.tone]}`}
-                    onClick={() => { setSide(s); setPending(o); }}>{STAFF_LABEL[o.tone]}</button>
-                )),
-              ])}
-            </div>
-          ) : (
-            <div class="flex flex-wrap items-center gap-2 rounded-md border border-dashed border-warn p-2 text-sm">
-              <span><b>{name(side)}</b>: <b>{STAFF_LABEL[pending.tone]}</b>?</span>
-              <button type="button" class={primary} disabled={busy} onClick={() => { void run(() => api.staffReport(t.table, side, pending.report, round), 'Reporte registrado.'); }}>Confirmar</button>
-              <button type="button" class={linkButton} onClick={() => { setPending(null); }}>Voltar</button>
-            </div>
-          )}
-        </div>
       )}
 
       {message && <p class={`m-0 text-sm ${message.ok ? 'text-ok' : 'text-error'}`} role={message.ok ? 'status' : 'alert'}>{message.text}</p>}
