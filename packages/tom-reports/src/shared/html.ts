@@ -36,6 +36,15 @@ export const roundOf = (heading: string): { round: number; totalRounds: number |
   return { round: Number(match[1]), totalRounds: match[2] ? Number(match[2]) : null };
 };
 
+/** Divisões de idade juntas: o TOM grava uma tabela por divisão e repete todos na tabela "Todas". */
+const COMBINED = 'Todas';
+
+/** Com a tabela "Todas", só ela vale: as tabelas por divisão repetiriam os jogadores. */
+export const combinedOrAll = <T extends { division: string }>(tables: T[]): T[] => {
+  const combined = tables.filter((t) => t.division === COMBINED);
+  return combined.length ? combined : tables;
+};
+
 /** Cada tabela de dados vem precedida pelo cabeçalho da divisão (h2/h3). */
 export const divisionTables = (
   root: HTMLElement,
