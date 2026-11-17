@@ -1,5 +1,33 @@
 # Changelog
 
+## [0.6.0](https://github.com/EduFiguered0/TOM/compare/v0.5.0...v0.6.0) (2026-11-17)
+
+
+### Novidades
+
+* ADM marca o vencedor com duplo clique no nome, que fica verde ([cfc2167](https://github.com/EduFiguered0/TOM/commit/cfc21676439700a643a5048562e4942907d4ca6d))
+* ADM marca o vencedor com duplo clique no nome, que fica verde ([4a137c7](https://github.com/EduFiguered0/TOM/commit/4a137c7f37a8f2eafd6e5b172ec0b5b4fe2a95d6))
+* botão Confirmar reportes valida de uma vez as mesas com um reporte só ([ab5363b](https://github.com/EduFiguered0/TOM/commit/ab5363b739b240bac0ee9d629eefde693b956aed))
+* botão Confirmar reportes valida de uma vez as mesas com um reporte só ([25ce5b0](https://github.com/EduFiguered0/TOM/commit/25ce5b006d9fdc25490a3caca4c490de6f8c3fbe))
+* cores de vitória e derrota nos botões e marca do reporte de cada jogador na lista de mesas ([e0cf402](https://github.com/EduFiguered0/TOM/commit/e0cf4026003aa6607448cfc932c667a0b483d970))
+* inscritos com linha laranja ao copiar o Player ID, verde no duplo clique e Desmarcar todos ([1a1eace](https://github.com/EduFiguered0/TOM/commit/1a1eace39f38bd078aa96fc6f0e11cd6be7ad9c8))
+* inscritos com linha laranja ao copiar, verde no duplo clique e Desmarcar todos ([16ea641](https://github.com/EduFiguered0/TOM/commit/16ea641836b09240b8becb02cc0ee23eac2958c0))
+* jogador reporta só Ganhei ou Perdi, sem placar ([6aaa05e](https://github.com/EduFiguered0/TOM/commit/6aaa05ef0367e7d2d7f92ab85d153fabc998f0a8))
+* lista de resultados com todas as mesas no painel lateral ([f21b624](https://github.com/EduFiguered0/TOM/commit/f21b624655896aee87c95f811424f0c438d00b8a))
+* lista de resultados com todas as mesas no painel lateral; o ADM decide o vencedor ([7e6ce80](https://github.com/EduFiguered0/TOM/commit/7e6ce808c2e23438a73d61a8366b7cf33b38673d))
+* painel mostra Vitória e Derrota no reporte por jogador ([6e6f7b8](https://github.com/EduFiguered0/TOM/commit/6e6f7b8dcc5850563247ebc1e0fe96ad8a8b0f24))
+* reingresso do jogador removido ([38e9d9e](https://github.com/EduFiguered0/TOM/commit/38e9d9e7fdc9040961cac4be364573a83b721d7e))
+* reingresso do jogador removido e QR liberado após troca do Player ID ([0b2b279](https://github.com/EduFiguered0/TOM/commit/0b2b279be76d3ac26d299227ba0feab0aa554436))
+* reporte por jogador em lista com Vitória/Derrota coloridas e marca do reporte na lista de mesas ([3959b87](https://github.com/EduFiguered0/TOM/commit/3959b87906da1ca38690c429d57a47549b8afc7f))
+* reporte por jogador sem celular em lista: primeiro nome, Ganhei e Perdi ([405ac5d](https://github.com/EduFiguered0/TOM/commit/405ac5dda0e5e6b261579d7faec913e75ac675c5))
+
+
+### Correções
+
+* aba Rodada sem os avisos de todas verdes e de vencedor marcado ([df2186a](https://github.com/EduFiguered0/TOM/commit/df2186a4e170d15cbb5715d0601db0bf914e15c2))
+* aba Rodada sem os avisos de todas verdes e de vencedor marcado ([11a600b](https://github.com/EduFiguered0/TOM/commit/11a600b2a5164bf57534587509b05806a23c5a5e))
+* tipo opcional do onRejoined no MyEventCard ([682b02c](https://github.com/EduFiguered0/TOM/commit/682b02c94e0eff9393314d656631392c897b6b93))
+
 ## [0.5.0](https://github.com/EduFiguered0/TOM/compare/v0.4.0...v0.5.0) (2026-10-28)
 
 
