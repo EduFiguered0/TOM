@@ -17,9 +17,14 @@ export interface MatchRecordReport {
   players: PlayerMatchRecord[];
 }
 
+/** Divisões de idade juntas: o TOM grava uma tabela por divisão e repete todos na tabela "Todas". */
+const COMBINED = 'Todas';
+
 export const parseMatchRecord = (html: string): MatchRecordReport => {
   const root = load(html);
-  const players = divisionTables(root, 'table.report').flatMap(({ division, rows }) =>
+  const tables = divisionTables(root, 'table.report');
+  const combined = tables.filter((t) => t.division === COMBINED);
+  const players = (combined.length ? combined : tables).flatMap(({ division, rows }) =>
     rows.map((cells): PlayerMatchRecord => {
       const [name, section, wins, losses, ties] = expectCells(cells, 5, 'matchrecord') as [
         string, string, string, string, string,

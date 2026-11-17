@@ -11,6 +11,13 @@ describe('parseMatchRecord', () => {
       division: 'Divisão Mestre', name: 'teste1 1', section: '1', wins: 0, losses: 2, ties: 0,
     });
   });
+
+  it('divisões de idade juntas: usa só a tabela "Todas", sem repetir jogadores', () => {
+    const report = parseMatchRecord(fixture('godd/Goddmatchrecord'));
+    expect(report).toMatchObject({ tournament: 'Godd', round: 2, totalRounds: 3 });
+    expect(report.players.map((p) => p.name)).toEqual(['Eduardo Figueredo', 'Heitor Vettore', 'Herbert Pais', 'Melyssa Nunes']);
+    expect(report.players.every((p) => p.division === 'Todas')).toBe(true);
+  });
 });
 
 describe('parseRoster', () => {
