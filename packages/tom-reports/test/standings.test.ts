@@ -22,6 +22,16 @@ describe('parseStandings', () => {
     expect(report.standings.map((s) => s.name)).toEqual(['teste5 5', 'teste2 2', 'teste3 3', 'teste4 4', 'teste1 1']);
   });
 
+  it('divisões de idade juntas: usa só a tabela "Todas", sem repetir jogadores', () => {
+    const base = fixture('fodase/FODASEstandings');
+    const table = /<table class="report[\s\S]*?<\/table>/.exec(base)?.[0] ?? '';
+    const html = base.replace('<table class="footer"', `<h2>Todas</h2>\n${table}\n<table class="footer"`);
+
+    const { standings } = parseStandings(html);
+    expect(standings).toHaveLength(5);
+    expect(standings.every((s) => s.division === 'Todas')).toBe(true);
+  });
+
   it('lê rodada abandonada (drop)', () => {
     const html = fixture('fodase/FODASEstandings').replace('<td align="center">&nbsp;</td>', '<td align="center">2</td>');
     expect(parseStandings(html).standings[0]?.droppedRound).toBe(2);

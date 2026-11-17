@@ -1,5 +1,5 @@
 import { TomParseError } from '../shared/errors.js';
-import { divisionTables, expectCells, footerTournament, generatedAt, int, load, roundOf, text } from '../shared/html.js';
+import { combinedOrAll, divisionTables, expectCells, footerTournament, generatedAt, int, load, roundOf, text } from '../shared/html.js';
 import { parseRecord, type MatchRecord } from '../shared/record.js';
 
 export interface Standing {
@@ -30,7 +30,7 @@ const pct = (value: string): number => {
 
 export const parseStandings = (html: string): StandingsReport => {
   const root = load(html);
-  const standings = divisionTables(root, 'table.report').flatMap(({ division, rows }) =>
+  const standings = combinedOrAll(divisionTables(root, 'table.report')).flatMap(({ division, rows }) =>
     rows.map((cells): Standing => {
       const [rank, name, section, dropped, record, points, owp, oowp] = expectCells(cells, 8, 'standings') as [
         string, string, string, string, string, string, string, string,
