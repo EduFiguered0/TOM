@@ -1,5 +1,22 @@
 # Changelog
 
+## [0.7.0](https://github.com/EduFiguered0/TOM/compare/v0.6.0...v0.7.0) (2026-11-17)
+
+
+### Correções
+
+* classificação com divisões juntas usa só a tabela "Todas" ([5cb7cfa](https://github.com/EduFiguered0/TOM/commit/5cb7cfa21ce866c754cef4f3c8bbb0f423376de1))
+* classificação final com divisões juntas mostra só a geral ([cac25af](https://github.com/EduFiguered0/TOM/commit/cac25affa585e39ce7e1f8c322d9f2c474cd7d00))
+* pareamento com divisões de idade juntas ([3411b61](https://github.com/EduFiguered0/TOM/commit/3411b612d241cf61bffa3e2ff3741b93ce3e39f8))
+* pareamento com divisões de idade juntas (sigla " - SR"/" - ME" após o recorde) ([aad6d65](https://github.com/EduFiguered0/TOM/commit/aad6d65b72bc57bdde8cf6d6394f8349d929f133))
+* registro de partida com divisões juntas sem jogadores repetidos ([55f7ba7](https://github.com/EduFiguered0/TOM/commit/55f7ba79e199087408c0ae0a2494fa88882e9337))
+* registro de partida com divisões juntas usa só a tabela "Todas" ([1e1d755](https://github.com/EduFiguered0/TOM/commit/1e1d755f04c2986e543f30784884c5989dbbb5f4))
+
+
+### Manutenção
+
+* release 0.7.0 ([ad9218a](https://github.com/EduFiguered0/TOM/commit/ad9218a582da30d1f67ea59ea83f3a2bcdd97ad3))
+
 ## [0.6.0](https://github.com/EduFiguered0/TOM/compare/v0.5.0...v0.6.0) (2026-11-17)
 
 
