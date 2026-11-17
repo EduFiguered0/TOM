@@ -70,6 +70,7 @@ export const createApi = (session: Session, base = '/api', fetchFn: typeof fetch
     activateSession: (replace: boolean) => call<MeResponse>('POST', '/session', { replace }),
     joinEvent: (code: string) => call<JoinResponse>('POST', `/join/${encodeURIComponent(code)}`),
     myEvent: () => call<MyEventResponse>('GET', '/me/event'),
+    rejoinEvent: () => call<JoinResponse>('POST', '/me/event/rejoin'),
     claimPlayerId: (playerId: string) => call<MeResponse>('POST', '/me/player-id', { playerId }),
     confirmName: (firstName: string, lastName: string) => call<MeResponse>('POST', '/me/name', { firstName, lastName }),
     dismissAdminChanges: () => call<MeResponse>('POST', '/me/admin-changes/seen'),

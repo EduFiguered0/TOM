@@ -20,16 +20,18 @@ interface Props {
   notice?: { ok: boolean; text: string } | null;
   /** Muda quando a inscrição pelo QR terminou: o evento do dia recarrega. */
   eventRefresh: number;
+  /** O jogador removido pediu para reingressar: o aviso do QR sai. */
+  onRejoined?: () => void;
 }
 
 const ROLE: Record<MeResponse['role'], string> = { player: 'Jogador', admin: 'ADM' };
 
-export const Home = ({ me, api, onSignOut, onChanged, joinError, eventRefresh, notice = null }: Props) => (
+export const Home = ({ me, api, onSignOut, onChanged, joinError, eventRefresh, onRejoined, notice = null }: Props) => (
   <>
   {me.adminChanges.length > 0 && <AdminChangesCard me={me} api={api} onSeen={onChanged} />}
   {joinError && <section class={cardWarn}><p class="m-0 font-medium text-error" role="alert">{joinError}</p></section>}
   {notice && <section class={notice.ok ? card : cardWarn}><Feedback message={notice} /></section>}
-  {me.role === 'player' && <MyEventCard api={api} refresh={eventRefresh} />}
+  {me.role === 'player' && <MyEventCard api={api} refresh={eventRefresh} onRejoined={onRejoined} />}
   {/* No salão o que importa é a mesa: a rodada vem primeiro. */}
   {me.role === 'player' && me.canAct && <RoundCard api={api} me={{ photo: me.photo, name: `${me.profile.firstName} ${me.profile.lastName}` }} />}
   <section class={card}>
