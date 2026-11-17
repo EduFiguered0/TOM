@@ -22,8 +22,9 @@ export interface PairingsReport {
   pairings: Pairing[];
 }
 
+/** Com divisões de idade juntas, o TOM acrescenta a sigla da divisão do jogador: "Nome (0/0/0 (0) - SR)". */
 const entry = (cell: string): PairingEntry => {
-  const match = /^(.+?) \((\d+\/\d+\/\d+ \(\d+\))\)$/.exec(cell);
+  const match = /^(.+?) \((\d+\/\d+\/\d+ \(\d+\))(?: - [A-Z]+)?\)$/.exec(cell);
   if (!match?.[1] || !match[2]) throw new TomParseError(`Jogador inválido: "${cell}"`);
   return { name: match[1], record: parseRecord(match[2]) };
 };
