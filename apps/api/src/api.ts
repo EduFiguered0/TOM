@@ -373,6 +373,13 @@ export const createApi = ({ tokens, emails, accounts, events, ingest, board, rou
       },
     },
     {
+      method: 'POST', path: /^\/me\/event\/rejoin$/,
+      handle: async ({ identity }) => {
+        const { event, registration } = await registrations.rejoin(await accounts.authenticate(identity));
+        return { status: 200, body: { event: toEvent(event), registration: ownRegistration(await registrationOf(registration, event)) } satisfies JoinResponse };
+      },
+    },
+    {
       method: 'POST', path: new RegExp(`^/invites/${INVITE_CODE}/accept$`),
       handle: async ({ identity, params: [code = ''] }) => {
         await invites.accept(await accounts.authenticate(identity), code);

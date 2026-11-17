@@ -46,8 +46,9 @@ export class RegistrationService {
     if (!account.playerId) throw incomplete();
     if (event.judges.includes(account.id)) throw judgeRejection();
     const existing = await this.deps.registrations.get(event.id, account.id);
-    if (existing?.removed) throw removedRejection();
-    if (existing) return { event, registration: existing };
+    // Removida com outro Player ID: saiu pela troca do ID (editar ou desfazer vínculo), não pelo ADM; volta pelo QR.
+    if (existing?.removed && existing.playerId === account.playerId) throw removedRejection();
+    if (existing && !existing.removed) return { event, registration: existing };
     try {
       return { event, registration: await this.enroll(event, account.id, account.playerId, account.profile) };
     } catch (e) {
@@ -161,6 +162,34 @@ export class RegistrationService {
     const latest = await this.deps.registry.latest();
     if (!latest || !ACTIVE_STATUSES.includes(latest.event.status)) return null;
     return { event: latest.event, registration: await this.deps.registrations.get(latest.event.id, principal.account.id) };
+  }
+
+  /** Removido pede para voltar ao evento ativo: entra aguardando o ADM aprovar, que continua decidindo. */
+  async rejoin(principal: Principal): Promise<{ event: TournamentEvent; registration: Registration }> {
+    const mine = await this.mine(principal);
+    if (!mine?.registration) throw new CommandRejected('account_not_found', 'Inscrição não encontrada');
+    const { event, registration } = mine;
+    if (!registration.removed) throw new CommandRejected('invalid_input', 'Sua inscrição não foi removida');
+    if (!JOIN_STATUSES.includes(event.status)) throw closed();
+    const { account } = principal;
+    if (!account.playerId) throw incomplete();
+    if (event.judges.includes(account.id)) throw judgeRejection();
+    const next: Registration = {
+      ...registration,
+      playerId: account.playerId,
+      at: this.deps.clock.now(),
+      by: 'self',
+      awaitingApproval: true,
+      launched: false,
+      removed: false,
+    };
+    try {
+      await this.deps.registrations.put(next, event.status);
+    } catch (e) {
+      if (e instanceof EventStatusChangedError) throw closed();
+      throw e;
+    }
+    return { event, registration: next };
   }
 
   /** Entradas tardias esperando o ADM (as recusadas, removidas, não contam). */

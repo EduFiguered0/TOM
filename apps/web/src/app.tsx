@@ -90,7 +90,7 @@ export const App = ({ cognito, session, api, google, loginError, pendingJoin, pe
       {screen.name === 'register' && <Register api={api} onRegistered={(me) => { setScreen({ name: 'home', me }); }} />}
       {screen.name === 'device' && <Device api={api} onActivated={(me) => { setScreen({ name: 'home', me }); }} onCancel={signOut} />}
       {screen.name === 'home' && (
-        <Home me={screen.me} api={api} onSignOut={signOut} onChanged={(me) => { setScreen({ name: 'home', me }); }} joinError={joinError} eventRefresh={eventRefresh} notice={inviteNotice} />
+        <Home me={screen.me} api={api} onSignOut={signOut} onChanged={(me) => { setScreen({ name: 'home', me }); }} joinError={joinError} eventRefresh={eventRefresh} onRejoined={() => { setJoinError(null); }} notice={inviteNotice} />
       )}
       {screen.name === 'error' && (
         <section class={card}>

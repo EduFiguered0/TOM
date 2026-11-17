@@ -69,6 +69,16 @@ describe('ciclo do evento pela API', () => {
     expect((await call('POST', `/events/${event.id}/registrations/${ana}/remove`, ADM)).status).toBe(200);
     expect(await list()).toMatchObject({ total: 1, awaiting: 0, launched: 0 });
     expect(await call('POST', `/join/${code}`, 'ana-email:c1')).toMatchObject({ status: 403, body: { message: 'Sua inscrição foi removida, procure o ADM' } });
+    expect(await call('POST', '/me/event/rejoin', 'ana-email:c1')).toMatchObject({ status: 200, body: { registration: { removed: false, awaitingApproval: true } } });
+    expect(await list()).toMatchObject({ total: 1, awaiting: 1 });
+  });
+
+  it('ADM troca o Player ID: com o ID novo, o QR inscreve de novo', async () => {
+    const { call, code, list, ana } = await opened();
+    await call('POST', `/join/${code}`, 'ana-email:c1');
+    await call('PATCH', `/players/${ana}`, ADM, { firstName: 'Ana', lastName: 'Souza', birthYear: 1990, playerId: '100009' });
+    expect(await call('POST', `/join/${code}`, 'ana-email:c1')).toMatchObject({ status: 200, body: { registration: { playerId: '100009', removed: false } } });
+    expect(await list()).toMatchObject({ total: 1 });
   });
 
   it('inRound aponta quem está inscrito e não está nas guias', async () => {

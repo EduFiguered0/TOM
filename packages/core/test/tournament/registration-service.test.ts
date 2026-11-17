@@ -107,6 +107,32 @@ describe('inscrição pelo QR', () => {
     expect(await service.add(actors.admin, event.id, 'ana')).toMatchObject({ removed: false, by: 'admin' });
     expect((await service.join(ana, code)).registration.removed).toBe(false);
   });
+
+  it('saiu pela troca do Player ID: volta pelo QR com o ID novo', async () => {
+    const { service, accounts, registrations, event, code } = await setup();
+    const ana = await account(accounts, 'ana', '100001');
+    await service.join(ana, code);
+    await service.dropAccount(event.id, 'ana');
+    await rejects(service.join(ana, code), 'forbidden', 'Sua inscrição foi removida, procure o ADM');
+    const corrigida = { ...ana, account: { ...ana.account, playerId: toPlayerId('100002') } };
+    expect((await service.join(corrigida, code)).registration).toMatchObject({ playerId: '100002', removed: false, by: 'self', launched: false });
+    expect((await registrations.get(event.id, 'ana'))?.removed).toBe(false);
+  });
+
+  it('removido pede para reingressar: volta aguardando o ADM; quem não foi removido não pede', async () => {
+    const { service, accounts, events, event, code } = await setup();
+    const ana = await account(accounts, 'ana', '100001');
+    await rejects(service.rejoin(ana), 'account_not_found', 'Inscrição não encontrada');
+    await service.join(ana, code);
+    await rejects(service.rejoin(ana), 'invalid_input', 'Sua inscrição não foi removida');
+    await service.remove(actors.admin, event.id, 'ana');
+    expect((await service.rejoin(ana)).registration).toMatchObject({ removed: false, awaitingApproval: true, launched: false, by: 'self' });
+    expect(await service.awaiting(event.id)).toBe(1);
+    await service.remove(actors.admin, event.id, 'ana');
+    await events.markRunning(event.id);
+    await events.markFinal(event.id, []);
+    await rejects(service.rejoin(ana), 'event_state', 'Inscrições encerradas');
+  });
 });
 
 describe('entrada tardia e painel do ADM', () => {
