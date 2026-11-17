@@ -12,7 +12,7 @@ const POLL_MS = 15_000;
  * Evento do dia do jogador: aguardando início, aguardando o organizador (entrada tardia), inscrição removida ou
  * resultado. Com o evento em andamento, some: a rodada (mesa e reporte) assume.
  */
-export const MyEventCard = ({ api, refresh, onRejoined }: { api: Api; refresh: number; onRejoined?: () => void }) => {
+export const MyEventCard = ({ api, refresh, onRejoined }: { api: Api; refresh: number; onRejoined?: (() => void) | undefined }) => {
   const [mine, setMine] = useState<MyEventResponse | null>(null);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<{ ok: boolean; text: string } | null>(null);
