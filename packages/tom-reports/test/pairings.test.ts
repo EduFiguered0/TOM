@@ -42,6 +42,15 @@ describe('parsePairings', () => {
     ]);
   });
 
+  it('divisões de idade juntas: ignora a sigla da divisão do jogador (" - ME", " - SR")', () => {
+    const html = fixture('fodase/FODASEpairings')
+      .replaceAll('(2/0/0 (6))', '(2/0/0 (6) - ME)')
+      .replaceAll('(1/1/0 (3))', '(1/1/0 (3) - SR)');
+    const report = parsePairings(html);
+    expect(report.pairings[1]?.player).toEqual({ name: 'teste2 2', record: { wins: 2, losses: 0, ties: 0, points: 6 } });
+    expect(report.pairings[2]?.opponent).toEqual({ name: 'teste4 4', record: { wins: 1, losses: 1, ties: 0, points: 3 } });
+  });
+
   it('falha alto quando a coluna muda', () => {
     const html = fixture('fodase/FODASEpairings').replace('<td align="center" class="center">contra', '<td>x</td><td>');
     expect(() => parsePairings(html)).toThrow(TomParseError);
