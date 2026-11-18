@@ -1,0 +1,5 @@
+{
+  "region": "us-east-2",
+  "userPoolClientId": "",
+  "loginDomain": "https://ggtcg-login.auth.us-east-2.amazoncognito.com"
+}

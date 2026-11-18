@@ -13,7 +13,7 @@
   },
   "scripts": {
     "build": "tsc -b",
-    "typecheck": "tsc -p tsconfig.dev.json && tsc -p apps/web/tsconfig.json && tsc -p packages/web-auth/tsconfig.json",
+    "typecheck": "tsc -p tsconfig.dev.json && tsc -p apps/web/tsconfig.json && tsc -p packages/web-auth/tsconfig.json && tsc -p apps/landing/tsconfig.json",
     "lint": "eslint .",
     "test": "vitest run",
     "test:watch": "vitest",
@@ -23,7 +23,9 @@
     "test:aws": "vitest run -c vitest.aws.config.ts",
     "deploy": "tsx infra/scripts/deploy.ts",
     "web:deploy": "tsx infra/scripts/deploy-web.ts",
-    "web:dev": "npm run dev -w @tom/web"
+    "web:dev": "npm run dev -w @tom/web",
+    "landing:dev": "npm run dev -w @tom/landing",
+    "landing:deploy": "tsx infra/scripts/deploy-landing.ts"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.5",

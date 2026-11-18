@@ -6,7 +6,7 @@ const restrictImports = (patterns) => ({
 });
 
 export default tseslint.config(
-  { ignores: ['**/dist/**', '**/node_modules/**', '**/test/fixtures/**', 'tools/**', 'infra/cdk.out/**', 'apps/web/dist/**'] },
+  { ignores: ['**/dist/**', '**/node_modules/**', '**/test/fixtures/**', 'tools/**', 'infra/cdk.out/**', 'apps/web/dist/**', 'apps/landing/dist/**'] },
   eslint.configs.recommended,
   ...tseslint.configs.strictTypeChecked,
   {
@@ -62,6 +62,16 @@ export default tseslint.config(
   {
     files: ['packages/web-auth/src/**'],
     rules: restrictImports([{ regex: '^[^.]', message: 'web-auth não depende de nada: só imports relativos.' }]),
+  },
+  {
+    files: ['apps/landing/**/*.{ts,tsx}'],
+    languageOptions: {
+      parserOptions: { project: './apps/landing/tsconfig.json', tsconfigRootDir: import.meta.dirname },
+    },
+  },
+  {
+    files: ['apps/landing/src/**'],
+    rules: restrictImports([{ group: ['@tom/*', '!@tom/landing-core', '!@tom/web-auth'], message: 'landing só depende de landing-core e web-auth (isolada do TOM).' }]),
   },
   {
     files: ['apps/web/**/*.{ts,tsx}'],

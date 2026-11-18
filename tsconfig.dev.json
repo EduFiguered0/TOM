@@ -23,6 +23,7 @@
   ],
   "exclude": [
     "apps/web",
-    "packages/web-auth"
+    "packages/web-auth",
+    "apps/landing"
   ]
 }
