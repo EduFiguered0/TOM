@@ -40,6 +40,10 @@ export default tseslint.config(
     ]),
   },
   {
+    files: ['packages/landing-core/src/**'],
+    rules: restrictImports([{ regex: '^[^.]', message: 'landing-core não depende de nada: só imports relativos.' }]),
+  },
+  {
     files: ['apps/uploader/src/**'],
     rules: restrictImports([
       { group: ['@tom/*', '!@tom/core', '!@tom/tom-reports', '!@tom/contracts'], message: 'uploader só depende de core, tom-reports e contracts.' },

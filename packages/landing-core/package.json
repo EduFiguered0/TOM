@@ -1,0 +1,14 @@
+{
+  "name": "@tom/landing-core",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Landing de ingressos: regras do lead, origem, eventos, elegibilidade e termos. Sem dependências.",
+  "type": "module",
+  "exports": {
+    ".": {
+      "source": "./src/index.ts",
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  }
+}
