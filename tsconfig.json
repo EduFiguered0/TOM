@@ -21,6 +21,9 @@
     },
     {
       "path": "packages/landing-core"
+    },
+    {
+      "path": "apps/landing-api"
     }
   ]
 }
