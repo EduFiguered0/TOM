@@ -44,8 +44,11 @@ const DAY_SECONDS = 86_400;
 const leadPk = (storeId: string, leadId: string) => `store#${storeId}#lead#${leadId}`;
 const lockKey = (storeId: string, googleSub: string) => ({ pk: `store#${storeId}#google#${googleSub}`, sk: 'lock' });
 
-const conditionFailed = (error: unknown) =>
-  error instanceof TransactionCanceledException && (error.CancellationReasons ?? []).some((r) => r.Code === 'ConditionalCheckFailed');
+const cancelledBy = (error: unknown, codes: string[]) =>
+  error instanceof TransactionCanceledException && (error.CancellationReasons ?? []).some((r) => codes.includes(r.Code ?? ''));
+const conditionFailed = (error: unknown) => cancelledBy(error, ['ConditionalCheckFailed']);
+/** Dois primeiros acessos simultâneos costumam cair em TransactionConflict, não na condição. */
+const lostCreateRace = (error: unknown) => cancelledBy(error, ['ConditionalCheckFailed', 'TransactionConflict']);
 
 /** Tabela única por módulo: lead, trava do Google, consentimentos e intenções; tudo com TTL (LGPD: 6 meses). */
 export class DynamoLeadRepository implements LeadRepository {
@@ -63,10 +66,11 @@ export class DynamoLeadRepository implements LeadRepository {
   }
 
   async findByGoogleSub(storeId: string, googleSub: string): Promise<Lead | null> {
-    const lock = await this.client.send(new GetCommand({ TableName: this.tableName, Key: lockKey(storeId, googleSub) }));
+    // Leituras consistentes: o checkout vem milissegundos depois do cadastro.
+    const lock = await this.client.send(new GetCommand({ TableName: this.tableName, Key: lockKey(storeId, googleSub), ConsistentRead: true }));
     const leadId: unknown = lock.Item?.['leadId'];
     if (typeof leadId !== 'string') return null;
-    const found = await this.client.send(new GetCommand({ TableName: this.tableName, Key: { pk: leadPk(storeId, leadId), sk: 'lead' } }));
+    const found = await this.client.send(new GetCommand({ TableName: this.tableName, Key: { pk: leadPk(storeId, leadId), sk: 'lead' }, ConsistentRead: true }));
     if (!found.Item) return null;
     const lead = { ...found.Item };
     for (const key of ['pk', 'sk', 'expiresAt']) Reflect.deleteProperty(lead, key);
@@ -83,7 +87,7 @@ export class DynamoLeadRepository implements LeadRepository {
         ],
       }));
     } catch (error) {
-      if (conditionFailed(error)) throw new LeadExistsError(`Conta Google já tem lead na loja ${lead.storeId}`);
+      if (lostCreateRace(error)) throw new LeadExistsError(`Conta Google já tem lead na loja ${lead.storeId}`);
       throw error;
     }
   }
@@ -91,12 +95,14 @@ export class DynamoLeadRepository implements LeadRepository {
   async update(lead: Lead, consents: ConsentRecord[]): Promise<void> {
     const expiresAt = this.expiresAt();
     const pk = leadPk(lead.storeId, lead.leadId);
+    const fresh = consents.map((c) => ({ pk, sk: `consent#${c.at}#${c.kind}`, ...c, expiresAt }));
+    const kept = (await this.consentItems(pk)).filter((c) => !fresh.some((n) => n.sk === c['sk'])).map((c) => ({ ...c, expiresAt }));
     try {
       await this.client.send(new TransactWriteCommand({
         TransactItems: [
-          // A trava acompanha o prazo do lead.
+          // Trava e consentimentos acompanham o prazo do lead.
           { Put: { TableName: this.tableName, Item: this.leadItem(lead, expiresAt), ConditionExpression: 'version = :prev', ExpressionAttributeValues: { ':prev': lead.version - 1 } } },
-          ...consents.map((c) => ({ Put: { TableName: this.tableName, Item: { pk, sk: `consent#${c.at}#${c.kind}`, ...c, expiresAt } } })),
+          ...[...fresh, ...kept].map((Item) => ({ Put: { TableName: this.tableName, Item } })),
           { Put: { TableName: this.tableName, Item: { ...lockKey(lead.storeId, lead.googleSub), leadId: lead.leadId, expiresAt } } },
         ],
       }));
@@ -107,26 +113,41 @@ export class DynamoLeadRepository implements LeadRepository {
   }
 
   async latestConsent(storeId: string, leadId: string, kind: ConsentRecord['kind']): Promise<ConsentRecord | null> {
-    const result = await this.client.send(new QueryCommand({
-      TableName: this.tableName,
-      KeyConditionExpression: 'pk = :pk AND begins_with(sk, :prefix)',
-      ExpressionAttributeValues: { ':pk': leadPk(storeId, leadId), ':prefix': 'consent#' },
-      ScanIndexForward: false,
-    }));
-    const item = (result.Items ?? []).find((i) => i['kind'] === kind);
+    const item = (await this.consentItems(leadPk(storeId, leadId))).find((i) => i['kind'] === kind);
     if (!item) return null;
     return { kind, version: item['version'] as string | null, sha256: item['sha256'] as string | null, value: item['value'] as boolean, at: item['at'] as string };
   }
 
   async addIntent(storeId: string, intent: IntentRecord, lead: Lead): Promise<void> {
     const expiresAt = this.expiresAt();
-    await this.client.send(new TransactWriteCommand({
-      TransactItems: [
-        { Put: { TableName: this.tableName, Item: { pk: leadPk(storeId, intent.leadId), sk: `intent#${intent.at}#${intent.intentId}`, ...intent, expiresAt } } },
-        { Put: { TableName: this.tableName, Item: this.leadItem(lead, expiresAt) } },
-        { Put: { TableName: this.tableName, Item: { ...lockKey(storeId, lead.googleSub), leadId: lead.leadId, expiresAt } } },
-      ],
+    const pk = leadPk(storeId, intent.leadId);
+    const consents = await this.consentItems(pk);
+    try {
+      await this.client.send(new TransactWriteCommand({
+        TransactItems: [
+          { Put: { TableName: this.tableName, Item: { pk, sk: `intent#${intent.at}#${intent.intentId}`, ...intent, expiresAt } } },
+          // Só renova o prazo se ninguém alterou o lead no meio (ex.: outra aba salvando o cadastro).
+          { Put: { TableName: this.tableName, Item: this.leadItem(lead, expiresAt), ConditionExpression: 'version = :v', ExpressionAttributeValues: { ':v': lead.version } } },
+          { Put: { TableName: this.tableName, Item: { ...lockKey(storeId, lead.googleSub), leadId: lead.leadId, expiresAt } } },
+          ...consents.map((c) => ({ Put: { TableName: this.tableName, Item: { ...c, expiresAt } } })),
+        ],
+      }));
+    } catch (error) {
+      if (conditionFailed(error)) throw new LeadConflictError(`Lead ${lead.leadId} mudou durante a gravação`);
+      throw error;
+    }
+  }
+
+  /** Histórico de consentimentos, do mais novo ao mais antigo; a prova do aceite vive tanto quanto o lead. */
+  private async consentItems(pk: string): Promise<Record<string, unknown>[]> {
+    const result = await this.client.send(new QueryCommand({
+      TableName: this.tableName,
+      KeyConditionExpression: 'pk = :pk AND begins_with(sk, :prefix)',
+      ExpressionAttributeValues: { ':pk': pk, ':prefix': 'consent#' },
+      ScanIndexForward: false,
+      ConsistentRead: true,
     }));
+    return result.Items ?? [];
   }
 
   private leadItem(lead: Lead, expiresAt: number) {

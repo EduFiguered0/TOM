@@ -85,8 +85,7 @@ export class LandingStack extends Stack {
       architecture: Architecture.ARM_64,
       memorySize: 256,
       timeout: Duration.seconds(10),
-      // Limite contra abuso (sem WAF): picos além disso recebem 429.
-      reservedConcurrentExecutions: 10,
+      // Sem concorrência reservada: contas novas podem ter limite de 10, e reservar derrubaria o deploy.
       role,
       logGroup,
       environment: { LEADS_TABLE: table.tableName, USER_POOL_ID: userPool.userPoolId, USER_POOL_CLIENT_ID: client.userPoolClientId },
@@ -182,7 +181,7 @@ export class LandingStack extends Stack {
     );
     Validations.of(distribution).acknowledge(
       { id: 'AwsSolutions-CFR1', reason: 'Divulgação por anúncio: sem restrição geográfica.' },
-      { id: 'AwsSolutions-CFR2', reason: 'WAF custa a partir de US$ 5/mês + US$ 1 por regra; fora do orçamento de custo zero. A concorrência reservada da Lambda limita abuso.' },
+      { id: 'AwsSolutions-CFR2', reason: 'WAF custa a partir de US$ 5/mês + US$ 1 por regra; fora do orçamento de custo zero. O limite de concorrência da conta e o timeout de 10 s contêm abuso.' },
       { id: 'AwsSolutions-CFR3', reason: 'Logs de acesso do CloudFront gerariam armazenamento recorrente; a API já registra erros.' },
       { id: 'AwsSolutions-CFR4', reason: 'Domínio padrão *.cloudfront.net não permite escolher a versão mínima de TLS; muda com domínio próprio.' },
     );

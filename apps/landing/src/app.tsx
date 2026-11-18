@@ -3,6 +3,7 @@ import type { Google, Session } from '@tom/web-auth';
 import { useEffect, useState } from 'preact/hooks';
 import { errorMessage, type LandingApi, type MeResponse, type PublicEvent } from './api.js';
 import { nextStep } from './flow.js';
+import type { createLoginGuard } from './login-guard.js';
 import { EventList } from './screens/events.js';
 import { ProfileForm, type FieldError } from './screens/profile-form.js';
 
@@ -19,15 +20,19 @@ interface Props {
   google: Google;
   utm: Utm;
   wants: WantStore;
+  /** Evita loop de login quando a API recusa o token recém-emitido. */
+  guard: LoginGuard;
   /** Erro na volta do Google (cancelado, falhou). */
   loginError: string | null;
   /** Navegação para fora (Google, LigaMagic). */
   go: (url: string) => void;
 }
 
+type LoginGuard = ReturnType<typeof createLoginGuard>;
+
 const PROFILE_ERRORS = new Set(['PROFILE_INCOMPLETE', 'TERMS_OUTDATED']);
 
-export const App = ({ api, session, google, utm, wants, loginError, go }: Props) => {
+export const App = ({ api, session, google, utm, wants, guard, loginError, go }: Props) => {
   const [events, setEvents] = useState<PublicEvent[] | null>(null);
   const [me, setMe] = useState<MeResponse | null>(null);
   const [editing, setEditing] = useState(false);
@@ -57,10 +62,16 @@ export const App = ({ api, session, google, utm, wants, loginError, go }: Props)
     if (nextStep({ loggedIn: session.loggedIn, me: null, wantsEvent: eventId }) === 'login') { go(await google.authorizeUrl()); return; }
     const loaded = await api.me(utm);
     if (!loaded.ok) {
-      if (loaded.status === 401) { await session.signOut(); go(await google.authorizeUrl()); return; }
+      if (loaded.status === 401) {
+        await session.signOut();
+        if (guard.mayRetry()) { go(await google.authorizeUrl()); return; }
+      }
+      // Erro: a escolha é esquecida, para recarregar a página não reabrir a compra sozinho.
+      wants.clear();
       fail(loaded.error);
       return;
     }
+    guard.succeeded();
     setMe(loaded.body);
     if (nextStep({ loggedIn: true, me: loaded.body, wantsEvent: eventId }) === 'profile') { setEditing(true); setBusy(null); return; }
     await checkout(eventId);

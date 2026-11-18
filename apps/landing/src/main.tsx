@@ -3,6 +3,7 @@ import { browserStorage, createCognito, createGoogle, createSession } from '@tom
 import { render } from 'preact';
 import { createLandingApi } from './api.js';
 import { App, Footer } from './app.js';
+import { createLoginGuard } from './login-guard.js';
 import { LegalPage } from './screens/legal.js';
 import { captureUtm } from './utm.js';
 import './theme.css';
@@ -46,7 +47,7 @@ const start = async () => {
   const loginError = returned && 'error' in returned ? returned.error : null;
   if (loginError) wants.clear();
   render(
-    <App api={createLandingApi(session)} session={session} google={google} utm={utm} wants={wants} loginError={loginError}
+    <App api={createLandingApi(session)} session={session} google={google} utm={utm} wants={wants} guard={createLoginGuard(tabStore('gg.retry'))} loginError={loginError}
       go={(url) => { location.assign(url); }} />,
     root,
   );

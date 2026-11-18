@@ -24,14 +24,15 @@ describe('LandingStack', () => {
     });
   });
 
-  it('Lambda com a tabela e o cliente de login da landing, concorrência limitada', () => {
+  it('Lambda com a tabela e o cliente de login da landing', () => {
     template.hasResourceProperties('AWS::Lambda::Function', {
       FunctionName: 'tom-prod-gg-landing-api',
       Runtime: 'nodejs22.x',
-      ReservedConcurrentExecutions: 10,
       Environment: { Variables: { LEADS_TABLE: Match.anyValue(), USER_POOL_ID: Match.anyValue(), USER_POOL_CLIENT_ID: Match.anyValue() } },
     });
     template.hasResourceProperties('AWS::Lambda::Url', { AuthType: 'NONE' });
+    // Contas novas podem ter limite de 10 execuções simultâneas: reservar qualquer valor derrubaria o deploy.
+    template.hasResourceProperties('AWS::Lambda::Function', { FunctionName: 'tom-prod-gg-landing-api', ReservedConcurrentExecutions: Match.absent() });
   });
 
   it('cliente de app próprio no pool, só Google, com o escopo profile', () => {
