@@ -4,6 +4,7 @@
   "context": {
     "google": true,
     "landingCallbackUrls": [
+      "https://d7tb69wtk8b2s.cloudfront.net/",
       "http://localhost:5174/"
     ],
     "@aws-cdk/aws-signer:signingProfileNamePassedToCfn": true,
