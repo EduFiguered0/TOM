@@ -1,9 +1,7 @@
 import { render } from 'preact';
 import { createApi } from './api.js';
 import { App } from './app.js';
-import { createCognito } from './auth/cognito.js';
-import { createGoogle } from './auth/google.js';
-import { browserStorage, createSession } from './auth/session.js';
+import { browserStorage, createCognito, createGoogle, createSession } from '@tom/web-auth';
 import { HomePage } from './public/home-page.js';
 import { PrivacyPage } from './public/privacy-page.js';
 import { createPendingJoin, inviteCodeOf, joinCodeOf } from './pending-join.js';

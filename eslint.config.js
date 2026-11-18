@@ -46,6 +46,16 @@ export default tseslint.config(
     ]),
   },
   {
+    files: ['packages/web-auth/**/*.ts'],
+    languageOptions: {
+      parserOptions: { project: './packages/web-auth/tsconfig.json', tsconfigRootDir: import.meta.dirname },
+    },
+  },
+  {
+    files: ['packages/web-auth/src/**'],
+    rules: restrictImports([{ regex: '^[^.]', message: 'web-auth não depende de nada: só imports relativos.' }]),
+  },
+  {
     files: ['apps/web/**/*.{ts,tsx}'],
     languageOptions: {
       parserOptions: { project: './apps/web/tsconfig.json', tsconfigRootDir: import.meta.dirname },
@@ -58,8 +68,8 @@ export default tseslint.config(
       'no-restricted-imports': ['error', {
         paths: [{ name: '@tom/uploader', message: 'No site, só o núcleo sem Node: @tom/uploader/core.' }],
         patterns: [{
-          regex: '^@tom/(?!contracts$|uploader$|uploader/core$)',
-          message: 'web só depende de contracts (fala com a API por HTTP) e do núcleo do enviador (@tom/uploader/core).',
+          regex: '^@tom/(?!contracts$|web-auth$|uploader$|uploader/core$)',
+          message: 'web só depende de contracts (fala com a API por HTTP), do login (@tom/web-auth) e do núcleo do enviador (@tom/uploader/core).',
         }],
       }],
     },

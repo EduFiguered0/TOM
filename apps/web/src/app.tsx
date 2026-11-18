@@ -1,8 +1,6 @@
 import { useCallback, useEffect, useState } from 'preact/hooks';
 import { OfflineError, type Api } from './api.js';
-import type { Cognito } from './auth/cognito.js';
-import type { Google } from './auth/google.js';
-import type { Session } from './auth/session.js';
+import type { Cognito, Google, Session } from '@tom/web-auth';
 import { screenFor, type Screen } from './flow.js';
 import { Device } from './screens/device.js';
 import { Home } from './screens/home.js';

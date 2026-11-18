@@ -1,0 +1,13 @@
+{
+  "name": "@tom/web-auth",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Login no navegador (Cognito e Google com PKCE) e sessão, compartilhado pelos sites.",
+  "type": "module",
+  "exports": {
+    ".": {
+      "source": "./src/index.ts",
+      "default": "./src/index.ts"
+    }
+  }
+}

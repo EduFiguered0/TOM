@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto';
 import { describe, expect, it } from 'vitest';
-import { createGoogle } from '../src/auth/google.js';
+import { createGoogle } from '../src/google.js';
 
 const config = {
   loginDomain: 'https://ggtcg-login.auth.us-east-2.amazoncognito.com',
@@ -30,6 +30,12 @@ const setup = (reply: Record<string, unknown> = { access_token: 'acesso', refres
 const saved = (store: ReturnType<typeof memory>) => JSON.parse(store.value ?? '{}') as { verifier: string; state: string };
 
 describe('entrar com o Google', () => {
+  it('usa o escopo informado', async () => {
+    const scope = 'openid email profile aws.cognito.signin.user.admin';
+    const google = createGoogle({ ...config, scope }, { fetchFn: fetch, store: memory(), random, now: () => 0 });
+    expect(new URL(await google.authorizeUrl()).searchParams.get('scope')).toBe(scope);
+  });
+
   it('URL de autorização com PKCE (S256), escopo de admin e o Google direto', async () => {
     const { store, google } = setup();
     const url = new URL(await google.authorizeUrl());
