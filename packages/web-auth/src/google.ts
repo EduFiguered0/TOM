@@ -6,6 +6,8 @@ export interface GoogleConfig {
   loginDomain: string;
   clientId: string;
   redirectUri: string;
+  /** Padrão: e-mail e leitura do próprio usuário (GET /me). */
+  scope?: string;
 }
 
 /** Guarda o verifier e o state entre a ida ao Google e a volta (sessionStorage no navegador). */
@@ -32,7 +34,7 @@ const base64url = (bytes: Uint8Array) =>
 const challenge = async (verifier: string) =>
   base64url(new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(verifier))));
 
-export const createGoogle = ({ loginDomain, clientId, redirectUri }: GoogleConfig, { fetchFn, store, random, now }: GoogleDeps) => {
+export const createGoogle = ({ loginDomain, clientId, redirectUri, scope = SCOPE }: GoogleConfig, { fetchFn, store, random, now }: GoogleDeps) => {
   const saved = (): { verifier: string; state: string } | null => {
     try { return JSON.parse(store.get() ?? 'null') as { verifier: string; state: string } | null; } catch { return null; }
   };
@@ -58,7 +60,7 @@ export const createGoogle = ({ loginDomain, clientId, redirectUri }: GoogleConfi
         response_type: 'code',
         client_id: clientId,
         redirect_uri: redirectUri,
-        scope: SCOPE,
+        scope,
         state,
         code_challenge: await challenge(verifier),
         code_challenge_method: 'S256',

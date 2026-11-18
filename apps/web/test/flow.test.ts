@@ -1,7 +1,7 @@
 import type { MeResponse } from '@tom/contracts';
 import { describe, expect, it } from 'vitest';
 import { createApi, OfflineError } from '../src/api.js';
-import type { Session } from '../src/auth/session.js';
+import type { Session } from '@tom/web-auth';
 import { isMinor, screenFor, toRegisterRequest } from '../src/flow.js';
 
 const failure = (error: string) => ({ ok: false as const, status: 400, error: { error, message: `msg ${error}` } });

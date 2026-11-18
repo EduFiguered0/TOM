@@ -6,7 +6,7 @@ const restrictImports = (patterns) => ({
 });
 
 export default tseslint.config(
-  { ignores: ['**/dist/**', '**/node_modules/**', '**/test/fixtures/**', 'tools/**', 'infra/cdk.out/**', 'apps/web/dist/**'] },
+  { ignores: ['**/dist/**', '**/node_modules/**', '**/test/fixtures/**', 'tools/**', 'infra/cdk.out/**', 'apps/web/dist/**', 'apps/landing/dist/**'] },
   eslint.configs.recommended,
   ...tseslint.configs.strictTypeChecked,
   {
@@ -40,10 +40,38 @@ export default tseslint.config(
     ]),
   },
   {
+    files: ['packages/landing-core/src/**'],
+    rules: restrictImports([{ regex: '^[^.]', message: 'landing-core não depende de nada: só imports relativos.' }]),
+  },
+  {
+    files: ['apps/landing-api/src/**'],
+    rules: restrictImports([{ group: ['@tom/*', '!@tom/landing-core'], message: 'landing-api só depende de landing-core (isolada do TOM).' }]),
+  },
+  {
     files: ['apps/uploader/src/**'],
     rules: restrictImports([
       { group: ['@tom/*', '!@tom/core', '!@tom/tom-reports', '!@tom/contracts'], message: 'uploader só depende de core, tom-reports e contracts.' },
     ]),
+  },
+  {
+    files: ['packages/web-auth/**/*.ts'],
+    languageOptions: {
+      parserOptions: { project: './packages/web-auth/tsconfig.json', tsconfigRootDir: import.meta.dirname },
+    },
+  },
+  {
+    files: ['packages/web-auth/src/**'],
+    rules: restrictImports([{ regex: '^[^.]', message: 'web-auth não depende de nada: só imports relativos.' }]),
+  },
+  {
+    files: ['apps/landing/**/*.{ts,tsx}'],
+    languageOptions: {
+      parserOptions: { project: './apps/landing/tsconfig.json', tsconfigRootDir: import.meta.dirname },
+    },
+  },
+  {
+    files: ['apps/landing/src/**'],
+    rules: restrictImports([{ group: ['@tom/*', '!@tom/landing-core', '!@tom/web-auth'], message: 'landing só depende de landing-core e web-auth (isolada do TOM).' }]),
   },
   {
     files: ['apps/web/**/*.{ts,tsx}'],
@@ -58,8 +86,8 @@ export default tseslint.config(
       'no-restricted-imports': ['error', {
         paths: [{ name: '@tom/uploader', message: 'No site, só o núcleo sem Node: @tom/uploader/core.' }],
         patterns: [{
-          regex: '^@tom/(?!contracts$|uploader$|uploader/core$)',
-          message: 'web só depende de contracts (fala com a API por HTTP) e do núcleo do enviador (@tom/uploader/core).',
+          regex: '^@tom/(?!contracts$|web-auth$|uploader$|uploader/core$)',
+          message: 'web só depende de contracts (fala com a API por HTTP), do login (@tom/web-auth) e do núcleo do enviador (@tom/uploader/core).',
         }],
       }],
     },

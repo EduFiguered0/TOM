@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { AuthError, createCognito } from '../src/auth/cognito.js';
-import { createSession, type Storage } from '../src/auth/session.js';
+import { AuthError, createCognito } from '../src/cognito.js';
+import { createSession, type Storage } from '../src/session.js';
 
 type Reply = { status?: number; body: Record<string, unknown> };
 

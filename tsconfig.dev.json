@@ -22,6 +22,8 @@
     "*.ts"
   ],
   "exclude": [
-    "apps/web"
+    "apps/web",
+    "packages/web-auth",
+    "apps/landing"
   ]
 }

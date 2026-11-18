@@ -1,6 +1,5 @@
 import { useState } from 'preact/hooks';
-import { AuthError, type Cognito, type Tokens } from '../auth/cognito.js';
-import type { Google } from '../auth/google.js';
+import { AuthError, type Cognito, type Google, type Tokens } from '@tom/web-auth';
 import { GoogleButton } from './google-button.js';
 import { bigPrimary, card, Feedback, input, label, muted, textButton, title } from '../ui.js';
 

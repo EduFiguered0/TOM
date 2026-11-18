@@ -27,7 +27,7 @@ import type {
   RegisterRequest,
   ReportDto,
 } from '@tom/contracts';
-import type { Session } from './auth/session.js';
+import type { Session } from '@tom/web-auth';
 
 export type ApiResult<T> = { ok: true; status: number; body: T } | { ok: false; status: number; error: ErrorResponse };
 

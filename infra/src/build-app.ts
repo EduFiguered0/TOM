@@ -3,6 +3,7 @@ import { AwsSolutionsChecks } from 'cdk-nag';
 import { ApiStack } from './api-stack.js';
 import { AuthStack } from './auth-stack.js';
 import { DataStack, snapshotsBucketName } from './data-stack.js';
+import { LandingStack } from './landing-stack.js';
 import { nameOf, type Stage } from './names.js';
 import { WebStack } from './web-stack.js';
 
@@ -11,6 +12,8 @@ export const REGION = 'us-east-2';
 
 /** O nome antigo (tom-pokemon-login) continua preso ao pool guardado. */
 const LOGIN_PREFIX = 'ggtcg-login';
+/** Servidor local da landing; o endereço do CloudFront entra por cdk.json (landingCallbackUrls). */
+const LANDING_DEV_URL = 'http://localhost:5174/';
 /** Site de produção e o servidor local de desenvolvimento. */
 const CALLBACK_URLS = ['https://dvaep2eni3fqm.cloudfront.net/', 'http://localhost:5173/'];
 
@@ -40,6 +43,11 @@ export const buildApp = (account: string | undefined, app = new App()) => {
   const web = new WebStack(app, 'TomWeb', {
     env, stage: 'prod', api: api.functionUrl, region: REGION, loginDomain: `https://${LOGIN_PREFIX}.auth.${REGION}.amazoncognito.com`,
   });
+  // Landing de ingressos da GoodGame: mesmo pool de login, cliente de app e recursos próprios (isolada do TOM).
+  const landingCallbackUrls = (app.node.tryGetContext('landingCallbackUrls') ?? [LANDING_DEV_URL]) as string[];
+  const landing = new LandingStack(app, stack('prod', 'gg-landing'), {
+    env, userPool: auth.userPool, loginDomain: `https://${LOGIN_PREFIX}.auth.${REGION}.amazoncognito.com`, callbackUrls: landingCallbackUrls,
+  });
   Validations.of(app).addPlugins(new AwsSolutionsChecks(app, { verbose: true }));
-  return { app, data, test, auth, authTest, api, apiTest, web };
+  return { app, data, test, auth, authTest, api, apiTest, web, landing };
 };
