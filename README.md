@@ -22,17 +22,23 @@ apps/
   api/           API HTTP
   web/           site: celular do jogador, TV do salão e área do organizador
   uploader/      enviador alternativo dos relatórios do TOM
+  landing/       landing de ingressos da GoodGame (módulo isolado do TOM)
+  landing-api/   API da landing
 packages/
   core/          domínio e casos de uso, sem dependências externas
   contracts/     formato e validação das mensagens entre site e API
   tom-reports/   leitura dos relatórios do TOM (camada anticorrupção)
   aws-adapters/  persistência implementando as portas do core
+  landing-core/  regras da landing: lead, origem, eventos e termos versionados
+  web-auth/      login no navegador (Cognito e Google), compartilhado pelos sites
 infra/           infraestrutura como código
 ```
 
 - **Regra de dependência:** `apps → adaptadores / contracts → core`. O `core` não importa nada de fora; o lint bloqueia violações.
 - **Rodadas em event sourcing:** cada reporte, ajuste e acréscimo é um evento gravado; o estado da mesa é a projeção deles, o que deixa a auditoria completa.
 - **Nuvem serverless:** paga só pelo uso, com custo projetado de centavos por mês para o porte de uma loja.
+
+A landing de ingressos está descrita em [`docs/landing-goodgame.md`](docs/landing-goodgame.md).
 
 Decisões de arquitetura em [`docs/adr`](docs/adr) e detalhes do produto em [`docs/spec-tom.md`](docs/spec-tom.md).
 
